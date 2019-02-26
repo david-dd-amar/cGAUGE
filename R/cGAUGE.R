@@ -134,7 +134,15 @@ EdgeSep<-function(GWAS_Ps,G_t,trait_pair_pvals,p1,p2,text_col_name="test3",pheno
   return(detected_cis_per_edge)
 }
 
-
+#' Go over all trait pairs and run MR
+#' 
+#' @param G_VT A binary matrix. The instruments-trait skeleton from which genetic variants are chosen. 
+#' @param sum_stats A numeric matrix. Rows are instruments, columns are phenotypes. Values are effect sizes.
+#' @param sum_stats_se A numeric matrix. Rows are instruments, columns are phenotypes. Values are effect size standard errors.
+#' @param pleio_size A number. The maximal number of phenotypes added per variant 
+#' @param pruned_lists A named list. Contains a set of pruned or clumped variants per phenotype. The variant names should fit the rownames in the matrices above.
+#' @param ... Additional parameters to run_single_mr_analysis.
+#' @return A matrix. A row for each analyzed pair. First elements are phenotype 1 (cause), phenotype 2. Then the MR results (depend on the MR method used). Last element is the number of variants of phenotype 1 that were used in the analysis.
 run_pairwise_mr_analyses<-function(G_VT,sum_stats,sum_stats_se,
                                    pleio_size=1, pruned_lists=NULL,...){
   trait_pairs_analysis = c()
@@ -159,8 +167,14 @@ run_pairwise_mr_analyses<-function(G_VT,sum_stats,sum_stats_se,
   return(trait_pairs_analysis)
 }
 
-run_pairwise_pval_combination_analyses<-function(G_VT,GWAS_Ps,pleio_size=1,
-                                                 pruned_lists=NULL,weights=NULL,maxp=0){
+#' Go over all trait pairs compute the proportion of non-null p-values.
+#'  
+#' @param G_VT A binary matrix. The instruments-trait skeleton from which genetic variants are chosen. 
+#' @param GWAS_Ps A matrix. Rows are variants and columns are phenotypes. Cells are P-values.
+#' @param pleio_size A number. The maximal number of phenotypes added per variant 
+#' @param pruned_lists A named list. Contains a set of pruned or clumped variants per phenotype. The variant names should fit the rownames in the matrices above.
+#' @return A matrix. A row for each analyzed pair. First elements are phenotype 1 (cause), phenotype 2. Then the estimated proportion and the number of variants of phenotype 1 that were used in the analysis.
+run_pairwise_pval_combination_analyses<-function(G_VT,GWAS_Ps,pleio_size=1,pruned_lists=NULL){
   trait_pairs_analysis = c()
   traits = colnames(G_VT)
   num_tests = 0
@@ -177,17 +191,7 @@ run_pairwise_pval_combination_analyses<-function(G_VT,GWAS_Ps,pleio_size=1,
       curr_ps = curr_ps[!is.na(curr_ps)]
       if(length(curr_ps)==0){next}
       curr_prop = 1-propTrueNull(curr_ps)
-      curr_res = curr_ps[1]
-      if(length(curr_ps)>1 && is.null(weights)){
-        curr_res = get_metap(curr_ps,method="sump")
-        if(curr_res < 0){
-          curr_res = get_metap(curr_ps,method="meanp")
-        }
-      }
-      if(length(curr_ps)>1 && !is.null(weights)){
-        curr_res = sumz(curr_ps,weights=weights[names(curr_ps)])$p[1,1]
-      }
-      trait_pairs_analysis = rbind(trait_pairs_analysis,c(tr1,tr2,curr_res,curr_prop,length(ivs)))
+      trait_pairs_analysis = rbind(trait_pairs_analysis,c(tr1,tr2,curr_prop,length(ivs)))
     }
   }
   return(trait_pairs_analysis)
