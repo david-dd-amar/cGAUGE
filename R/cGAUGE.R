@@ -198,22 +198,24 @@ run_pairwise_pval_combination_analyses<-function(G_VT,GWAS_Ps,pleio_size=1,prune
 }
 
 # For NonPleioMR we need two types of filters: one using analysis thresholds and one using skeleton Edges
-combine_mm_mr_analyses<-function(mm,mr,p_thr=0.01,p_h_thr=1e-4,pi1_thr=0.8,minIVs=10){
+combine_mm_mr_analyses<-function(mm,mr,p_thr=0.1,p_h_thr=0,pi1_thr=0.5,minIVs=5){
   names1 = paste(mm[,1],mm[,2],sep="->")
   names2 = paste(mr[,1],mr[,2],sep="->")
   rownames(mm) = names1;rownames(mr)=names2
   inds =intersect(names1,names2)
   mm=mm[inds,];mr=mr[inds,]
-  corrected_ps = p.adjust(as.numeric(as.character(mr[,3])))
+  # filters of the results
+  corrected_ps = p.adjust(as.numeric(as.character(mr[,3])),method="fdr")
   filter1 = corrected_ps <= p_thr
   pi1s = as.numeric(as.character(mm[,4]))
   filter2 = pi1s >= pi1_thr
   p_hs = p.adjust(as.numeric(as.character(mr[,4])))
   filter3 = p_hs >= p_h_thr
   filter4 = as.numeric(as.character(mr[,ncol(mr)])) >= minIVs
-  res_inds = filter2 | (filter1 & filter4 & filter3) 
+  res_inds = (filter2 & filter4) | (filter1 & filter4 & filter3)
   res_inds[is.na(res_inds)]=F
   res = cbind(mr[res_inds,c(1:3,5)],mm[res_inds,4:5])
+  colnames(res) = c("Cause","Effect","P","Est","Pi1","NumIVs")
   return(res)
 }
 
