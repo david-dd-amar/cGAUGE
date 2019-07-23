@@ -25,7 +25,7 @@
 # 5. genetic_CI_tests_results.RData - this file is large (11Gb) and contains the list of ALL conditional
 #   independence tests among 96 traits form the UK Biobank. We use this below by loading the whole list into
 #   the R session. This requires a fair amount of memory and should preferably used in a cluster.
-#       
+#     https://drive.google.com/file/d/10nJEydJ_FpcRYzzZYq1xEWk8qtSlQl1X/view?usp=sharing  
 
 setwd("~/Desktop/causal_inference_projects/ms2/data")
 
