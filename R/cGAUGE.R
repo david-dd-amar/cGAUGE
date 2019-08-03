@@ -174,7 +174,7 @@ run_pairwise_mr_analyses<-function(G_VT,sum_stats,sum_stats_se,
 #' @param pleio_size A number. The maximal number of phenotypes added per variant 
 #' @param pruned_lists A named list. Contains a set of pruned or clumped variants per phenotype. The variant names should fit the rownames in the matrices above.
 #' @return A matrix. A row for each analyzed pair. First elements are phenotype 1 (cause), phenotype 2. Then the estimated proportion and the number of variants of phenotype 1 that were used in the analysis.
-run_pairwise_pval_combination_analyses<-function(G_VT,GWAS_Ps,pleio_size=1,pruned_lists=NULL){
+run_pairwise_pval_combination_analyses<-function(G_VT,GWAS_Ps,pleio_size=1,pruned_lists=NULL,maxp=0.001){
   trait_pairs_analysis = c()
   traits = colnames(G_VT)
   num_tests = 0
@@ -214,7 +214,7 @@ combine_mm_mr_analyses<-function(mm,mr,p_thr=0.1,p_h_thr=0,pi1_thr=0.5,minIVs=5)
   filter4 = as.numeric(as.character(mr[,ncol(mr)])) >= minIVs
   res_inds = (filter2 & filter4) | (filter1 & filter4 & filter3)
   res_inds[is.na(res_inds)]=F
-  res = cbind(mr[res_inds,c(1:3,5)],mm[res_inds,4:5])
+  res = cbind(mr[res_inds,c(1:3,5)],mm[res_inds,3:4])
   colnames(res) = c("Cause","Effect","P","Est","Pi1","NumIVs")
   return(res)
 }
