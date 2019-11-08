@@ -99,17 +99,16 @@ EdgeSep<-function(GWAS_Ps,G_t,trait_pair_pvals,p1,p2,pruned_snp_lists = NULL,
   for(tr1 in colnames(GWAS_Ps)){
     for(tr2 in colnames(GWAS_Ps)){
       if(tr1==tr2){next}
-      tr1_ivs = rownames(GWAS_Ps)[GWAS_Ps[,tr1] <p1]
+      tr1_tr2_ivs = rownames(GWAS_Ps)[GWAS_Ps[,tr1]<p1 & GWAS_Ps[,tr2]<p1]
       if(!is.null(pruned_snp_lists)){
-        tr1_ivs = intersect(pruned_snp_lists[[tr1]],tr1_ivs)
+        tr1_tr2_ivs = intersect(pruned_snp_lists[[tr1]],tr1_tr2_ivs)
       }
       # Go over skeleton edges only
       if(is.na(G_t[tr1,tr2]) || G_t[tr1,tr2]==0){next}
       # Check which variants associated with both tr1 and tr2 lose the association with tr2
-      ps_with_tr2_cond_tr1 = trait_pair_pvals[[tr2]][[tr1]][tr1_ivs,text_col_name]
-      currN = sum(GWAS_Ps[tr1_ivs,tr1] < p1,na.rm = T)
-      curr_test_inds = GWAS_Ps[tr1_ivs,tr2] < p1 & 
-        GWAS_Ps[tr1_ivs,tr1] < p1 & ps_with_tr2_cond_tr1 > p2
+      ps_with_tr2_cond_tr1 = trait_pair_pvals[[tr2]][[tr1]][tr1_tr2_ivs,text_col_name]
+      currN = sum(GWAS_Ps[,tr1] < p1,na.rm = T)
+      curr_test_inds = ps_with_tr2_cond_tr1 > p2
       if(sum(curr_test_inds,na.rm = T)==0){next}
       if(!is.null(pheno_names)){
         currname = paste(tr1,"cause_of",tr2,pheno_names[tr1],
@@ -120,7 +119,7 @@ EdgeSep<-function(GWAS_Ps,G_t,trait_pair_pvals,p1,p2,pruned_snp_lists = NULL,
       }
       curr_test_inds = which(curr_test_inds)
       detected_cis_per_edge[[currname]] = list(num_tests = currN,
-                          variants=rownames(GWAS_Ps)[curr_test_inds])
+                          variants=tr1_tr2_ivs[curr_test_inds])
     }
   }
   # Filter out intersection between reverse edges
