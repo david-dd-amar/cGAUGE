@@ -23,7 +23,7 @@ extract_skeleton_G_VT<-function(GWAS_Ps,trait_pair_pvals,P1,P2){
   iv_trait_sepsets = list()
   for(i in 1:num_traits){
     tr1 = colnames(GWAS_Ps)[i]
-    print(paste("#####",tr1,icd2name[tr1]))
+    print(paste("#####",tr1))
     for(j in 1:num_traits){
       if(i==j){next}
       tr2 = colnames(GWAS_Ps)[j]
@@ -36,7 +36,8 @@ extract_skeleton_G_VT<-function(GWAS_Ps,trait_pair_pvals,P1,P2){
         curr_new_sep_snps = curr_sep_snps[G_VT[curr_sep_snps,tr1]]
         G_VT[curr_sep_snps,tr1] = F
         num_new_seps = length(curr_new_sep_snps)
-        if(num_new_seps>0){print(paste(num_new_seps, "new sepsets were found for tr2:",tr2,icd2name[tr2]))}
+        if(num_new_seps>0){print(paste(num_new_seps,
+               "new sepsets were found for tr2:",tr2))}
         curr_sepset = tr2
         if(num_new_seps > 0){
           if(is.null(iv_trait_sepsets[[tr1]])){iv_trait_sepsets[[tr1]] = list()}
@@ -92,26 +93,34 @@ DepEmerge<-function(GWAS_Ps,trait_pair_pvals,P1,P2,text_col_name="test3"){
 #' @param text_col_name a string. The column name to take for the pairwise p-value (i.e., from each element of trait_pair_pvals)
 #' @param pheno_names A named character vector. 
 #' @return A list with two matrices. In each matrix, each row has four elements: the snp id, trait1, trait2, p-value of trait 1, p-value of trait 2. The first matrix contains all emerging associations. The second matrix contains only the variants that have significant GWAS association with tr2 (at p1).
-EdgeSep<-function(GWAS_Ps,G_t,trait_pair_pvals,p1,p2,text_col_name="test3",pheno_names=NULL){
+EdgeSep<-function(GWAS_Ps,G_t,trait_pair_pvals,p1,p2,pruned_snp_lists = NULL,
+                  text_col_name="test3",pheno_names=NULL){
   detected_cis_per_edge = list()
   for(tr1 in colnames(GWAS_Ps)){
     for(tr2 in colnames(GWAS_Ps)){
       if(tr1==tr2){next}
+      tr1_ivs = rownames(GWAS_Ps)[GWAS_Ps[,tr1] <p1]
+      if(!is.null(pruned_snp_lists)){
+        tr1_ivs = intersect(pruned_snp_lists[[tr1]],tr1_ivs)
+      }
       # Go over skeleton edges only
       if(is.na(G_t[tr1,tr2]) || G_t[tr1,tr2]==0){next}
       # Check which variants associated with both tr1 and tr2 lose the association with tr2
-      ps_with_tr2_cond_tr1 = trait_pair_pvals[[tr2]][[tr1]][pruned_snp_list,text_col_name]
-      currN = sum(GWAS_Ps[,tr1] < p1,na.rm = T)
-      curr_test_inds = GWAS_Ps[,tr2] < p1 & GWAS_Ps[,tr1] < p1 & ps_with_tr2_cond_tr1 > p2
+      ps_with_tr2_cond_tr1 = trait_pair_pvals[[tr2]][[tr1]][tr1_ivs,text_col_name]
+      currN = sum(GWAS_Ps[tr1_ivs,tr1] < p1,na.rm = T)
+      curr_test_inds = GWAS_Ps[tr1_ivs,tr2] < p1 & 
+        GWAS_Ps[tr1_ivs,tr1] < p1 & ps_with_tr2_cond_tr1 > p2
       if(sum(curr_test_inds,na.rm = T)==0){next}
       if(!is.null(pheno_names)){
-        currname = paste(tr1,"cause_of",tr2,pheno_names[tr1],"cause_of",pheno_names[tr2],sep = ";")
+        currname = paste(tr1,"cause_of",tr2,pheno_names[tr1],
+                         "cause_of",pheno_names[tr2],sep = ";")
       }
       else{
         currname = paste(tr1,"cause_of",tr2,sep = ";")
       }
       curr_test_inds = which(curr_test_inds)
-      detected_cis_per_edge[[currname]] = list(num_tests = currN,variants=rownames(GWAS_Ps)[curr_test_inds])
+      detected_cis_per_edge[[currname]] = list(num_tests = currN,
+                          variants=rownames(GWAS_Ps)[curr_test_inds])
     }
   }
   # Filter out intersection between reverse edges
@@ -193,6 +202,11 @@ run_pairwise_pval_combination_analyses<-function(G_VT,GWAS_Ps,pleio_size=1,prune
       curr_prop = 1-propTrueNull(curr_ps)
       trait_pairs_analysis = rbind(trait_pairs_analysis,c(tr1,tr2,curr_prop,length(ivs)))
     }
+  }
+  colnames(trait_pairs_analysis) = c("Exposure","Outcome","p","p_het","est","Q","NumIVs")
+  trait_pairs_analysis = as.data.frame(trait_pairs_analysis)
+  for(j in 3:ncol(trait_pairs_analysis)){
+    trait_pairs_analysis[[j]] = as.numeric(as.character(trait_pairs_analysis[[j]]))
   }
   return(trait_pairs_analysis)
 }
