@@ -172,6 +172,11 @@ run_pairwise_mr_analyses<-function(G_VT,sum_stats,sum_stats_se,
       })
     }
   }
+  colnames(trait_pairs_analysis) = c("Exposure","Outcome","p","p_het","est","Q","NumIVs")
+  trait_pairs_analysis = as.data.frame(trait_pairs_analysis)
+  for(j in 3:ncol(trait_pairs_analysis)){
+    trait_pairs_analysis[[j]] = as.numeric(as.character(trait_pairs_analysis[[j]]))
+  }
   return(trait_pairs_analysis)
 }
 
@@ -201,11 +206,6 @@ run_pairwise_pval_combination_analyses<-function(G_VT,GWAS_Ps,pleio_size=1,prune
       curr_prop = 1-propTrueNull(curr_ps)
       trait_pairs_analysis = rbind(trait_pairs_analysis,c(tr1,tr2,curr_prop,length(ivs)))
     }
-  }
-  colnames(trait_pairs_analysis) = c("Exposure","Outcome","p","p_het","est","Q","NumIVs")
-  trait_pairs_analysis = as.data.frame(trait_pairs_analysis)
-  for(j in 3:ncol(trait_pairs_analysis)){
-    trait_pairs_analysis[[j]] = as.numeric(as.character(trait_pairs_analysis[[j]]))
   }
   return(trait_pairs_analysis)
 }
