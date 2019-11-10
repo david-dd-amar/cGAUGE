@@ -78,6 +78,7 @@ DepEmerge<-function(GWAS_Ps,trait_pair_pvals,P1,P2,text_col_name="test3"){
       }
     }
   }
+  colnames(iv_trait_pairs_that_become_dep) = c("Variant","Exposure","Outcome","PvalExposure","PvalOutcome")
   ps = as.numeric(iv_trait_pairs_that_become_dep[,5])
   newly_formed_sigs = iv_trait_pairs_that_become_dep[ps<p1,]
   return(list("all"=iv_trait_pairs_that_become_dep,"only_tr2_genetic_variants"=newly_formed_sigs))
@@ -122,17 +123,19 @@ EdgeSep<-function(GWAS_Ps,G_t,trait_pair_pvals,p1,p2,pruned_snp_lists = NULL,
                           variants=tr1_tr2_ivs[curr_test_inds])
     }
   }
+  
   # Filter out intersection between reverse edges
   rev_edge_intersection_bias_sign=list()
+  pairs_as_str = gsub(";cause_of;","",names(detected_cis_per_edge))
   for(nn in names(detected_cis_per_edge)){
     arr = strsplit(nn,split=";")[[1]]
-    arr2 = arr[c(3:1,6:4)]
-    e1 = paste(arr,collapse = ";")
-    e2 = paste(arr2,collapse = ";")
-    if(!is.element(e2,set=names(detected_cis_per_edge))){next}
+    curr_expo = arr[1];curr_out = arr[3]
+    rev_edge_ind = which(grepl(paste(curr_out,curr_expo,sep=""),pairs_as_str))
+    if(length(rev_edge_ind)<1){next}
+    e1 = nn
+    e2 = names(detected_cis_per_edge)[rev_edge_ind]
     g1 = detected_cis_per_edge[[e1]]$variants
     g2 = detected_cis_per_edge[[e2]]$variants
-    print(paste(e1,length(intersect(g1,g2))))
     if(length(intersect(g1,g2))>0){
       rev_edge_intersection_bias_sign[[paste(arr[1],arr[3],sep=";")]]
       detected_cis_per_edge[[e1]]$variants = setdiff(detected_cis_per_edge[[e1]],intersect(g1,g2))
@@ -242,7 +245,9 @@ clean_non_pleio_pairs<-function(res,G_t){
   return(non_pleio_res)
 }
 
+##############################################################
 # Helper functions for running MR using MendelianRandomization
+##############################################################
 run_single_mr_analysis<-function(snpset,tr1,tr2,X,Y,func=mr_egger,...){
   mr_in = mr_input(X[snpset,tr1],Y[snpset,tr1],X[snpset,tr2],Y[snpset,tr2])
   xx = func(mr_in,...)
