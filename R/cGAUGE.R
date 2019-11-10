@@ -78,10 +78,13 @@ DepEmerge<-function(GWAS_Ps,trait_pair_pvals,P1,P2,text_col_name="test3"){
       }
     }
   }
-  colnames(iv_trait_pairs_that_become_dep) = c("Variant","Exposure","Outcome","PvalExposure","PvalOutcome")
-  ps = as.numeric(iv_trait_pairs_that_become_dep[,5])
-  newly_formed_sigs = iv_trait_pairs_that_become_dep[ps<p1,]
-  return(list("all"=iv_trait_pairs_that_become_dep,"only_tr2_genetic_variants"=newly_formed_sigs))
+  if(!is.null(dim(iv_trait_pairs_that_become_dep))){
+    colnames(iv_trait_pairs_that_become_dep) = c("Variant","Exposure","Outcome","PvalExposure","PvalOutcome")
+    ps = as.numeric(iv_trait_pairs_that_become_dep[,5])
+    newly_formed_sigs = iv_trait_pairs_that_become_dep[ps<p1,]
+    return(list("all"=iv_trait_pairs_that_become_dep,"only_tr2_genetic_variants"=newly_formed_sigs))  
+  }
+  return(iv_trait_pairs_that_become_dep)
 }
 
 #' Get all cases of disappearing correlations (based on p1,p2)
@@ -179,10 +182,12 @@ run_pairwise_mr_analyses<-function(G_VT,sum_stats,sum_stats_se,
       })
     }
   }
-  colnames(trait_pairs_analysis) = c("Exposure","Outcome","p","p_het","est","Q","NumIVs")
-  trait_pairs_analysis = as.data.frame(trait_pairs_analysis)
-  for(j in 3:ncol(trait_pairs_analysis)){
-    trait_pairs_analysis[[j]] = as.numeric(as.character(trait_pairs_analysis[[j]]))
+  if(!is.null(dim(trait_pairs_analysis))){
+    colnames(trait_pairs_analysis) = c("Exposure","Outcome","p","p_het","est","Q","NumIVs")
+    trait_pairs_analysis = as.data.frame(trait_pairs_analysis)
+    for(j in 3:ncol(trait_pairs_analysis)){
+      trait_pairs_analysis[[j]] = as.numeric(as.character(trait_pairs_analysis[[j]]))
+    }
   }
   return(trait_pairs_analysis)
 }

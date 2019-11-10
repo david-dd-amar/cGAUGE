@@ -3,7 +3,7 @@
 ###################################################################################
 ### Helper functions to run the simulations
 
-get_sh_prefix<-function(err="",log="",time="1:00:00"){
+get_sh_prefix<-function(err="",log="",time="0:20:00"){
   return(
     c(
       "#!/bin/bash",
@@ -13,6 +13,8 @@ get_sh_prefix<-function(err="",log="",time="1:00:00"){
       "#SBATCH --nodes=1",
       "#SBATCH --cpus-per-task=1",
       "#SBATCH --mem=2000",
+      # "#SBATCH -x sh-113-15",
+      "#SBATCH --gpus-per-task=0",
       paste("#SBATCH --error",err),
       paste("#SBATCH --out",log),
       "",
@@ -33,41 +35,55 @@ exec_cmd_on_sherlock<-function(cmd,jobname,out_path){
   curr_sh_file = paste(out_path,jobname,".sh",sep="")
   sh_prefix = get_sh_prefix(err_path,log_path)
   print_sh_file(curr_sh_file,sh_prefix,curr_cmd)
-  system(paste("sbatch -x sh-113-15 ",curr_sh_file,'&'))
+  system(paste("sbatch",curr_sh_file,'&'))
 }
 
 ###################################################################################
-reps = 1
+reps = 50
 WD = "/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/simulations/"
+MAX_JOBS = 500
 
 tested_p1 = c(1e-02,1e-03,1e-04,1e-05)
 tested_p2 = c(0.001,0.01,0.1)
 tested_pleio_levels = c(0,0.1,0.2,0.3,0.4,0.5)
-tested_degrees = c(0.5,1,1.5,2)
+tested_degrees = c(1,1.5,2,2.5,3)
 
 for(p1 in tested_p1){
+  print(paste("p1",p1))
   for(p2 in tested_p2){
+    print(paste("p2",p2))
     for(pleio_p in tested_pleio_levels){
+      print(paste("pleio_p",pleio_p))
       for(deg in tested_degrees){
+        print(paste("deg",deg))
         curr_folder = paste(WD,"deg",deg,"_pleio",pleio_p,"_p1",p1,"_p2",p2,"/",sep="")
-        system(paste(mkdir,curr_folder))
+        system(paste("mkdir",curr_folder))
+        
+        # check current jobs and wait if there are too much
+        # job_state = system2("squeue",args = list("-u davidama | wc"),stdout=TRUE)
+        job_state = system2("sacct",args = list("| grep PEND | wc"),stdout=TRUE)
+        num_curr_waiting_jobs = as.numeric(strsplit(job_state,split="\\s+",perl = T)[[1]][2])
+        while(num_curr_waiting_jobs > MAX_JOBS){Sys.sleep(100)}
+        
         for(i in 1:reps){
+          
+          curr_out_file = paste(curr_folder,"sim_rep",i,".RData",sep="")
+          if(file.exists(curr_out_file)){next}
           cmd = paste(
             "~/repos/cGAUGE/R/full_causal_graph_simulations.R",
             "--deg",deg,
             "--probPleio",pleio_p,
             "--p1",p1,
             "--p2",p2,
-            "--out",paste(curr_folder,"sim_rep",i,".RData",sep="")
+            "--out",curr_out_file
           )
+          print(i)
           exec_cmd_on_sherlock(cmd,jobname = paste("sim_rep",i,sep=""),out_path = curr_folder)
+          
         }
-        
       }
     }
-    break
   }
-  break
 }
 
 
