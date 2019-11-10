@@ -130,7 +130,11 @@ EdgeSep<-function(GWAS_Ps,G_t,trait_pair_pvals,p1,p2,pruned_snp_lists = NULL,
   for(nn in names(detected_cis_per_edge)){
     arr = strsplit(nn,split=";")[[1]]
     curr_expo = arr[1];curr_out = arr[3]
-    rev_edge_ind = which(grepl(paste(curr_out,curr_expo,sep=""),pairs_as_str))
+    rev_edge_regex = paste(curr_out,curr_expo,"$",sep="")
+    if(!is.null(pheno_names)){
+      rev_edge_regex = paste(curr_out,curr_expo,";",sep="")
+    }
+    rev_edge_ind = which(grepl(rev_edge_regex,pairs_as_str))
     if(length(rev_edge_ind)<1){next}
     e1 = nn
     e2 = names(detected_cis_per_edge)[rev_edge_ind]

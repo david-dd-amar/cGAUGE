@@ -1,4 +1,5 @@
 ###################################################################################
+
 # Set the session
 required_libs = c("igraph","bnlearn","MRPRESSO",
                   "optparse","limma","MendelianRandomization")
@@ -7,9 +8,12 @@ for (lib_name in required_libs){
   tryCatch({library(lib_name,character.only = T);success=T}, 
            error = function(e) {})
   if(success){next}
-  tryCatch({library(lib_name,character.only = T,lib.loc = "~/R/packages")}, 
+  tryCatch({library(lib_name,character.only = T,lib.loc = "~/R/packages");success=T}, 
+           error = function(e) {})
+  if(success){next}
+  tryCatch({library(lib_name,character.only = T,lib.loc = "~/R/packages3.5")},
            error = function(e) {
-    print(paste("Cannot load",lib_name,", please install"))
+             print(paste("Cannot load",lib_name,", please install"))
   })
 }
 # Add the cGAUGE functions and auxiliary functions for MR
