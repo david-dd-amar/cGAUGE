@@ -396,7 +396,7 @@ for(tr1 in phenos){
   for(tr2 in phenos){
     if(tr1==tr2){next}
     curr_lcv = exec_lcv_on_pair(GWAS_Zs[,tr1],GWAS_Zs[,tr2],N=N)
-    curr_p = pnorm(abs(curr_lcv$zscore),lower.tail = F)
+    curr_p = pnorm(curr_lcv$zscore,lower.tail = F)
     lcv_res = rbind(lcv_res,
                     c(tr1,tr2,curr_lcv[[1]],curr_p,curr_lcv$gcp.pm,curr_lcv$gcp.pse,
                       curr_lcv$rho.est,curr_lcv$rho.err))
