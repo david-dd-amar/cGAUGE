@@ -3,15 +3,9 @@
 # Set the session
 required_libs = c("igraph","bnlearn","MRPRESSO",
                   "optparse","limma","MendelianRandomization")
+lib_loc = "~/R/packages3.5"
 for (lib_name in required_libs){
-  success = F
-  tryCatch({library(lib_name,character.only = T);success=T}, 
-           error = function(e) {})
-  if(success){next}
-  tryCatch({library(lib_name,character.only = T,lib.loc = "~/R/packages");success=T}, 
-           error = function(e) {})
-  if(success){next}
-  tryCatch({library(lib_name,character.only = T,lib.loc = "~/R/packages3.5")},
+  tryCatch({library(lib_name,character.only = T,lib.loc = lib_loc)},
            error = function(e) {
              print(paste("Cannot load",lib_name,", please install"))
   })
