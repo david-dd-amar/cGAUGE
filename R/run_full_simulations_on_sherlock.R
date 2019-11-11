@@ -90,7 +90,30 @@ for(p1 in tested_p1){
   }
 }
 
+##############################################################################################
+# Go over the results
 
+for(p1 in tested_p1){
+  print(paste("p1",p1))
+  for(p2 in tested_p2){
+    print(paste("p2",p2))
+    for(pleio_p in tested_pleio_levels){
+      print(paste("pleio_p",pleio_p))
+      for(deg in tested_degrees){
+        print(paste("deg",deg))
+        curr_folder = paste(WD,"deg",deg,"_pleio",pleio_p,"_p1",p1,"_p2",p2,"/",sep="")
+        curr_files = list.files(curr_folder)
+        curr_files = curr_files[grepl("RData$",curr_files)]
+        print(length(curr_files))
+        if(length(curr_files)<reps){
+          print("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$")
+          print(curr_folder)
+          print("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$")
+        }
+      }
+    }
+  }
+}
 
 
 

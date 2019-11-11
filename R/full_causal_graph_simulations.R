@@ -503,11 +503,17 @@ cgauge_mr_anal_res = list(
                                    pleio_size=1,pruned_lists=NULL,func=mr_ivw,robust=T)
 )
 # Add the known distances
-cgauge_egger_res = add_distances(cgauge_mr_anal_res$Egger,B_distances)
-cgauge_ivw_res = add_distances(cgauge_mr_anal_res$IVW,B_distances)
-# Add the nonpleio property
-cgauge_egger_res = add_distances(cgauge_egger_res,1-G_t,newcolname = "PleioProperty")
-cgauge_ivw_res = add_distances(cgauge_ivw_res,1-G_t,"PleioProperty")
+cgauge_egger_res = cgauge_mr_anal_res$Egger
+if(!is.null(dim(cgauge_mr_anal_res$Egger))){
+  cgauge_egger_res = add_distances(cgauge_mr_anal_res$Egger,B_distances)
+  cgauge_egger_res = add_distances(cgauge_egger_res,1-G_t,newcolname = "PleioProperty")
+}
+
+cgauge_ivw_res = cgauge_mr_anal_res$IVW
+if(!is.null(dim(cgauge_mr_anal_res$IVW))){
+  cgauge_ivw_res = add_distances(cgauge_ivw_res,B_distances)
+  cgauge_ivw_res = add_distances(cgauge_ivw_res,1-G_t,newcolname = "PleioProperty")
+}
 
 print("Done with Egger and IVW, adding MRPRESSO")
 cgauge_mrpresso_res = c()
