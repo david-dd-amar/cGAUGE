@@ -40,7 +40,7 @@ exec_cmd_on_sherlock<-function(cmd,jobname,out_path){
 
 ###################################################################################
 reps = 50
-WD = "/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/simulations/"
+WD = "/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/simulations_v2/"
 MAX_JOBS = 500
 
 tested_p1 = c(1e-02,1e-03,1e-04,1e-05)
@@ -52,6 +52,7 @@ for(p1 in tested_p1){
   print(paste("p1",p1))
   for(p2 in tested_p2){
     print(paste("p2",p2))
+    if(p2<p1){next}
     for(pleio_p in tested_pleio_levels){
       print(paste("pleio_p",pleio_p))
       for(deg in tested_degrees){
@@ -92,10 +93,14 @@ for(p1 in tested_p1){
 
 ##############################################################################################
 # Go over the results
+FDR = 0.1
 
+all_sim_results_errs = c()
+all_sim_results_preds = c()
 for(p1 in tested_p1){
   print(paste("p1",p1))
   for(p2 in tested_p2){
+    if(p2<p1){next}
     print(paste("p2",p2))
     for(pleio_p in tested_pleio_levels){
       print(paste("pleio_p",pleio_p))
@@ -110,11 +115,68 @@ for(p1 in tested_p1){
           print(curr_folder)
           print("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$")
         }
+        
+        # Measure how many of the "-1"'s are marked as TRUE - obvious errors
+        method2false_discoveries = c()
+        method2num_discoveries = c()
+        for(curr_out_file in curr_files){
+          curr_out_file = paste(curr_folder,curr_out_file,sep="")
+          load(curr_out_file)
+          
+          num_not_causal = standard_mr_results$Egger$KnownDistance==-1
+          errs = c();preds = c();edgesep_res = c()
+          egger_qs = p.adjust(standard_mr_results$Egger$p)
+          errs["egger"] = sum(egger_qs < FDR & 
+                   standard_mr_results$Egger$KnownDistance==-1,na.rm = T)
+          preds["egger"] = sum(egger_qs < FDR,na.rm = T)
+          ivw_qs = p.adjust(standard_mr_results$IVW$p)
+          errs["ivw"] = sum(ivw_qs < FDR & standard_mr_results$IVW$KnownDistance==-1,na.rm = T)
+          preds["ivw"] = sum(ivw_qs < FDR,na.rm = T)
+          presso_q = p.adjust(standard_mr_results$MRPRESSO$`P-value`)
+          errs["mrpresso"] = sum(presso_q < FDR & standard_mr_results$MRPRESSO$KnownDistance==-1,na.rm = T)
+          preds["mrpresso"] = sum(presso_q < FDR,na.rm = T)
+          lcv_q = p.adjust(standard_mr_results$LCV$P)
+          errs["lcv"] = sum(lcv_q < FDR & standard_mr_results$LCV$KnownDistance==-1,na.rm = T)
+          preds["lcv"] = sum(lcv_q < FDR,na.rm = T)
+          
+          egger_qs = p.adjust(cgauge_mr_results$Egger$p)
+          errs["c-egger"] = sum(egger_qs < FDR & cgauge_mr_results$Egger$KnownDistance==-1
+                                & cgauge_mr_results$PleioProperty,na.rm = T)
+          preds["c-egger"] = sum(egger_qs < FDR,na.rm = T)
+          ivw_qs = p.adjust(cgauge_mr_results$IVW$p)
+          errs["c-ivw"] = sum(ivw_qs < FDR & cgauge_mr_results$IVW$KnownDistance==-1,na.rm = T)
+          preds["c-ivw"] = sum(ivw_qs < FDR,na.rm = T)
+          presso_q = p.adjust(cgauge_mr_results$MRPRESSO$`P-value`)
+          errs["c-mrpresso"] = sum(presso_q < FDR & cgauge_mr_results$MRPRESSO$KnownDistance==-1,na.rm = T)
+          preds["c-mrpresso"] = sum(presso_q < FDR,na.rm = T)
+          method2false_discoveries = rbind(method2false_discoveries,errs)
+          method2num_discoveries = rbind(method2num_discoveries,preds)
+          
+          
+        }
+        method2num_discoveries = as.data.frame(method2num_discoveries)
+        method2false_discoveries = as.data.frame(method2false_discoveries)
+        
+        method2false_discoveries$p1 = p1
+        method2false_discoveries$p2 = p2
+        method2false_discoveries$prob_pleio = pleio_p
+        method2false_discoveries$deg = deg
+        
+        method2num_discoveries$p1 = p1
+        method2num_discoveries$p2 = p2
+        method2num_discoveries$prob_pleio = pleio_p
+        method2num_discoveries$deg = deg
+        
+        all_sim_results_errs = rbind(all_sim_results_errs,method2false_discoveries)
+        all_sim_results_preds = rbind(all_sim_results_preds,method2num_discoveries)
       }
     }
   }
 }
-
+aggregate(all_sim_results_errs[,1:7],
+          by=list(p1=all_sim_results_errs$p1,p2=all_sim_results_errs$p2,
+                  deg = all_sim_results_errs$deg,prob_pleio = all_sim_results_errs$prob_pleio),
+          FUN=mean)
 
 
 

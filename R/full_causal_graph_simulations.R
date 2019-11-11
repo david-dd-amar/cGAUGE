@@ -4,7 +4,7 @@
 required_libs = c("igraph","bnlearn","MRPRESSO",
                   "optparse","limma","MendelianRandomization")
 lib_loc = "~/R/packages3.5"
-# lib_loc = .libPaths()
+lib_loc = .libPaths()
 for (lib_name in required_libs){
   tryCatch({library(lib_name,character.only = T,lib.loc = lib_loc)},
            error = function(e) {
@@ -25,7 +25,7 @@ print("Completed loading libraries and code")
 option_list <- list( 
   make_option(c("--N"), action="store", default=2000,type="integer",
               help="Sample size for simulated data"),
-  make_option(c("--p"), action="store", default=10,type="integer",
+  make_option(c("--p"), action="store", default=15,type="integer",
               help="Number of phenotypes"),
   make_option(c("--deg"), action="store", default=1,type="double",
               help="Expected in/out degree in the causal graph, greater values mean more cycles"),
@@ -33,13 +33,15 @@ option_list <- list(
               help="Min absolue value for causal effects (beta coefficients)"),
   make_option(c("--maxBeta"), action="store", default=1,type="double",
               help="Max absolue value for causal effects (beta coefficients)"),
-  make_option(c("--p_iv"), action="store", default=10,type="integer",
-              help="Number of instruments per trait"),
+  make_option(c("--minIVs"), action="store", default=10,type="integer",
+              help="Min number of instruments per trait"),
+  make_option(c("--maxIVs"), action="store", default=20,type="integer",
+              help="Max number of instruments per trait"),
   make_option(c( "--minPleio"), action="store", default=3,type="integer",
               help="When applying pleiotropy, this is the min number of IV-trait links to add (at random)"),
   make_option(c( "--maxPleio"), action="store", default=10,type="integer",
               help="When applying pleiotropy, this is the max number of IV-trait links to add (at random)"),
-  make_option(c( "--probPleio"), action="store", default=0,type="double",
+  make_option(c( "--probPleio"), action="store", default=0.25,type="double",
               help="Probability that a variant is pleiotropic"),
   make_option(c( "--minMAF"), action="store", default=0.05,type="double",
               help="Minimal MAF - these are sampled with U(minMAF,maxMAF)"),
@@ -63,7 +65,8 @@ p = opt$p
 deg = opt$deg
 minBeta = opt$minBeta
 maxBeta = opt$maxBeta
-p_iv = opt$p_iv
+minIVs = opt$minIVs
+maxIVs = opt$maxIVs
 pleio_levelMin = opt$minPleio
 pleio_levelMax=opt$maxPleio
 prob_pleio = opt$probPleio
@@ -277,7 +280,8 @@ print("Adding instruments")
 # sample variants per phenotype
 for(i in 1:p){
   # add IVs
-  for(j in 1:p_iv){
+  curr_num_ivs = round(runif(1,min = minIVs,max=maxIVs))
+  for(j in 1:curr_num_ivs){
     v = rep(0,nrow(B))
     edgesign = (-1)^rbinom(1,1,0.5)
     edgeval = runif(1,minBeta,maxBeta)
@@ -347,10 +351,10 @@ print("Done, computing associations and summary statistics")
 # Create the input for cGAUGE and MR
 df = data.frame(simulated_data)
 # Get all IV-phenotype associations
-GWAS_Ps = matrix(1,p_iv*p,p,dimnames = list(ivs,phenos))
-GWAS_effects = matrix(0,p_iv*p,p,dimnames = list(ivs,phenos))
-GWAS_ses = matrix(0,p_iv*p,p,dimnames = list(ivs,phenos))
-GWAS_Zs = matrix(0,p_iv*p,p,dimnames = list(ivs,phenos))
+GWAS_Ps = matrix(1,num_ivs,p,dimnames = list(ivs,phenos))
+GWAS_effects = matrix(0,num_ivs,p,dimnames = list(ivs,phenos))
+GWAS_ses = matrix(0,num_ivs,p,dimnames = list(ivs,phenos))
+GWAS_Zs = matrix(0,num_ivs,p,dimnames = list(ivs,phenos))
 for(pheno in phenos){
   print(pheno)
   gwas_res = sapply(ivs,run_lm,x=pheno,z=NULL,df = df)
@@ -447,7 +451,7 @@ print("Starting the cGAUGE CI analysis")
 # Skeleton learning
 # G_t
 print("Computing the trait skeleton matrix")
-p_thr = 0.2
+p_thr = 0.1
 skeleton_pmax = matrix(-1,p,p,dimnames=list(phenos,phenos))
 for(tr1 in phenos){
   for(tr2 in phenos){
