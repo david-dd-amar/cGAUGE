@@ -12,6 +12,7 @@ for (lib_name in required_libs){
 }
 # Add the cGAUGE functions and auxiliary functions for MR
 source("https://raw.githubusercontent.com/david-dd-amar/cGAUGE/master/R/cGAUGE.R")
+print("Completed loading libraries and code")
 
 ###################################################################################
 # Simulation parameters
@@ -70,6 +71,8 @@ maxMAF = opt$maxMAF
 p1 = opt$p1
 p2 = opt$p2
 outfile = opt$out
+
+print("Completed parsing input parameters, starting the simulation")
 
 ###################################################################################
 # Useful functions for the analysis below
@@ -256,12 +259,20 @@ for(i in 1:p){
 Bg = igraph::graph_from_adjacency_matrix(t(abs(B)>0)[1:p,1:p])
 # plot(igraph::simplify(Bg))
 # is.dag(Bg)
+print("Completed creating the traits graph")
+print("In-degrees:")
+print(rowSums(B))
+print("Out-degrees:")
+print(colSums(B))
+print("Is DAG?")
+print(is_dag(Bg))
 
 # Compute distances in B, among phenotypes
 B_distances = igraph_directed_distances(Bg)
 # sanity check - edges mean distance==1
 # all((B_distances==1) == (abs(B)>0))
 
+print("Adding instruments")
 # sample variants per phenotype
 for(i in 1:p){
   # add IVs
@@ -295,6 +306,9 @@ colnames(B)[(p+1):ncol(B)] = ivs
 rownames(B) = colnames(B)
 colnames(B_distances) = phenos
 rownames(B_distances) = phenos
+print("Done, out-degrees of instruments:")
+print(colSums(B[,ivs]))
+print("Simulating the dataset using the graph")
 
 # Simulate MAFs
 mafs = runif(num_ivs,minMAF,maxMAF)
@@ -326,6 +340,7 @@ for(s in 1:N){
   simulated_data = rbind(simulated_data,v)
 }
 colnames(simulated_data) = colnames(B)
+print("Done, computing associations and summary statistics")
 
 ###################################################################################
 # Create the input for cGAUGE and MR
@@ -343,13 +358,11 @@ for(pheno in phenos){
   GWAS_ses[,pheno] = gwas_res[2,]
   GWAS_Zs[,pheno] = gwas_res[3,]
 }
-# pred = GWAS_Ps < 0.01
-# real = abs(t(B[phenos,ivs]))>0
-# table(c(pred))
-# table(c(pred),c(real))
 
 G_it = GWAS_Ps < p1
-colSums(G_it)
+print("Done, number of associations with p<p1 per instrument:")
+print(colSums(G_it))
+print("Running standard MR analysis")
 # Run MR
 # pleio size is set to 100 - no filtering of variants (a standard MR analysis)
 mr_anal_res = list(
@@ -359,66 +372,80 @@ mr_anal_res = list(
                                    pleio_size=100,pruned_lists=NULL,func=mr_ivw,robust=T)
 )
 # Add MRPRESSO
+print("Done with Egger and IVW, running MRPRESSO")
 mrpresso_res = c()
-for(tr1 in phenos){
-  currivs = rownames(GWAS_Ps)[G_it[,tr1]]
-  for(tr2 in phenos){
-    if(tr1==tr2){next}
-    X = data.frame(E1b=GWAS_effects[currivs,tr1],O1b=GWAS_effects[currivs,tr2],
-                   E1sd=GWAS_ses[currivs,tr1],O1sd=GWAS_ses[currivs,tr2])
-    try({
-      res = mr_presso(BetaOutcome = "O1b", BetaExposure = "E1b", 
-                      SdOutcome = "O1sd", SdExposure = "E1sd",data=X,
-                      OUTLIERtest=T,
-                      DISTORTIONtest = T,
-                      NbDistribution = 100,SignifThreshold = 0.1)
-      if(is.na(res$`Main MR results`[2,"P-value"])){
-        mrpresso_res = rbind(mrpresso_res,
-                             c(tr1,tr2,unlist(res$`Main MR results`[1,])))
-      }
-      else{
-        mrpresso_res = rbind(mrpresso_res,
-                             c(tr1,tr2,unlist(res$`Main MR results`[2,])))
-      }
-    })
+try({
+  for(tr1 in phenos){
+    currivs = rownames(GWAS_Ps)[G_it[,tr1]]
+    for(tr2 in phenos){
+      if(tr1==tr2){next}
+      X = data.frame(E1b=GWAS_effects[currivs,tr1],O1b=GWAS_effects[currivs,tr2],
+                     E1sd=GWAS_ses[currivs,tr1],O1sd=GWAS_ses[currivs,tr2])
+      try({
+        res = mr_presso(BetaOutcome = "O1b", BetaExposure = "E1b", 
+                        SdOutcome = "O1sd", SdExposure = "E1sd",data=X,
+                        OUTLIERtest=T,
+                        DISTORTIONtest = T,
+                        NbDistribution = 100,SignifThreshold = 0.1)
+        if(is.na(res$`Main MR results`[2,"P-value"])){
+          mrpresso_res = rbind(mrpresso_res,
+                               c(tr1,tr2,unlist(res$`Main MR results`[1,])))
+        }
+        else{
+          mrpresso_res = rbind(mrpresso_res,
+                               c(tr1,tr2,unlist(res$`Main MR results`[2,])))
+        }
+      })
+    }
   }
-}
-mrpresso_res = as.data.frame(mrpresso_res)
-for(j in 3:ncol(mrpresso_res)){
-  mrpresso_res[[j]] = as.numeric(as.character(mrpresso_res[[j]]))
-}
+  if(!is.null(dim(mrpresso_res))){
+    mrpresso_res = as.data.frame(mrpresso_res)
+    for(j in 3:ncol(mrpresso_res)){
+      mrpresso_res[[j]] = as.numeric(as.character(mrpresso_res[[j]]))
+    }  
+  }
+})
 
-# Add LCV
+print("Done, adding LCV")
 lcv_res = c()
-for(tr1 in phenos){
-  for(tr2 in phenos){
-    if(tr1==tr2){next}
-    curr_lcv = exec_lcv_on_pair(GWAS_Zs[,tr1],GWAS_Zs[,tr2],N=N)
-    curr_p = pnorm(curr_lcv$zscore,lower.tail = F)
-    lcv_res = rbind(lcv_res,
-                    c(tr1,tr2,curr_lcv[[1]],curr_p,curr_lcv$gcp.pm,curr_lcv$gcp.pse,
-                      curr_lcv$rho.est,curr_lcv$rho.err))
+try({
+  # Add LCV
+  for(tr1 in phenos){
+    for(tr2 in phenos){
+      if(tr1==tr2){next}
+      curr_lcv = exec_lcv_on_pair(GWAS_Zs[,tr1],GWAS_Zs[,tr2],N=N)
+      curr_p = pnorm(curr_lcv$zscore,lower.tail = F)
+      lcv_res = rbind(lcv_res,
+                      c(tr1,tr2,curr_lcv[[1]],curr_p,curr_lcv$gcp.pm,curr_lcv$gcp.pse,
+                        curr_lcv$rho.est,curr_lcv$rho.err))
+    }
   }
-}
-colnames(lcv_res) = c("Trait1","Trait2","Z","P","gcp","gcpse","rho","rhose")
-lcv_res = as.data.frame(lcv_res)
-for(j in 3:ncol(lcv_res)){
-  lcv_res[[j]] = as.numeric(as.character(lcv_res[[j]]))
-}
+  colnames(lcv_res) = c("Trait1","Trait2","Z","P","gcp","gcpse","rho","rhose")
+  if(!is.null(dim(lcv_res))){
+    lcv_res = as.data.frame(lcv_res)
+    for(j in 3:ncol(lcv_res)){
+      lcv_res[[j]] = as.numeric(as.character(lcv_res[[j]]))
+    }
+  }
+})
+print("Done with LCV")
 
+print("Adding the known trait distances to the MR data frames:")
 # Save the MR results in a list
 standard_mr_results = list()
-standard_mr_results[["Egger"]] = add_distances(mr_anal_res$Egger,B_distances)
-standard_mr_results[["IVW"]] = add_distances(mr_anal_res$IVW,B_distances)
-standard_mr_results[["MRPRESSO"]] = add_distances(mrpresso_res,B_distances)
-standard_mr_results[["LCV"]] = add_distances(lcv_res,B_distances)
+try(standard_mr_results[["Egger"]] = add_distances(mr_anal_res$Egger,B_distances))
+try(standard_mr_results[["IVW"]] = add_distances(mr_anal_res$IVW,B_distances))
+try(standard_mr_results[["MRPRESSO"]] = add_distances(mrpresso_res,B_distances))
+try(standard_mr_results[["LCV"]] = add_distances(lcv_res,B_distances))
 
 ###########################
 # cGAUGE starts here:
 ###########################
 
+print("Starting the cGAUGE CI analysis")
 # Skeleton learning
 # G_t
+print("Computing the trait skeleton matrix")
 p_thr = 0.2
 skeleton_pmax = matrix(-1,p,p,dimnames=list(phenos,phenos))
 for(tr1 in phenos){
@@ -448,8 +475,11 @@ for(tr1 in phenos){
   }
 }
 G_t = skeleton_pmax < p1
+print("Done, node degrees:")
+print(colSums(G_t))
 
 # G_vt
+print("Computing all instrument vs trait pair CI tests:")
 trait_pair_pvals = list()
 for(pheno1 in phenos){
   trait_pair_pvals[[pheno1]] = list()
@@ -461,8 +491,7 @@ for(pheno1 in phenos){
 }
 G_vt = extract_skeleton_G_VT(GWAS_Ps,trait_pair_pvals,P1=p1,P2=p2)[[1]]
 real_G_vt = abs(t(B[phenos,ivs])>0)
-table(c(real_G_vt))
-table(c(real_G_vt),c(G_vt))
+print("Done, rerunning MR")
 
 # Rerun the MR
 # Pleio size is set to 1, to satisfy the conditions of Theorem 3.1
@@ -472,81 +501,81 @@ cgauge_mr_anal_res = list(
   "IVW" = run_pairwise_mr_analyses(G_vt,GWAS_effects,GWAS_ses,
                                    pleio_size=1,pruned_lists=NULL,func=mr_ivw,robust=T)
 )
-# Add MRPRESSO
-cgauge_mrpresso_res = c()
-for(tr1 in phenos){
-  currivs = rownames(GWAS_Ps)[G_vt[,tr1]]
-  currivs = currivs[rowSums(G_vt[currivs,])==1]
-  if(length(currivs)<1){next}
-  for(tr2 in phenos){
-    if(tr1==tr2){next}
-    X = data.frame(E1b=GWAS_effects[currivs,tr1],O1b=GWAS_effects[currivs,tr2],
-                   E1sd=GWAS_ses[currivs,tr1],O1sd=GWAS_ses[currivs,tr2])
-    try({
-      res = mr_presso(BetaOutcome = "O1b", BetaExposure = "E1b", 
-                      SdOutcome = "O1sd", SdExposure = "E1sd",data=X,
-                      OUTLIERtest=T,
-                      DISTORTIONtest = T,
-                      NbDistribution = 100,SignifThreshold = 0.1)
-      if(is.na(res$`Main MR results`[2,"P-value"])){
-        cgauge_mrpresso_res = rbind(cgauge_mrpresso_res,
-                             c(tr1,tr2,unlist(res$`Main MR results`[1,])))
-      }
-      else{
-        cgauge_mrpresso_res = rbind(cgauge_mrpresso_res,
-                             c(tr1,tr2,unlist(res$`Main MR results`[2,])))
-      }
-    })
-  }
-}
-cgauge_mrpresso_res = as.data.frame(cgauge_mrpresso_res)
-for(j in 3:ncol(cgauge_mrpresso_res)){
-  cgauge_mrpresso_res[[j]] = as.numeric(as.character(cgauge_mrpresso_res[[j]]))
-}
-
-cgauge_mr_results = list()
 # Add the known distances
 cgauge_egger_res = add_distances(cgauge_mr_anal_res$Egger,B_distances)
 cgauge_ivw_res = add_distances(cgauge_mr_anal_res$IVW,B_distances)
-cgauge_mrpresso_res = add_distances(cgauge_mrpresso_res,B_distances)
 # Add the nonpleio property
 cgauge_egger_res = add_distances(cgauge_egger_res,1-G_t,newcolname = "PleioProperty")
 cgauge_ivw_res = add_distances(cgauge_ivw_res,1-G_t,"PleioProperty")
-cgauge_mrpresso_res = add_distances(cgauge_mrpresso_res,1-G_t,"PleioProperty")
-cgauge_mr_results[["Egger"]] = cgauge_egger_res
-cgauge_mr_results[["IVW"]] = cgauge_ivw_res
-cgauge_mr_results[["MRPRESSO"]] = cgauge_mrpresso_res
 
-# # NonPleio
-# boxplot(-log10(cgauge_egger_res$p) ~
-#           cgauge_egger_res$PleioProperty:cgauge_egger_res$KnownDistance,
-#         las=2)
-# boxplot(-log10(cgauge_ivw_res$p) ~
-#           cgauge_ivw_res$PleioProperty:cgauge_ivw_res$KnownDistance,
-#         las=2)
-# boxplot(-log10(cgauge_mrpresso_res$`P-value`) ~ 
-#           cgauge_mrpresso_res$PleioProperty:cgauge_mrpresso_res$KnownDistance,
-#           las=2)
+print("Done with Egger and IVW, adding MRPRESSO")
+cgauge_mrpresso_res = c()
+try({
+  # Add MRPRESSO
+  for(tr1 in phenos){
+    currivs = rownames(GWAS_Ps)[G_vt[,tr1]]
+    currivs = currivs[rowSums(G_vt[currivs,])==1]
+    if(length(currivs)<1){next}
+    for(tr2 in phenos){
+      if(tr1==tr2){next}
+      X = data.frame(E1b=GWAS_effects[currivs,tr1],O1b=GWAS_effects[currivs,tr2],
+                     E1sd=GWAS_ses[currivs,tr1],O1sd=GWAS_ses[currivs,tr2])
+      try({
+        res = mr_presso(BetaOutcome = "O1b", BetaExposure = "E1b", 
+                        SdOutcome = "O1sd", SdExposure = "E1sd",data=X,
+                        OUTLIERtest=T,
+                        DISTORTIONtest = T,
+                        NbDistribution = 100,SignifThreshold = 0.1)
+        if(is.na(res$`Main MR results`[2,"P-value"])){
+          cgauge_mrpresso_res = rbind(cgauge_mrpresso_res,
+                                      c(tr1,tr2,unlist(res$`Main MR results`[1,])))
+        }
+        else{
+          cgauge_mrpresso_res = rbind(cgauge_mrpresso_res,
+                                      c(tr1,tr2,unlist(res$`Main MR results`[2,])))
+        }
+      })
+    }
+  }
+  if(!is.null(dim(cgauge_mrpresso_res))){
+    cgauge_mrpresso_res = as.data.frame(cgauge_mrpresso_res)
+    for(j in 3:ncol(cgauge_mrpresso_res)){
+      cgauge_mrpresso_res[[j]] = as.numeric(as.character(cgauge_mrpresso_res[[j]]))
+    }
+  }
+  # Add distances and the nonpleio property
+  cgauge_mrpresso_res = add_distances(cgauge_mrpresso_res,B_distances)
+  cgauge_mrpresso_res = add_distances(cgauge_mrpresso_res,1-G_t,"PleioProperty")
+  
+})
+
+cgauge_mr_results = list()
+try(cgauge_mr_results[["Egger"]] = cgauge_egger_res)
+try(cgauge_mr_results[["IVW"]] = cgauge_ivw_res)
+try(cgauge_mr_results[["MRPRESSO"]] = cgauge_mrpresso_res)
 
 # EdgeSep
-edge_sep_res = EdgeSep(GWAS_Ps,G_t,trait_pair_pvals,p1=p1,p2=p2,
-                       text_col_name=1,pheno_names=NULL)
-# Bg = igraph::graph_from_adjacency_matrix(t(abs(B)>0)[1:p,1:p])
-# plot(igraph::simplify(Bg))
-
+print("Done, running the skeletong edge separation analysis")
 edge_sep_results = c()
-for(nn in names(edge_sep_res)){
-  arr = strsplit(nn,split=";")[[1]][c(1,3)]
-  arr = c(arr,length(edge_sep_res[[nn]]$variants),
-          edge_sep_res[[nn]]$num_tests,B_distances[arr[2],arr[1]])
-  names(arr) = c("Exposure","Outcome","num_edgesep",
-                 "num_exposure_variants","real_distance")
-  edge_sep_results = rbind(edge_sep_results,arr)
-}
-edge_sep_results = as.data.frame(edge_sep_results)
-for(j in 3:ncol(edge_sep_results)){
-  edge_sep_results[[j]] = as.numeric(as.character(edge_sep_results[[j]]))
-}
+try({
+  edge_sep_res = EdgeSep(GWAS_Ps,G_t,trait_pair_pvals,p1=p1,p2=p2,
+                         text_col_name=1,pheno_names=NULL)
+  for(nn in names(edge_sep_res)){
+    arr = strsplit(nn,split=";")[[1]][c(1,3)]
+    arr = c(arr,length(edge_sep_res[[nn]]$variants),
+            edge_sep_res[[nn]]$num_tests,B_distances[arr[2],arr[1]])
+    names(arr) = c("Exposure","Outcome","num_edgesep",
+                   "num_exposure_variants","real_distance")
+    edge_sep_results = rbind(edge_sep_results,arr)
+  }
+  if(!is.null(dim(edge_sep_results))){
+    edge_sep_results = as.data.frame(edge_sep_results)
+    for(j in 3:ncol(edge_sep_results)){
+      edge_sep_results[[j]] = as.numeric(as.character(edge_sep_results[[j]]))
+    }
+  }
+})
+
 
 #############################################################################
 # Save the results in an RData file
@@ -555,6 +584,7 @@ save(
   B,Bg,simulated_data,B_distances, # simulated data
   cgauge_mr_results,standard_mr_results, # MR results
   edge_sep_results, # EdgeSep
+  G_it,G_vt,G_t, # Skeletons
   file = outfile
 )
 

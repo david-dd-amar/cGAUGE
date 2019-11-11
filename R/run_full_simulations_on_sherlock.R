@@ -63,7 +63,11 @@ for(p1 in tested_p1){
         # job_state = system2("squeue",args = list("-u davidama | wc"),stdout=TRUE)
         job_state = system2("sacct",args = list("| grep PEND | wc"),stdout=TRUE)
         num_curr_waiting_jobs = as.numeric(strsplit(job_state,split="\\s+",perl = T)[[1]][2])
-        while(num_curr_waiting_jobs > MAX_JOBS){Sys.sleep(100)}
+        while(num_curr_waiting_jobs > MAX_JOBS){
+          Sys.sleep(5)
+          job_state = system2("sacct",args = list("| grep PEND | wc"),stdout=TRUE)
+          num_curr_waiting_jobs = as.numeric(strsplit(job_state,split="\\s+",perl = T)[[1]][2])
+        }
         
         for(i in 1:reps){
           
