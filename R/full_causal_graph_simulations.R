@@ -4,6 +4,7 @@
 required_libs = c("igraph","bnlearn","MRPRESSO",
                   "optparse","limma","MendelianRandomization")
 lib_loc = "~/R/packages3.5"
+# lib_loc = .libPaths()
 for (lib_name in required_libs){
   tryCatch({library(lib_name,character.only = T,lib.loc = lib_loc)},
            error = function(e) {
@@ -261,9 +262,9 @@ Bg = igraph::graph_from_adjacency_matrix(t(abs(B)>0)[1:p,1:p])
 # is.dag(Bg)
 print("Completed creating the traits graph")
 print("In-degrees:")
-print(rowSums(B))
+print(rowSums(abs(B)>0))
 print("Out-degrees:")
-print(colSums(B))
+print(colSums(abs(B)>0))
 print("Is DAG?")
 print(is_dag(Bg))
 
@@ -307,7 +308,7 @@ rownames(B) = colnames(B)
 colnames(B_distances) = phenos
 rownames(B_distances) = phenos
 print("Done, out-degrees of instruments:")
-print(colSums(B[,ivs]))
+print(colSums(abs(B[,ivs])>0))
 print("Simulating the dataset using the graph")
 
 # Simulate MAFs
@@ -433,10 +434,10 @@ print("Done with LCV")
 print("Adding the known trait distances to the MR data frames:")
 # Save the MR results in a list
 standard_mr_results = list()
-try(standard_mr_results[["Egger"]] = add_distances(mr_anal_res$Egger,B_distances))
-try(standard_mr_results[["IVW"]] = add_distances(mr_anal_res$IVW,B_distances))
-try(standard_mr_results[["MRPRESSO"]] = add_distances(mrpresso_res,B_distances))
-try(standard_mr_results[["LCV"]] = add_distances(lcv_res,B_distances))
+try({standard_mr_results[["Egger"]] = add_distances(mr_anal_res$Egger,B_distances)})
+try({standard_mr_results[["IVW"]] = add_distances(mr_anal_res$IVW,B_distances)})
+try({standard_mr_results[["MRPRESSO"]] = add_distances(mrpresso_res,B_distances)})
+try({standard_mr_results[["LCV"]] = add_distances(lcv_res,B_distances)})
 
 ###########################
 # cGAUGE starts here:
@@ -550,9 +551,9 @@ try({
 })
 
 cgauge_mr_results = list()
-try(cgauge_mr_results[["Egger"]] = cgauge_egger_res)
-try(cgauge_mr_results[["IVW"]] = cgauge_ivw_res)
-try(cgauge_mr_results[["MRPRESSO"]] = cgauge_mrpresso_res)
+try({cgauge_mr_results[["Egger"]] = cgauge_egger_res})
+try({cgauge_mr_results[["IVW"]] = cgauge_ivw_res})
+try({cgauge_mr_results[["MRPRESSO"]] = cgauge_mrpresso_res})
 
 # EdgeSep
 print("Done, running the skeletong edge separation analysis")
