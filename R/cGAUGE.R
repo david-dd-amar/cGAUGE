@@ -167,7 +167,7 @@ EdgeSepTest<-function(GWAS_Ps,G_t,trait_pair_pvals,p1,pruned_snp_lists = NULL,
   edge_sep_tests = c()
   for(tr1 in colnames(GWAS_Ps)){
     for(tr2 in colnames(GWAS_Ps)){
-      if(tr1==tr2){next}
+      if(tr1==tr2){break}
       tr1_tr2_ivs = rownames(GWAS_Ps)[GWAS_Ps[,tr1]<p1 & GWAS_Ps[,tr2]<p1]
       if(!is.null(pruned_snp_lists)){
         tr1_tr2_ivs = intersect(pruned_snp_lists[[tr1]],tr1_tr2_ivs)

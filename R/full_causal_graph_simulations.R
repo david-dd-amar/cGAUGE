@@ -451,7 +451,7 @@ print("Starting the cGAUGE CI analysis")
 # Skeleton learning
 # G_t
 print("Computing the trait skeleton matrix")
-p_thr = 0.1
+p_thr = p1
 skeleton_pmax = matrix(-1,p,p,dimnames=list(phenos,phenos))
 sepsets = list()
 for(tr1 in phenos){
@@ -489,7 +489,8 @@ for(tr1 in phenos){
         currp = run_lm(tr1,tr2,c(tr3,tr4),simulated_data)[4]
         skeleton_pmax[tr1,tr2] = max(skeleton_pmax[tr1,tr2],currp)
         if(currp > p1){
-          sepsets[[tr1]][[tr2]][[paste(tr1,tr2,sep=";")]] = list(p=currp,sep=c(tr4,tr3))
+          sepsets[[tr1]][[tr2]][[paste(tr1,tr2,sep=";")]] = 
+            list(p=currp,sep=c(tr4,tr3))
         }
       }
     }
@@ -533,7 +534,8 @@ for(tr1 in phenos){
   iv_sets[[tr1]] = list()
   for(tr2 in phenos){
     iv_sets[[tr1]][[tr2]] = rownames(GWAS_Ps)[GWAS_Ps[,tr1]<p1]
-    currseps = merged_sepsets[[tr1]][[tr2]]
+    currseps = c(merged_sepsets[[tr1]][[tr2]],tr2)
+    print(length(currseps))
     for(sep in currseps){
       curr_sep_ivs = rownames(G_vt)[G_vt[,sep]]
       iv_sets[[tr1]][[tr2]] = setdiff(iv_sets[[tr1]][[tr2]],curr_sep_ivs)
@@ -649,35 +651,35 @@ save(
 
 
 #############################################################################
-# # explore the results (commented out, but can be used locally)
-# is_causal<-function(dists){
-#   return(dists>0 & dists < 4)
-# }
-# pthr = 0.01
-# par(mfrow=c(1,2))
-# xx = standard_mr_results$MRPRESSO
-# boxplot(-log10(xx$`P-value`)~xx$KnownDistance,main="MRPRESSO",las=2)
-# table(xx$`P-value` < 0.01 & !is_causal(xx$KnownDistance))
-# xx = cgauge_mr_results$MRPRESSO
-# boxplot(-log10(xx$`P-value`)~xx$KnownDistance,main="MRPRESSO + cGAUGE",las=2)
-# table(xx$`P-value` < 0.01 & !is_causal(xx$KnownDistance))
-# 
-# par(mfrow=c(1,2))
-# xx = standard_mr_results$Egger
-# boxplot(-log10(xx$p)~xx$KnownDistance,main="Egger",las=2)
-# sum(xx$p < pthr & !is_causal(xx$KnownDistance))/sum(xx$p < pthr)
-# xx = cgauge_mr_results$Egger
-# boxplot(-log10(xx$p)~xx$KnownDistance,main="Egger+cGAUGE", las=2)
-# sum(xx$p < pthr & !is_causal(xx$KnownDistance))/sum(xx$p < pthr)
-# 
-# par(mfrow=c(1,2))
-# xx = standard_mr_results$IVW
-# boxplot(-log10(xx$p)~xx$KnownDistance,main="IVW",las=2)
-# sum(xx$p < pthr & !is_causal(xx$KnownDistance))/sum(xx$p < pthr)
-# xx = cgauge_mr_results$IVW
-# boxplot(-log10(xx$p)~xx$KnownDistance,main="IVW+cGAUGE", las=2)
-# sum(xx$p < pthr & !is_causal(xx$KnownDistance))/sum(xx$p < pthr)
-# 
-# edge_sep_results[p.adjust(edge_sep_results[,3])<0.1,]
-# boxplot(-log10(edge_sep_results$`pval:trait1->trait2`)~edge_sep_results$KnownDistance)
+# explore the results (commented out, but can be used locally)
+is_causal<-function(dists){
+  return(dists>0 )
+}
+pthr = 0.001
+par(mfrow=c(1,2))
+xx = standard_mr_results$MRPRESSO
+boxplot(-log10(xx$`P-value`)~xx$KnownDistance,main="MRPRESSO",las=2)
+sum(xx$`P-value` < pthr & !is_causal(xx$KnownDistance))/sum(xx$`P-value` < pthr)
+xx = cgauge_mr_results$MRPRESSO
+boxplot(-log10(xx$`P-value`)~xx$KnownDistance,main="MRPRESSO + cGAUGE",las=2)
+sum(xx$`P-value` < pthr & !is_causal(xx$KnownDistance))/sum(xx$`P-value` < pthr)
+
+par(mfrow=c(1,2))
+xx = standard_mr_results$Egger
+boxplot(-log10(xx$p)~xx$KnownDistance,main="Egger",las=2)
+sum(xx$p < pthr & !is_causal(xx$KnownDistance),na.rm = T)/sum(xx$p < pthr,na.rm = T)
+xx = cgauge_mr_results$Egger
+boxplot(-log10(xx$p)~xx$KnownDistance,main="Egger+cGAUGE", las=2)
+sum(xx$p < pthr & !is_causal(xx$KnownDistance),na.rm = T)/sum(xx$p < pthr,na.rm = T)
+
+par(mfrow=c(1,2))
+xx = standard_mr_results$IVW
+boxplot(-log10(xx$p)~xx$KnownDistance,main="IVW",las=2)
+sum(xx$p < pthr & !is_causal(xx$KnownDistance),na.rm = T)/sum(xx$p < pthr,na.rm = T)
+xx = cgauge_mr_results$IVW
+boxplot(-log10(xx$p)~xx$KnownDistance,main="IVW+cGAUGE", las=2)
+sum(xx$p < pthr & !is_causal(xx$KnownDistance),na.rm = T)/sum(xx$p < pthr,na.rm = T)
+
+edge_sep_results[p.adjust(edge_sep_results[,3])<0.1,]
+boxplot(-log10(edge_sep_results$`pval:trait1->trait2`)~edge_sep_results$KnownDistance)
 

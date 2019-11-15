@@ -39,7 +39,7 @@ exec_cmd_on_sherlock<-function(cmd,jobname,out_path){
 }
 
 ###################################################################################
-reps = 30
+reps = 20
 WD = "/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/simulations_v2/"
 MAX_JOBS = 500
 
@@ -50,9 +50,11 @@ tested_degrees = c(1,1.5,2,2.5,3)
 
 for(p1 in tested_p1){
   print(paste("p1",p1))
-  for(p2 in tested_p2){
+  for(p2_f in tested_p2_factors){
+    p2 = p1*p2_f
     print(paste("p2",p2))
-    if(p2<p1){next}
+    if(p2 < p1){next}
+    if(p2 > 0.1){next}
     for(pleio_p in tested_pleio_levels){
       print(paste("pleio_p",pleio_p))
       for(deg in tested_degrees){
