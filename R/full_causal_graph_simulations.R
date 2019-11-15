@@ -4,7 +4,7 @@
 required_libs = c("igraph","bnlearn","MRPRESSO",
                   "optparse","limma","MendelianRandomization")
 lib_loc = "~/R/packages3.5"
-lib_loc = .libPaths()
+# lib_loc = .libPaths()
 for (lib_name in required_libs){
   tryCatch({library(lib_name,character.only = T,lib.loc = lib_loc)},
            error = function(e) {
