@@ -27,7 +27,7 @@ option_list <- list(
               help="Sample size for simulated data"),
   make_option(c("--p"), action="store", default=15,type="integer",
               help="Number of phenotypes"),
-  make_option(c("--deg"), action="store", default=1,type="double",
+  make_option(c("--deg"), action="store", default=2,type="double",
               help="Expected in/out degree in the causal graph, greater values mean more cycles"),
   make_option(c("--minBeta"), action="store", default=0.1,type="double",
               help="Min absolue value for causal effects (beta coefficients)"),
@@ -453,35 +453,65 @@ print("Starting the cGAUGE CI analysis")
 print("Computing the trait skeleton matrix")
 p_thr = 0.1
 skeleton_pmax = matrix(-1,p,p,dimnames=list(phenos,phenos))
+sepsets = list()
+for(tr1 in phenos){
+  sepsets[[tr1]] = list()
+  for(tr2 in phenos){
+    sepsets[[tr1]][[tr2]] = list()
+  }
+}
+# Go over singletons
 for(tr1 in phenos){
   for(tr2 in phenos){
-    if(tr1==tr2){next}
+    if(tr1==tr2){break}
     skeleton_pmax[tr1,tr2] = run_lm(tr1,tr2,NULL,simulated_data)[4]
     if(skeleton_pmax[tr1,tr2]>p_thr){next}
     # go over singletons
     for(tr3 in phenos){
       if (tr3 %in% c(tr1,tr2)){next}
-      skeleton_pmax[tr1,tr2] = max(skeleton_pmax[tr1,tr2],
-                  run_lm(tr1,tr2,tr3,simulated_data)[4])
-      if(skeleton_pmax[tr1,tr2]>p_thr){break}
+      currp = run_lm(tr1,tr2,tr3,simulated_data)[4]
+      skeleton_pmax[tr1,tr2] = max(skeleton_pmax[tr1,tr2],currp)
+      if(currp > p1){sepsets[[tr1]][[tr2]][[tr3]] = list(p=currp,sep=tr3)}
     }
+    sepsets[[tr2]][[tr1]] = sepsets[[tr1]][[tr2]]
+    skeleton_pmax[tr2,tr1] = skeleton_pmax[tr1,tr2]
+  }
+}
+# Go over pairs
+for(tr1 in phenos){
+  for(tr2 in phenos){
+    if(tr1==tr2){break}
     if(skeleton_pmax[tr1,tr2]>p_thr){next}
     for(tr3 in phenos){
       if (tr3 %in% c(tr1,tr2)){next}
       for(tr4 in phenos){
         if (tr4 %in% c(tr1,tr2,tr3)){next}
-        skeleton_pmax[tr1,tr2] = max(skeleton_pmax[tr1,tr2],
-                                     run_lm(tr1,tr2,c(tr3,tr4),simulated_data)[4])
-        if(skeleton_pmax[tr1,tr2]>p_thr){break}
+        currp = run_lm(tr1,tr2,c(tr3,tr4),simulated_data)[4]
+        skeleton_pmax[tr1,tr2] = max(skeleton_pmax[tr1,tr2],currp)
+        if(currp > p1){
+          sepsets[[tr1]][[tr2]][[paste(tr1,tr2,sep=";")]] = list(p=currp,sep=c(tr4,tr3))
+        }
       }
-      if(skeleton_pmax[tr1,tr2]>p_thr){break}
     }
-    if(skeleton_pmax[tr1,tr2]>p_thr){next}
+    sepsets[[tr2]][[tr1]] = sepsets[[tr1]][[tr2]]
+    skeleton_pmax[tr2,tr1] = skeleton_pmax[tr1,tr2]
   }
 }
 G_t = skeleton_pmax < p1
 print("Done, node degrees:")
 print(colSums(G_t))
+
+# Merge the sepsets
+merged_sepsets = list()
+for(tr1 in phenos){
+  merged_sepsets[[tr1]] = list()
+  for(tr2 in phenos){
+    l = sepsets[[tr1]][[tr2]]
+    if(length(l)==0){next}
+    l = l[sapply(l,function(x)x$p)>p1]
+    merged_sepsets[[tr1]][[tr2]] = unique(unlist(sapply(l,function(x)x$sep)))
+  }
+}
 
 # G_vt
 print("Computing all instrument vs trait pair CI tests:")
@@ -496,15 +526,30 @@ for(pheno1 in phenos){
 }
 G_vt = extract_skeleton_G_VT(GWAS_Ps,trait_pair_pvals,P1=p1,P2=p2)[[1]]
 real_G_vt = abs(t(B[phenos,ivs])>0)
-print("Done, rerunning MR")
+
+# Get new instrument sets after the cGAUGE filter
+iv_sets = list()
+for(tr1 in phenos){
+  iv_sets[[tr1]] = list()
+  for(tr2 in phenos){
+    iv_sets[[tr1]][[tr2]] = rownames(GWAS_Ps)[GWAS_Ps[,tr1]<p1]
+    currseps = merged_sepsets[[tr1]][[tr2]]
+    for(sep in currseps){
+      curr_sep_ivs = rownames(G_vt)[G_vt[,sep]]
+      iv_sets[[tr1]][[tr2]] = setdiff(iv_sets[[tr1]][[tr2]],curr_sep_ivs)
+    }
+    print(paste("before:",sum(G_it[,tr1]),"after:",length(iv_sets[[tr1]][[tr2]])))
+  }
+}
 
 # Rerun the MR
+print("Done, rerunning MR")
 # Pleio size is set to 1, to satisfy the conditions of Theorem 3.1
 cgauge_mr_anal_res = list(
-  "Egger" = run_pairwise_mr_analyses(G_vt,GWAS_effects,GWAS_ses,
-                                     pleio_size=1,pruned_lists=NULL,func=mr_egger,robust=T),
-  "IVW" = run_pairwise_mr_analyses(G_vt,GWAS_effects,GWAS_ses,
-                                   pleio_size=1,pruned_lists=NULL,func=mr_ivw,robust=T)
+  "Egger" = run_pairwise_mr_analyses_with_iv_sets(GWAS_effects,GWAS_ses,iv_sets,
+                                     func=mr_egger,robust=T),
+  "IVW" = run_pairwise_mr_analyses_with_iv_sets(GWAS_effects,GWAS_ses,iv_sets,
+                                   func=mr_ivw,robust=T)
 )
 # Add the known distances
 cgauge_egger_res = cgauge_mr_anal_res$Egger
@@ -524,11 +569,10 @@ cgauge_mrpresso_res = c()
 try({
   # Add MRPRESSO
   for(tr1 in phenos){
-    currivs = rownames(GWAS_Ps)[G_vt[,tr1]]
-    currivs = currivs[rowSums(G_vt[currivs,])==1]
-    if(length(currivs)<1){next}
     for(tr2 in phenos){
       if(tr1==tr2){next}
+      currivs = iv_sets[[tr1]][[tr2]]
+      if(length(currivs)<1){next}
       X = data.frame(E1b=GWAS_effects[currivs,tr1],O1b=GWAS_effects[currivs,tr2],
                      E1sd=GWAS_ses[currivs,tr1],O1sd=GWAS_ses[currivs,tr2])
       try({
@@ -569,6 +613,7 @@ try({cgauge_mr_results[["MRPRESSO"]] = cgauge_mrpresso_res})
 print("Done, running the skeletong edge separation analysis")
 edge_sep_results = c()
 try({
+  # dummy_g_t = matrix(1,ncol(G_t),nrow(G_t),dimnames=dimnames(G_t))
   edge_sep_res = EdgeSep(GWAS_Ps,G_t,trait_pair_pvals,p1=p1,p2=p2,
                          text_col_name=1,pheno_names=NULL)
   for(nn in names(edge_sep_res)){
@@ -595,8 +640,49 @@ save(
   B,Bg,simulated_data,B_distances, # simulated data
   cgauge_mr_results,standard_mr_results, # MR results
   edge_sep_results, # EdgeSep
-  G_it,G_vt,G_t, # Skeletons
+  G_it,G_vt,G_t, iv_sets, # Skeletons
   file = outfile
 )
 
 
+#############################################################################
+# explore the results (commented out, but can be used locally)
+is_causal<-function(dists){
+  return(dists>0 & dists < 4)
+}
+par(mfrow=c(1,2))
+xx = standard_mr_results$MRPRESSO
+boxplot(-log10(xx$`P-value`)~xx$KnownDistance,main="MRPRESSO",las=2)
+table(xx$`P-value` < 0.01 & !is_causal(xx$KnownDistance))
+xx = cgauge_mr_results$MRPRESSO
+boxplot(-log10(xx$`P-value`)~xx$KnownDistance,main="MRPRESSO + cGAUGE",las=2)
+table(xx$`P-value` < 0.01 & !is_causal(xx$KnownDistance))
+
+par(mfrow=c(1,2))
+xx = standard_mr_results$Egger
+boxplot(-log10(xx$p)~xx$KnownDistance,main="Egger",las=2)
+table(xx$p < 0.01 & !is_causal(xx$KnownDistance))
+xx = cgauge_mr_results$Egger
+boxplot(-log10(xx$p)~xx$KnownDistance,main="Egger+cGAUGE", las=2)
+table(xx$p < 0.01 & !is_causal(xx$KnownDistance))
+
+par(mfrow=c(1,2))
+xx = standard_mr_results$IVW
+boxplot(-log10(xx$p)~xx$KnownDistance,main="Egger",las=2)
+table(xx$p < 0.01 & !is_causal(xx$KnownDistance))
+xx = cgauge_mr_results$IVW
+boxplot(-log10(xx$p)~xx$KnownDistance,main="Egger+cGAUGE", las=2)
+table(xx$p < 0.01 & !is_causal(xx$KnownDistance) )
+
+boxplot(edge_sep_results$num_edgesep~edge_sep_results$real_distance)
+for(j in 1:2){
+  edge_sep_results[[j]] = as.character(edge_sep_results[[j]])
+}
+
+pred_Bg = igraph::graph_from_edgelist(
+  as.matrix(edge_sep_results[edge_sep_results[,3]>3,1:2]),directed = T)
+plot(simplify(pred_Bg))
+plot(Bg)
+pred_distances = igraph_directed_distances(pred_Bg)
+table(c(pred_distances==-1),
+      c(B_distances[colnames(pred_distances),colnames(pred_distances)]==-1))

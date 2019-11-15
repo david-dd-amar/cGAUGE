@@ -162,7 +162,7 @@ EdgeSep<-function(GWAS_Ps,G_t,trait_pair_pvals,p1,p2,pruned_snp_lists = NULL,
 #' @param ... Additional parameters to run_single_mr_analysis.
 #' @return A matrix. A row for each analyzed pair. First elements are phenotype 1 (cause), phenotype 2. Then the MR results (depend on the MR method used). Last element is the number of variants of phenotype 1 that were used in the analysis.
 run_pairwise_mr_analyses<-function(G_VT,sum_stats,sum_stats_se,
-                                   pleio_size=1, pruned_lists=NULL,...){
+                                   pleio_size=1, minIVs = 5,pruned_lists=NULL,...){
   trait_pairs_analysis = c()
   traits = colnames(G_VT)
   num_tests = 0
@@ -173,9 +173,45 @@ run_pairwise_mr_analyses<-function(G_VT,sum_stats,sum_stats_se,
     ivs[is.na(ivs)]=F
     ivs = rownames(G_VT)[ivs]
     if(!is.null(pruned_lists)){ivs = intersect(ivs,pruned_lists[[tr1]])}
-    if(length(ivs)<3){next}
+    if(length(ivs)<minIVs){next}
     for(tr2 in traits){
       if(tr1==tr2){next}
+      try({ # required as some MR methods may fail
+        curr_mr_res = run_single_mr_analysis(ivs,tr1,tr2,sum_stats,sum_stats_se,...);
+        trait_pairs_analysis = rbind(trait_pairs_analysis,c(tr1,tr2,curr_mr_res,length(ivs)))        
+      })
+    }
+  }
+  if(!is.null(dim(trait_pairs_analysis))){
+    colnames(trait_pairs_analysis) = c("Exposure","Outcome","p","p_het","est","Q","NumIVs")
+    trait_pairs_analysis = as.data.frame(trait_pairs_analysis)
+    for(j in 3:ncol(trait_pairs_analysis)){
+      trait_pairs_analysis[[j]] = as.numeric(as.character(trait_pairs_analysis[[j]]))
+    }
+  }
+  return(trait_pairs_analysis)
+}
+
+
+#' Go over all trait pairs and run MR using cGAUGE's instrument sets
+#' 
+#' @param G_VT A binary matrix. The instruments-trait skeleton from which genetic variants are chosen. 
+#' @param sum_stats A numeric matrix. Rows are instruments, columns are phenotypes. Values are effect sizes.
+#' @param sum_stats_se A numeric matrix. Rows are instruments, columns are phenotypes. Values are effect size standard errors.
+#' @param pleio_size A number. The maximal number of phenotypes added per variant 
+#' @param pruned_lists A named list. Contains a set of pruned or clumped variants per phenotype. The variant names should fit the rownames in the matrices above.
+#' @param ... Additional parameters to run_single_mr_analysis.
+#' @return A matrix. A row for each analyzed pair. First elements are phenotype 1 (cause), phenotype 2. Then the MR results (depend on the MR method used). Last element is the number of variants of phenotype 1 that were used in the analysis.
+run_pairwise_mr_analyses_with_iv_sets<-function(sum_stats,sum_stats_se,iv_sets,
+                                                minIVs = 5,...){
+  trait_pairs_analysis = c()
+  traits = colnames(sum_stats)
+  num_tests = 0
+  for(tr1 in traits){
+    for(tr2 in traits){
+      if(tr1==tr2){next}
+      ivs = iv_sets[[tr1]][[tr2]]
+      if(length(ivs)<minIVs){next}
       try({ # required as some MR methods may fail
         curr_mr_res = run_single_mr_analysis(ivs,tr1,tr2,sum_stats,sum_stats_se,...);
         trait_pairs_analysis = rbind(trait_pairs_analysis,c(tr1,tr2,curr_mr_res,length(ivs)))        
