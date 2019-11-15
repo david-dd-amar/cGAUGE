@@ -4,7 +4,7 @@
 required_libs = c("igraph","bnlearn","MRPRESSO",
                   "optparse","limma","MendelianRandomization")
 lib_loc = "~/R/packages3.5"
-# lib_loc = .libPaths()
+lib_loc = .libPaths()
 for (lib_name in required_libs){
   tryCatch({library(lib_name,character.only = T,lib.loc = lib_loc)},
            error = function(e) {
@@ -572,7 +572,7 @@ try({
     for(tr2 in phenos){
       if(tr1==tr2){next}
       currivs = iv_sets[[tr1]][[tr2]]
-      if(length(currivs)<1){next}
+      if(length(currivs)<5){next}
       X = data.frame(E1b=GWAS_effects[currivs,tr1],O1b=GWAS_effects[currivs,tr2],
                      E1sd=GWAS_ses[currivs,tr1],O1sd=GWAS_ses[currivs,tr2])
       try({
@@ -611,27 +611,30 @@ try({cgauge_mr_results[["MRPRESSO"]] = cgauge_mrpresso_res})
 
 # EdgeSep
 print("Done, running the skeletong edge separation analysis")
-edge_sep_results = c()
-try({
-  # dummy_g_t = matrix(1,ncol(G_t),nrow(G_t),dimnames=dimnames(G_t))
-  edge_sep_res = EdgeSep(GWAS_Ps,G_t,trait_pair_pvals,p1=p1,p2=p2,
-                         text_col_name=1,pheno_names=NULL)
-  for(nn in names(edge_sep_res)){
-    arr = strsplit(nn,split=";")[[1]][c(1,3)]
-    arr = c(arr,length(edge_sep_res[[nn]]$variants),
-            edge_sep_res[[nn]]$num_tests,B_distances[arr[2],arr[1]])
-    names(arr) = c("Exposure","Outcome","num_edgesep",
-                   "num_exposure_variants","real_distance")
-    edge_sep_results = rbind(edge_sep_results,arr)
-  }
-  if(!is.null(dim(edge_sep_results))){
-    edge_sep_results = as.data.frame(edge_sep_results)
-    for(j in 3:ncol(edge_sep_results)){
-      edge_sep_results[[j]] = as.numeric(as.character(edge_sep_results[[j]]))
-    }
-  }
-})
+# edge_sep_results = c()
+# try({
+#   # dummy_g_t = matrix(1,ncol(G_t),nrow(G_t),dimnames=dimnames(G_t))
+#   edge_sep_res = EdgeSep(GWAS_Ps,G_t,trait_pair_pvals,p1=p1,p2=p2,
+#                          text_col_name=1,pheno_names=NULL)
+#   for(nn in names(edge_sep_res)){
+#     arr = strsplit(nn,split=";")[[1]][c(1,3)]
+#     arr = c(arr,length(edge_sep_res[[nn]]$variants),
+#             edge_sep_res[[nn]]$num_tests,B_distances[arr[2],arr[1]])
+#     names(arr) = c("Exposure","Outcome","num_edgesep",
+#                    "num_exposure_variants","real_distance")
+#     edge_sep_results = rbind(edge_sep_results,arr)
+#   }
+#   if(!is.null(dim(edge_sep_results))){
+#     edge_sep_results = as.data.frame(edge_sep_results)
+#     for(j in 3:ncol(edge_sep_results)){
+#       edge_sep_results[[j]] = as.numeric(as.character(edge_sep_results[[j]]))
+#     }
+#   }
+# })
 
+edge_sep_results = EdgeSepTest(GWAS_Ps,G_t,trait_pair_pvals,p1=p1,text_col_name=1)
+edge_sep_results = add_distances(edge_sep_results,
+                                 B_distances,newcolname = "KnownDistance")
 
 #############################################################################
 # Save the results in an RData file
@@ -646,43 +649,35 @@ save(
 
 
 #############################################################################
-# explore the results (commented out, but can be used locally)
-is_causal<-function(dists){
-  return(dists>0 & dists < 4)
-}
-par(mfrow=c(1,2))
-xx = standard_mr_results$MRPRESSO
-boxplot(-log10(xx$`P-value`)~xx$KnownDistance,main="MRPRESSO",las=2)
-table(xx$`P-value` < 0.01 & !is_causal(xx$KnownDistance))
-xx = cgauge_mr_results$MRPRESSO
-boxplot(-log10(xx$`P-value`)~xx$KnownDistance,main="MRPRESSO + cGAUGE",las=2)
-table(xx$`P-value` < 0.01 & !is_causal(xx$KnownDistance))
+# # explore the results (commented out, but can be used locally)
+# is_causal<-function(dists){
+#   return(dists>0 & dists < 4)
+# }
+# pthr = 0.01
+# par(mfrow=c(1,2))
+# xx = standard_mr_results$MRPRESSO
+# boxplot(-log10(xx$`P-value`)~xx$KnownDistance,main="MRPRESSO",las=2)
+# table(xx$`P-value` < 0.01 & !is_causal(xx$KnownDistance))
+# xx = cgauge_mr_results$MRPRESSO
+# boxplot(-log10(xx$`P-value`)~xx$KnownDistance,main="MRPRESSO + cGAUGE",las=2)
+# table(xx$`P-value` < 0.01 & !is_causal(xx$KnownDistance))
+# 
+# par(mfrow=c(1,2))
+# xx = standard_mr_results$Egger
+# boxplot(-log10(xx$p)~xx$KnownDistance,main="Egger",las=2)
+# sum(xx$p < pthr & !is_causal(xx$KnownDistance))/sum(xx$p < pthr)
+# xx = cgauge_mr_results$Egger
+# boxplot(-log10(xx$p)~xx$KnownDistance,main="Egger+cGAUGE", las=2)
+# sum(xx$p < pthr & !is_causal(xx$KnownDistance))/sum(xx$p < pthr)
+# 
+# par(mfrow=c(1,2))
+# xx = standard_mr_results$IVW
+# boxplot(-log10(xx$p)~xx$KnownDistance,main="IVW",las=2)
+# sum(xx$p < pthr & !is_causal(xx$KnownDistance))/sum(xx$p < pthr)
+# xx = cgauge_mr_results$IVW
+# boxplot(-log10(xx$p)~xx$KnownDistance,main="IVW+cGAUGE", las=2)
+# sum(xx$p < pthr & !is_causal(xx$KnownDistance))/sum(xx$p < pthr)
+# 
+# edge_sep_results[p.adjust(edge_sep_results[,3])<0.1,]
+# boxplot(-log10(edge_sep_results$`pval:trait1->trait2`)~edge_sep_results$KnownDistance)
 
-par(mfrow=c(1,2))
-xx = standard_mr_results$Egger
-boxplot(-log10(xx$p)~xx$KnownDistance,main="Egger",las=2)
-table(xx$p < 0.01 & !is_causal(xx$KnownDistance))
-xx = cgauge_mr_results$Egger
-boxplot(-log10(xx$p)~xx$KnownDistance,main="Egger+cGAUGE", las=2)
-table(xx$p < 0.01 & !is_causal(xx$KnownDistance))
-
-par(mfrow=c(1,2))
-xx = standard_mr_results$IVW
-boxplot(-log10(xx$p)~xx$KnownDistance,main="Egger",las=2)
-table(xx$p < 0.01 & !is_causal(xx$KnownDistance))
-xx = cgauge_mr_results$IVW
-boxplot(-log10(xx$p)~xx$KnownDistance,main="Egger+cGAUGE", las=2)
-table(xx$p < 0.01 & !is_causal(xx$KnownDistance) )
-
-boxplot(edge_sep_results$num_edgesep~edge_sep_results$real_distance)
-for(j in 1:2){
-  edge_sep_results[[j]] = as.character(edge_sep_results[[j]])
-}
-
-pred_Bg = igraph::graph_from_edgelist(
-  as.matrix(edge_sep_results[edge_sep_results[,3]>3,1:2]),directed = T)
-plot(simplify(pred_Bg))
-plot(Bg)
-pred_distances = igraph_directed_distances(pred_Bg)
-table(c(pred_distances==-1),
-      c(B_distances[colnames(pred_distances),colnames(pred_distances)]==-1))

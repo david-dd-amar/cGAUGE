@@ -44,7 +44,7 @@ WD = "/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/simulations_v2/"
 MAX_JOBS = 500
 
 tested_p1 = c(1e-02,1e-03,1e-04,1e-05)
-tested_p2 = c(0.001,0.01,0.1)
+tested_p2_factors = c(1,10,100)
 tested_pleio_levels = c(0,0.1,0.2,0.3,0.4,0.5)
 tested_degrees = c(1,1.5,2,2.5,3)
 
