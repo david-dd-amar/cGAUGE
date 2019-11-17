@@ -80,40 +80,6 @@ print("Completed parsing input parameters, starting the simulation")
 
 ###################################################################################
 # Useful functions for the analysis below
-# Get the effect size, se, and p-value for x~y|z 
-run_lm<-function(x,y,z,df){
-  if(is.null(z)){
-    df = data.frame(x=df[,x],y=df[,y])
-  }
-  else{
-    df = data.frame(x=df[,x],y=df[,y],df[,z])
-  }
-  model = lm(x~.,data=df)
-  coefs = summary(model)$coefficients
-  return(coefs[2,])
-}
-# get distances (ancestry graph)
-igraph_directed_distances<-function(Bg){
-  distances = igraph::distances(Bg) # undirected distances
-  for(i in 1:nrow(distances)){
-    for(j in 1:ncol(distances)){
-      distances[i,j] = length(igraph::shortest_paths(Bg,from=j,to=i)$vpath[[1]])-1
-    }
-  }
-  return(distances)
-}
-# a function to add the known distances to the results
-add_distances<-function(m,dists,newcolname = "KnownDistance"){
-  m[,1] = as.character(m[,1])
-  m[,2] = as.character(m[,2])
-  v = c()
-  for(i in 1:nrow(m)){
-    v = c(v,dists[m[i,2],m[i,1]]) # add dist from exposure to outcome
-  }
-  m = cbind(m,v)
-  colnames(m)[ncol(m)] = newcolname
-  return(m)
-}
 
 ###################################################################################
 # Method for running LCV
@@ -654,51 +620,57 @@ save(
 )
 
 
-#############################################################################
-# # explore the results (commented out, but can be used locally)
-# is_causal<-function(dists){
-#   return(dists>0 )
-# }
-# pthr = 0.01
-# par(mfrow=c(1,2))
-# xx = standard_mr_results$MRPRESSO
+############################################################################
+# explore the results (commented out, but can be used locally)
+is_causal<-function(dists){
+  return(dists>0 )
+}
+
+xx = standard_mr_results$MRPRESSO
 # boxplot(-log10(xx$`P-value`)~xx$KnownDistance,main="MRPRESSO",las=2)
-# xx = xx[p.adjust(xx$`P-value`)< pthr,]
-# sum(!is_causal(xx$KnownDistance))/nrow(xx)
-# xx = cgauge_mr_results$MRPRESSO
+xx = xx[p.adjust(xx$`P-value`)< pthr,]
+print("MRPRESSO, Bonf correction (0.1), FDR and num discoveries:")
+print(paste(sum(!is_causal(xx$KnownDistance))/nrow(xx),nrow(xx)))
+xx = cgauge_mr_results$MRPRESSO
 # boxplot(-log10(xx$`P-value`)~xx$KnownDistance,main="MRPRESSO",las=2)
-# xx = xx[p.adjust(xx$`P-value`)< pthr,]
-# sum(!is_causal(xx$KnownDistance))/nrow(xx)
-# 
-# par(mfrow=c(1,2))
-# xx = standard_mr_results$Egger
+xx = xx[p.adjust(xx$`P-value`)< pthr,]
+print("MRPRESSO+cGAUGE, Bonf correction (0.1), FDR and num discoveries:")
+print(paste(sum(!is_causal(xx$KnownDistance))/nrow(xx),nrow(xx)))
+
+par(mfrow=c(1,2))
+xx = standard_mr_results$Egger
 # cor.test(xx$p,xx$NumIVs,method = "spearman")$p.value
 # boxplot(-log10(xx$p)~xx$KnownDistance,main="Egger",las=2)
-# xx = xx[p.adjust(xx$p)<0.1,]
-# sum(!is_causal(xx$KnownDistance),na.rm = T)/nrow(xx)
-# xx = cgauge_mr_results$Egger
+xx = xx[p.adjust(xx$p)<0.1,]
+print("Egger, Bonf correction (0.1), FDR and num discoveries:")
+print(paste(sum(!is_causal(xx$KnownDistance),na.rm = T)/nrow(xx),nrow(xx)))
+xx = cgauge_mr_results$Egger
 # cor.test(xx$p,xx$NumIVs,method = "spearman")$p.value
 # boxplot(-log10(xx$p)~xx$KnownDistance,main="Egger+cGAUGE", las=2)
-# xx = xx[p.adjust(xx$p)<0.1,]
-# sum(!is_causal(xx$KnownDistance),na.rm = T)/nrow(xx)
-# 
-# par(mfrow=c(1,2))
-# xx = standard_mr_results$IVW
+xx = xx[p.adjust(xx$p)<0.1,]
+print("Egger+cGAUGE, Bonf correction (0.1), FDR and num discoveries:")
+print(paste(sum(!is_causal(xx$KnownDistance),na.rm = T)/nrow(xx),nrow(xx)))
+
+par(mfrow=c(1,2))
+xx = standard_mr_results$IVW
 # cor.test(xx$p,xx$NumIVs,method = "spearman")$p.value
 # boxplot(-log10(xx$p)~xx$KnownDistance,main="IVW",las=2)
-# xx = xx[p.adjust(xx$p)<0.1,]
-# sum(!is_causal(xx$KnownDistance),na.rm = T)/nrow(xx)
-# 
-# xx = cgauge_mr_results$IVW
+xx = xx[p.adjust(xx$p)<0.1,]
+print("IVW, Bonf correction (0.1), FDR and num discoveries:")
+print(paste(sum(!is_causal(xx$KnownDistance),na.rm = T)/nrow(xx),nrow(xx)))
+
+xx = cgauge_mr_results$IVW
 # cor.test(xx$p,xx$NumIVs,method = "spearman")$p.value
 # boxplot(-log10(xx$p)~xx$KnownDistance,main="IVW+cGAUGE", las=2)
-# xx = xx[p.adjust(xx$p)<0.1,]
-# sum(!is_causal(xx$KnownDistance),na.rm = T)/nrow(xx)
-# 
+xx = xx[p.adjust(xx$p)<0.1,]
+print("IVW+cGAUGE, Bonf correction (0.1), FDR and num discoveries:")
+print(paste(sum(!is_causal(xx$KnownDistance),na.rm = T)/nrow(xx),nrow(xx)))
+
 # boxplot(-log10(edge_sep_results_statTest$`pval:trait1->trait2`)~edge_sep_results_statTest$KnownDistance)
-# edge_sep_results_statTest = edge_sep_results_statTest[p.adjust(edge_sep_results_statTest$`pval:trait1->trait2`)<0.1,]
-# sum(edge_sep_results_statTest$KnownDistance==-1)/nrow(edge_sep_results_statTest)
-# 
+edge_sep_results_statTest = edge_sep_results_statTest[p.adjust(edge_sep_results_statTest$`pval:trait1->trait2`)<0.1,]
+print("EdgeSep, Bonf correction (0.1), FDR and num discoveries:")
+print(paste(sum(edge_sep_results_statTest$KnownDistance==-1)/nrow(edge_sep_results_statTest),nrow(edge_sep_results_statTest)))
+
 # dev.off()
 # plot(Bg)
 # plot(simplify(igraph::graph_from_adjacency_matrix(G_t)),directed=F)
