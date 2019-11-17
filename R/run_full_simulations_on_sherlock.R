@@ -45,8 +45,8 @@ MAX_JOBS = 500
 
 tested_p1 = c(1e-02,1e-03,1e-04,1e-05)
 tested_p2_factors = c(1,10,100)
-tested_pleio_levels = c(0,0.1,0.2,0.3,0.4,0.5)
-tested_degrees = c(1,1.5,2,2.5,3)
+tested_pleio_levels = c(0,0.1,0.2,0.3,0.4)
+tested_degrees = c(1,1.25,1.5,1.75,2)
 
 for(p1 in tested_p1){
   print(paste("p1",p1))

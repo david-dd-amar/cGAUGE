@@ -27,29 +27,29 @@ option_list <- list(
               help="Sample size for simulated data"),
   make_option(c("--p"), action="store", default=15,type="integer",
               help="Number of phenotypes"),
-  make_option(c("--deg"), action="store", default=2,type="double",
+  make_option(c("--deg"), action="store", default=1.2,type="double",
               help="Expected in/out degree in the causal graph, greater values mean more cycles"),
   make_option(c("--minBeta"), action="store", default=0.1,type="double",
               help="Min absolue value for causal effects (beta coefficients)"),
-  make_option(c("--maxBeta"), action="store", default=1,type="double",
+  make_option(c("--maxBeta"), action="store", default=0.95,type="double",
               help="Max absolue value for causal effects (beta coefficients)"),
   make_option(c("--minIVs"), action="store", default=10,type="integer",
               help="Min number of instruments per trait"),
   make_option(c("--maxIVs"), action="store", default=20,type="integer",
               help="Max number of instruments per trait"),
-  make_option(c( "--minPleio"), action="store", default=3,type="integer",
+  make_option(c( "--minPleio"), action="store", default=1,type="integer",
               help="When applying pleiotropy, this is the min number of IV-trait links to add (at random)"),
   make_option(c( "--maxPleio"), action="store", default=10,type="integer",
               help="When applying pleiotropy, this is the max number of IV-trait links to add (at random)"),
-  make_option(c( "--probPleio"), action="store", default=0.25,type="double",
+  make_option(c( "--probPleio"), action="store", default=0.2,type="double",
               help="Probability that a variant is pleiotropic"),
   make_option(c( "--minMAF"), action="store", default=0.05,type="double",
               help="Minimal MAF - these are sampled with U(minMAF,maxMAF)"),
   make_option(c( "--maxMAF"), action="store", default=0.4,type="double",
               help="Maximal MAF - these are sampled with U(minMAF,maxMAF)"),
-  make_option(c( "--p1"), action="store", default=0.01,type="double",
+  make_option(c( "--p1"), action="store", default=0.001,type="double",
               help="P-value threshold for dependence - i.e., if p<p1"),
-  make_option(c( "--p2"), action="store", default=0.1,type="double",
+  make_option(c( "--p2"), action="store", default=0.01,type="double",
               help="P-value threshold for independence - i.e., if p>p2"),
   make_option(c( "--out"), action="store", default="simulation_result.RData",type="character",
               help="Output RData file with the simulated data and the analysis results")
@@ -465,7 +465,10 @@ for(tr1 in phenos){
   for(tr2 in phenos){
     if(tr1==tr2){break}
     skeleton_pmax[tr1,tr2] = run_lm(tr1,tr2,NULL,simulated_data)[4]
-    if(skeleton_pmax[tr1,tr2]>p_thr){next}
+    if(skeleton_pmax[tr1,tr2]>p_thr){
+      skeleton_pmax[tr2,tr1] = skeleton_pmax[tr1,tr2]
+      next
+    }
     # go over singletons
     for(tr3 in phenos){
       if (tr3 %in% c(tr1,tr2)){next}
@@ -613,29 +616,29 @@ try({cgauge_mr_results[["MRPRESSO"]] = cgauge_mrpresso_res})
 
 # EdgeSep
 print("Done, running the skeletong edge separation analysis")
-# edge_sep_results = c()
-# try({
-#   # dummy_g_t = matrix(1,ncol(G_t),nrow(G_t),dimnames=dimnames(G_t))
-#   edge_sep_res = EdgeSep(GWAS_Ps,G_t,trait_pair_pvals,p1=p1,p2=p2,
-#                          text_col_name=1,pheno_names=NULL)
-#   for(nn in names(edge_sep_res)){
-#     arr = strsplit(nn,split=";")[[1]][c(1,3)]
-#     arr = c(arr,length(edge_sep_res[[nn]]$variants),
-#             edge_sep_res[[nn]]$num_tests,B_distances[arr[2],arr[1]])
-#     names(arr) = c("Exposure","Outcome","num_edgesep",
-#                    "num_exposure_variants","real_distance")
-#     edge_sep_results = rbind(edge_sep_results,arr)
-#   }
-#   if(!is.null(dim(edge_sep_results))){
-#     edge_sep_results = as.data.frame(edge_sep_results)
-#     for(j in 3:ncol(edge_sep_results)){
-#       edge_sep_results[[j]] = as.numeric(as.character(edge_sep_results[[j]]))
-#     }
-#   }
-# })
+edge_sep_results = c()
+try({
+  # dummy_g_t = matrix(1,ncol(G_t),nrow(G_t),dimnames=dimnames(G_t))
+  edge_sep_res = EdgeSep(GWAS_Ps,G_t,trait_pair_pvals,p1=p1,p2=p2,
+                         text_col_name=1,pheno_names=NULL)
+  for(nn in names(edge_sep_res)){
+    arr = strsplit(nn,split=";")[[1]][c(1,3)]
+    arr = c(arr,length(edge_sep_res[[nn]]$variants),
+            edge_sep_res[[nn]]$num_tests,B_distances[arr[2],arr[1]])
+    names(arr) = c("Exposure","Outcome","num_edgesep",
+                   "num_exposure_variants","real_distance")
+    edge_sep_results = rbind(edge_sep_results,arr)
+  }
+  if(!is.null(dim(edge_sep_results))){
+    edge_sep_results = as.data.frame(edge_sep_results)
+    for(j in 3:ncol(edge_sep_results)){
+      edge_sep_results[[j]] = as.numeric(as.character(edge_sep_results[[j]]))
+    }
+  }
+})
 
-edge_sep_results = EdgeSepTest(GWAS_Ps,G_t,trait_pair_pvals,p1=p1,text_col_name=1)
-edge_sep_results = add_distances(edge_sep_results,
+edge_sep_results_statTest = EdgeSepTest(GWAS_Ps,G_t,trait_pair_pvals,p1=p1,text_col_name=1)
+edge_sep_results_statTest = add_distances(edge_sep_results_statTest,
                                  B_distances,newcolname = "KnownDistance")
 
 #############################################################################
@@ -645,41 +648,58 @@ save(
   B,Bg,simulated_data,B_distances, # simulated data
   cgauge_mr_results,standard_mr_results, # MR results
   edge_sep_results, # EdgeSep
+  edge_sep_results_statTest, # EdgeSepStatTest
   G_it,G_vt,G_t, iv_sets, # Skeletons
   file = outfile
 )
 
 
 #############################################################################
-# explore the results (commented out, but can be used locally)
-is_causal<-function(dists){
-  return(dists>0 )
-}
-pthr = 0.001
-par(mfrow=c(1,2))
-xx = standard_mr_results$MRPRESSO
-boxplot(-log10(xx$`P-value`)~xx$KnownDistance,main="MRPRESSO",las=2)
-sum(xx$`P-value` < pthr & !is_causal(xx$KnownDistance))/sum(xx$`P-value` < pthr)
-xx = cgauge_mr_results$MRPRESSO
-boxplot(-log10(xx$`P-value`)~xx$KnownDistance,main="MRPRESSO + cGAUGE",las=2)
-sum(xx$`P-value` < pthr & !is_causal(xx$KnownDistance))/sum(xx$`P-value` < pthr)
-
-par(mfrow=c(1,2))
-xx = standard_mr_results$Egger
-boxplot(-log10(xx$p)~xx$KnownDistance,main="Egger",las=2)
-sum(xx$p < pthr & !is_causal(xx$KnownDistance),na.rm = T)/sum(xx$p < pthr,na.rm = T)
-xx = cgauge_mr_results$Egger
-boxplot(-log10(xx$p)~xx$KnownDistance,main="Egger+cGAUGE", las=2)
-sum(xx$p < pthr & !is_causal(xx$KnownDistance),na.rm = T)/sum(xx$p < pthr,na.rm = T)
-
-par(mfrow=c(1,2))
-xx = standard_mr_results$IVW
-boxplot(-log10(xx$p)~xx$KnownDistance,main="IVW",las=2)
-sum(xx$p < pthr & !is_causal(xx$KnownDistance),na.rm = T)/sum(xx$p < pthr,na.rm = T)
-xx = cgauge_mr_results$IVW
-boxplot(-log10(xx$p)~xx$KnownDistance,main="IVW+cGAUGE", las=2)
-sum(xx$p < pthr & !is_causal(xx$KnownDistance),na.rm = T)/sum(xx$p < pthr,na.rm = T)
-
-edge_sep_results[p.adjust(edge_sep_results[,3])<0.1,]
-boxplot(-log10(edge_sep_results$`pval:trait1->trait2`)~edge_sep_results$KnownDistance)
-
+# # explore the results (commented out, but can be used locally)
+# is_causal<-function(dists){
+#   return(dists>0 )
+# }
+# pthr = 0.01
+# par(mfrow=c(1,2))
+# xx = standard_mr_results$MRPRESSO
+# boxplot(-log10(xx$`P-value`)~xx$KnownDistance,main="MRPRESSO",las=2)
+# xx = xx[p.adjust(xx$`P-value`)< pthr,]
+# sum(!is_causal(xx$KnownDistance))/nrow(xx)
+# xx = cgauge_mr_results$MRPRESSO
+# boxplot(-log10(xx$`P-value`)~xx$KnownDistance,main="MRPRESSO",las=2)
+# xx = xx[p.adjust(xx$`P-value`)< pthr,]
+# sum(!is_causal(xx$KnownDistance))/nrow(xx)
+# 
+# par(mfrow=c(1,2))
+# xx = standard_mr_results$Egger
+# cor.test(xx$p,xx$NumIVs,method = "spearman")$p.value
+# boxplot(-log10(xx$p)~xx$KnownDistance,main="Egger",las=2)
+# xx = xx[p.adjust(xx$p)<0.1,]
+# sum(!is_causal(xx$KnownDistance),na.rm = T)/nrow(xx)
+# xx = cgauge_mr_results$Egger
+# cor.test(xx$p,xx$NumIVs,method = "spearman")$p.value
+# boxplot(-log10(xx$p)~xx$KnownDistance,main="Egger+cGAUGE", las=2)
+# xx = xx[p.adjust(xx$p)<0.1,]
+# sum(!is_causal(xx$KnownDistance),na.rm = T)/nrow(xx)
+# 
+# par(mfrow=c(1,2))
+# xx = standard_mr_results$IVW
+# cor.test(xx$p,xx$NumIVs,method = "spearman")$p.value
+# boxplot(-log10(xx$p)~xx$KnownDistance,main="IVW",las=2)
+# xx = xx[p.adjust(xx$p)<0.1,]
+# sum(!is_causal(xx$KnownDistance),na.rm = T)/nrow(xx)
+# 
+# xx = cgauge_mr_results$IVW
+# cor.test(xx$p,xx$NumIVs,method = "spearman")$p.value
+# boxplot(-log10(xx$p)~xx$KnownDistance,main="IVW+cGAUGE", las=2)
+# xx = xx[p.adjust(xx$p)<0.1,]
+# sum(!is_causal(xx$KnownDistance),na.rm = T)/nrow(xx)
+# 
+# boxplot(-log10(edge_sep_results_statTest$`pval:trait1->trait2`)~edge_sep_results_statTest$KnownDistance)
+# edge_sep_results_statTest = edge_sep_results_statTest[p.adjust(edge_sep_results_statTest$`pval:trait1->trait2`)<0.1,]
+# sum(edge_sep_results_statTest$KnownDistance==-1)/nrow(edge_sep_results_statTest)
+# 
+# dev.off()
+# plot(Bg)
+# plot(simplify(igraph::graph_from_adjacency_matrix(G_t)),directed=F)
+# plot(Bg)
