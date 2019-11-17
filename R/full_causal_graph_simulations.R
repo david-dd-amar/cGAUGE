@@ -503,7 +503,7 @@ for(tr1 in phenos){
   iv_sets[[tr1]] = list()
   for(tr2 in phenos){
     iv_sets[[tr1]][[tr2]] = rownames(GWAS_Ps)[GWAS_Ps[,tr1]<p1]
-    currseps = c(merged_sepsets[[tr1]][[tr2]],tr2)
+    # currseps = c(merged_sepsets[[tr1]][[tr2]],tr2)
     print(length(currseps))
     for(sep in currseps){
       curr_sep_ivs = rownames(G_vt)[G_vt[,sep]]
@@ -641,13 +641,13 @@ par(mfrow=c(1,2))
 xx = standard_mr_results$Egger
 # cor.test(xx$p,xx$NumIVs,method = "spearman")$p.value
 # boxplot(-log10(xx$p)~xx$KnownDistance,main="Egger",las=2)
-xx = xx[p.adjust(xx$p)<0.1,]
+xx = xx[p.adjust(xx$p)<0.1 & !is.na(xx$p),]
 print("Egger, Bonf correction (0.1), FDR and num discoveries:")
 print(paste(sum(!is_causal(xx$KnownDistance),na.rm = T)/nrow(xx),nrow(xx)))
 xx = cgauge_mr_results$Egger
 # cor.test(xx$p,xx$NumIVs,method = "spearman")$p.value
 # boxplot(-log10(xx$p)~xx$KnownDistance,main="Egger+cGAUGE", las=2)
-xx = xx[p.adjust(xx$p)<0.1,]
+xx = xx[p.adjust(xx$p)<0.1 & !is.na(xx$p),]
 print("Egger+cGAUGE, Bonf correction (0.1), FDR and num discoveries:")
 print(paste(sum(!is_causal(xx$KnownDistance),na.rm = T)/nrow(xx),nrow(xx)))
 
@@ -675,3 +675,17 @@ print(paste(sum(edge_sep_results_statTest$KnownDistance==-1)/nrow(edge_sep_resul
 # plot(Bg)
 # plot(simplify(igraph::graph_from_adjacency_matrix(G_t)),directed=F)
 # plot(Bg)
+# tr1 = "T13"
+# tr2 = "T7"
+# B[tr1,tr2];B[tr2,tr1]
+# sepsets[[tr1]][[tr2]]
+# absB = abs(B)>0
+# table(absB[tr1,],absB[tr2,])
+# chisq.test(table(absB[tr1,],absB[tr2,]))
+# shared_ivs = colnames(B)[absB[tr1,] & absB[tr2,]]
+# intersect(iv_sets[[tr1]][[tr2]],shared_ivs)
+# intersect(iv_sets[[tr2]][[tr1]],shared_ivs)
+# plot(GWAS_effects[,tr1],GWAS_effects[,tr2])
+# cor.test(GWAS_effects[,tr1],GWAS_effects[,tr2])
+# table(G_vt[,tr1],G_vt[,tr2])
+# 
