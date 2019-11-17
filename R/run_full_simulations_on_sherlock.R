@@ -3,7 +3,7 @@
 ###################################################################################
 ### Helper functions to run the simulations
 
-get_sh_prefix<-function(err="",log="",time="0:20:00"){
+get_sh_prefix<-function(err="",log="",time="0:30:00"){
   return(
     c(
       "#!/bin/bash",
@@ -41,7 +41,7 @@ exec_cmd_on_sherlock<-function(cmd,jobname,out_path){
 ###################################################################################
 reps = 20
 WD = "/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/simulations_v2/"
-MAX_JOBS = 500
+MAX_JOBS = 300
 
 tested_p1 = c(1e-02,1e-03,1e-04,1e-05)
 tested_p2_factors = c(1,10,100)

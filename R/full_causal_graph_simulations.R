@@ -539,8 +539,9 @@ for(tr1 in phenos){
   iv_sets[[tr1]] = list()
   for(tr2 in phenos){
     iv_sets[[tr1]][[tr2]] = rownames(GWAS_Ps)[GWAS_Ps[,tr1]<p1]
-    # currseps = c(merged_sepsets[[tr1]][[tr2]],tr2)
+    currseps = merged_sepsets[[tr1]][[tr2]]
     print(length(currseps))
+    # remove IVs into separating variables
     for(sep in currseps){
       curr_sep_ivs = rownames(G_vt)[G_vt[,sep]]
       iv_sets[[tr1]][[tr2]] = setdiff(iv_sets[[tr1]][[tr2]],curr_sep_ivs)
