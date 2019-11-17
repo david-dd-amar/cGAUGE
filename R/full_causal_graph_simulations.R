@@ -665,12 +665,12 @@ is_causal<-function(dists){
 
 xx = standard_mr_results$MRPRESSO
 # boxplot(-log10(xx$`P-value`)~xx$KnownDistance,main="MRPRESSO",las=2)
-xx = xx[p.adjust(xx$`P-value`)< pthr,]
+xx = xx[p.adjust(xx$`P-value`)< 0.1,]
 print("MRPRESSO, Bonf correction (0.1), FDR and num discoveries:")
 print(paste(sum(!is_causal(xx$KnownDistance))/nrow(xx),nrow(xx)))
 xx = cgauge_mr_results$MRPRESSO
 # boxplot(-log10(xx$`P-value`)~xx$KnownDistance,main="MRPRESSO",las=2)
-xx = xx[p.adjust(xx$`P-value`)< pthr,]
+xx = xx[p.adjust(xx$`P-value`)< 0.1,]
 print("MRPRESSO+cGAUGE, Bonf correction (0.1), FDR and num discoveries:")
 print(paste(sum(!is_causal(xx$KnownDistance))/nrow(xx),nrow(xx)))
 
