@@ -4,7 +4,7 @@
 required_libs = c("igraph","bnlearn","MRPRESSO",
                   "optparse","limma","MendelianRandomization")
 lib_loc = "~/R/packages3.5"
-# lib_loc = .libPaths()
+lib_loc = .libPaths()
 for (lib_name in required_libs){
   tryCatch({library(lib_name,character.only = T,lib.loc = lib_loc)},
            error = function(e) {
@@ -27,7 +27,7 @@ option_list <- list(
               help="Sample size for simulated data"),
   make_option(c("--p"), action="store", default=15,type="integer",
               help="Number of phenotypes"),
-  make_option(c("--deg"), action="store", default=1.2,type="double",
+  make_option(c("--deg"), action="store", default=1.5,type="double",
               help="Expected in/out degree in the causal graph, greater values mean more cycles"),
   make_option(c("--minBeta"), action="store", default=0.1,type="double",
               help="Min absolue value for causal effects (beta coefficients)"),
@@ -640,7 +640,7 @@ try({
   }
 })
 
-edge_sep_results_statTest = EdgeSepTest(GWAS_Ps,G_t,trait_pair_pvals,p1=p1,text_col_name=1)
+edge_sep_results_statTest = EdgeSepTest2(GWAS_Ps,G_t,trait_pair_pvals,p1=p1,text_col_name=1)
 edge_sep_results_statTest = add_distances(edge_sep_results_statTest,
                                  B_distances,newcolname = "KnownDistance")
 

@@ -96,12 +96,19 @@ for(p1 in tested_p1){
 ##############################################################################################
 # Go over the results
 FDR = 0.1
+FDR_method = "BY"
+is_causal<-function(dists){
+  return(dists>0 )
+}
 
 all_sim_results_errs = c()
 all_sim_results_preds = c()
 for(p1 in tested_p1){
   print(paste("p1",p1))
-  for(p2 in tested_p2){
+  for(p2_f in tested_p2_factors){
+    p2 = p1*p2_f
+    print(paste("p2",p2))
+    if(p2 >0.1){next}
     if(p2<p1){next}
     print(paste("p2",p2))
     for(pleio_p in tested_pleio_levels){
@@ -127,33 +134,56 @@ for(p1 in tested_p1){
           
           num_not_causal = standard_mr_results$Egger$KnownDistance==-1
           errs = c();preds = c();edgesep_res = c()
-          egger_qs = p.adjust(standard_mr_results$Egger$p)
-          errs["egger"] = sum(egger_qs < FDR & 
-                   standard_mr_results$Egger$KnownDistance==-1,na.rm = T)
+          egger_qs = p.adjust(standard_mr_results$Egger$p,method=FDR_method)
+          errs["egger"] = sum(egger_qs < FDR & !is.na(egger_qs) & 
+                   !is_causal(standard_mr_results$Egger$KnownDistance),na.rm = T)
           preds["egger"] = sum(egger_qs < FDR,na.rm = T)
-          ivw_qs = p.adjust(standard_mr_results$IVW$p)
-          errs["ivw"] = sum(ivw_qs < FDR & standard_mr_results$IVW$KnownDistance==-1,na.rm = T)
+          
+          egger_qs = p.adjust(cgauge_mr_results$Egger$p,method=FDR_method)
+          errs["c-egger"] = sum(egger_qs < FDR & !is.na(egger_qs) & 
+                                !is_causal(cgauge_mr_results$Egger$KnownDistance),na.rm = T)
+          preds["c-egger"] = sum(egger_qs < FDR,na.rm = T)
+          
+          ivw_qs = p.adjust(standard_mr_results$IVW$p,method=FDR_method)
+          errs["ivw"] = sum(ivw_qs < FDR & !is.na(ivw_qs) & 
+                              !is_causal(standard_mr_results$IVW$KnownDistance),na.rm = T)
           preds["ivw"] = sum(ivw_qs < FDR,na.rm = T)
-          presso_q = p.adjust(standard_mr_results$MRPRESSO$`P-value`)
-          errs["mrpresso"] = sum(presso_q < FDR & standard_mr_results$MRPRESSO$KnownDistance==-1,na.rm = T)
+          
+          ivw_qs = p.adjust(cgauge_mr_results$IVW$p,method=FDR_method)
+          errs["c-ivw"] = sum(ivw_qs < FDR & !is.na(ivw_qs) & 
+                              !is_causal(cgauge_mr_results$IVW$KnownDistance),na.rm = T)
+          preds["c-ivw"] = sum(ivw_qs < FDR,na.rm = T)
+          
+          presso_q = p.adjust(standard_mr_results$MRPRESSO$`P-value`,method=FDR_method)
+          errs["mrpresso"] = sum(presso_q < FDR & !is.na(presso_q) &
+                                   !is_causal(standard_mr_results$MRPRESSO$KnownDistance),na.rm = T)
           preds["mrpresso"] = sum(presso_q < FDR,na.rm = T)
-          lcv_q = p.adjust(standard_mr_results$LCV$P)
-          errs["lcv"] = sum(lcv_q < FDR & standard_mr_results$LCV$KnownDistance==-1,na.rm = T)
+          
+          presso_q = p.adjust(cgauge_mr_results$MRPRESSO$`P-value`,method=FDR_method)
+          errs["c-mrpresso"] = sum(presso_q < FDR & !is.na(presso_q) &
+                                   !is_causal(cgauge_mr_results$MRPRESSO$KnownDistance),na.rm = T)
+          preds["c-mrpresso"] = sum(presso_q < FDR,na.rm = T)
+          
+          # LCV
+          lcv_q = p.adjust(standard_mr_results$LCV$P,method=FDR_method)
+          errs["lcv"] = sum(lcv_q < FDR & !is.na(lcv_q) &
+                              !is_causal(standard_mr_results$LCV$KnownDistance),na.rm = T)
           preds["lcv"] = sum(lcv_q < FDR,na.rm = T)
           
-          egger_qs = p.adjust(cgauge_mr_results$Egger$p)
-          errs["c-egger"] = sum(egger_qs < FDR & cgauge_mr_results$Egger$KnownDistance==-1
-                                & cgauge_mr_results$PleioProperty,na.rm = T)
-          preds["c-egger"] = sum(egger_qs < FDR,na.rm = T)
-          ivw_qs = p.adjust(cgauge_mr_results$IVW$p)
-          errs["c-ivw"] = sum(ivw_qs < FDR & cgauge_mr_results$IVW$KnownDistance==-1,na.rm = T)
-          preds["c-ivw"] = sum(ivw_qs < FDR,na.rm = T)
-          presso_q = p.adjust(cgauge_mr_results$MRPRESSO$`P-value`)
-          errs["c-mrpresso"] = sum(presso_q < FDR & cgauge_mr_results$MRPRESSO$KnownDistance==-1,na.rm = T)
-          preds["c-mrpresso"] = sum(presso_q < FDR,na.rm = T)
-          method2false_discoveries = rbind(method2false_discoveries,errs)
-          method2num_discoveries = rbind(method2num_discoveries,preds)
+          # EdgeSep
+          edge_sep_results = edge_sep_results[edge_sep_results$num_edgesep > 2,]
+          errs["edge_sep"] = sum(!is_causal(edge_sep_results$real_distance))
+          preds["edge_sep"] = nrow(edge_sep_results)
           
+          # EdgeSepTest
+          edge_sep_results_statTest = 
+            edge_sep_results_statTest[
+              p.adjust(edge_sep_results_statTest$`pval:trait1->trait2`),method=FDR_method<FDR,]
+          errs["edge_sep_test"] = sum(!is_causal(edge_sep_results_statTest$KnownDistance))
+          preds["edge_sep_test"] = nrow(edge_sep_results_statTest)
+          
+          method2num_discoveries = rbind(method2num_discoveries,preds)
+          method2false_discoveries = rbind(method2false_discoveries,errs)
           
         }
         method2num_discoveries = as.data.frame(method2num_discoveries)
@@ -175,11 +205,26 @@ for(p1 in tested_p1){
     }
   }
 }
-aggregate(all_sim_results_errs[,1:7],
+mean_errs = aggregate(all_sim_results_errs[,1:9],
           by=list(p1=all_sim_results_errs$p1,p2=all_sim_results_errs$p2,
-                  deg = all_sim_results_errs$deg,prob_pleio = all_sim_results_errs$prob_pleio),
+          deg = all_sim_results_errs$deg,prob_pleio = all_sim_results_errs$prob_pleio),
           FUN=mean)
 
+sd_errs = aggregate(all_sim_results_errs[,1:9],
+                      by=list(p1=all_sim_results_errs$p1,p2=all_sim_results_errs$p2,
+                              deg = all_sim_results_errs$deg,prob_pleio = all_sim_results_errs$prob_pleio),
+                      FUN=sd)
 
 
+all_sim_results_fdrs = (all_sim_results_errs/all_sim_results_preds)[,1:9]
+all_sim_results_fdrs[is.nan(all_sim_results_fdrs)] = 0
+all_sim_results_fdrs = cbind(all_sim_results_fdrs,all_sim_results_errs[,c("p1","p2","deg","prob_pleio")])
+mean_fdrs = aggregate(all_sim_results_fdrs,
+                      by=list(p1=all_sim_results_errs$p1,p2=all_sim_results_errs$p2,
+                              deg = all_sim_results_errs$deg,prob_pleio = all_sim_results_errs$prob_pleio),
+                      FUN=median,na.rm=T)
 
+sd_fdrs = aggregate(all_sim_results_fdrs,
+                    by=list(p1=all_sim_results_errs$p1,p2=all_sim_results_errs$p2,
+                            deg = all_sim_results_errs$deg,prob_pleio = all_sim_results_errs$prob_pleio),
+                    FUN=sd,na.rm=T)

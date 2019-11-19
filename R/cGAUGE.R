@@ -179,8 +179,10 @@ EdgeSepTest<-function(GWAS_Ps,G_t,trait_pair_pvals,p1,pruned_snp_lists = NULL,
       ps_with_tr2_cond_tr1 = trait_pair_pvals[[tr2]][[tr1]][tr1_tr2_ivs,text_col_name]
       ps_with_tr1_cond_tr2 = trait_pair_pvals[[tr1]][[tr2]][tr1_tr2_ivs,text_col_name]
       currN = length(tr1_tr2_ivs)
-      test2 = ks.test(GWAS_Ps[tr1_tr2_ivs,tr1],ps_with_tr1_cond_tr2,alternative = "greater",paired=T)$p.value
-      test1 = ks.test(GWAS_Ps[tr1_tr2_ivs,tr2],ps_with_tr2_cond_tr1,alternative = "greater",paired=T)$p.value
+      test2 = wilcox.test(GWAS_Ps[tr1_tr2_ivs,tr1],ps_with_tr1_cond_tr2,
+                          alternative = "l",paired=T)$p.value
+      test1 = wilcox.test(GWAS_Ps[tr1_tr2_ivs,tr2],ps_with_tr2_cond_tr1,
+                          alternative = "l",paired=T)$p.value
       edge_sep_tests = rbind(edge_sep_tests,c(tr1,tr2,test1))
       edge_sep_tests = rbind(edge_sep_tests,c(tr2,tr1,test2))
     }
@@ -190,6 +192,44 @@ EdgeSepTest<-function(GWAS_Ps,G_t,trait_pair_pvals,p1,pruned_snp_lists = NULL,
   edge_sep_tests[[3]] = as.numeric(as.character(edge_sep_tests[[3]]))
   return(edge_sep_tests)
 }
+
+EdgeSepTest2<-function(GWAS_Ps,G_t,G_vt,trait_pair_pvals,p1,pruned_snp_lists = NULL,
+                      text_col_name="test3"){
+  edge_sep_tests = c()
+  for(tr1 in colnames(GWAS_Ps)){
+    for(tr2 in colnames(GWAS_Ps)){
+      if(tr1==tr2){next}
+      tr1_ivs = rownames(GWAS_Ps)[G_vt[,tr1]]
+      if(!is.null(pruned_snp_lists)){
+        tr1_ivs = intersect(pruned_snp_lists[[tr1]],tr1_tr2_ivs)
+      }
+      if(length(tr1_ivs)<5){next}
+      # Go over skeleton edges only
+      if(is.na(G_t[tr1,tr2]) || G_t[tr1,tr2]==0){next}
+      # Check which variants associated with both tr1 and tr2 lose the association with tr2
+      ps_with_tr2_cond_tr1 = trait_pair_pvals[[tr2]][[tr1]][tr1_ivs,text_col_name]
+      currN = length(tr1_ivs)
+      test1 = wilcox.test(GWAS_Ps[tr1_ivs,tr2],ps_with_tr2_cond_tr1,
+                          alternative = "l",paired=T)$p.value
+      # test1 = paired_ttest_on_ps(ps_with_tr2_cond_tr1,GWAS_Ps[tr1_ivs,tr2])
+      edge_sep_tests = rbind(edge_sep_tests,c(tr1,tr2,test1))
+    }
+  }
+  colnames(edge_sep_tests) = c("trait1","trait2","pval:trait1->trait2")
+  edge_sep_tests = as.data.frame(edge_sep_tests)
+  edge_sep_tests[[3]] = as.numeric(as.character(edge_sep_tests[[3]]))
+  return(edge_sep_tests)
+}
+
+# check if pvalues in x1 are greater than those in x2
+paired_ttest_on_ps<-function(x1,x2){
+  z1 = qnorm(x1)
+  z2 = qnorm(x2)
+  diffs = z1-z2 
+  return(t.test(diffs,alternative = "g")$p.value)
+}
+# paired_ttest_on_ps(runif(100),runif(100)/10)
+# paired_ttest_on_ps(runif(100)/100,runif(100)/10)
 
 #' Go over all trait pairs and run MR
 #' 
