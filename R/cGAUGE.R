@@ -16,7 +16,7 @@ try({library(MendelianRandomization)})
 #' @param P1 A number. A threshold used to define significant association.
 #' @param P2 A number. A threshold used to define independent association (when p >P2).
 #' @return A list wit two objects: a binary matrix with the skeleton and the list of the separating sets that rendered associations independent.
-extract_skeleton_G_VT<-function(GWAS_Ps,trait_pair_pvals,P1,P2){
+extract_skeleton_G_VT<-function(GWAS_Ps,trait_pair_pvals,P1,P2,test_columns = NULL){
   G_VT = GWAS_Ps <= P1
   num_ivs = nrow(GWAS_Ps)
   num_traits = ncol(GWAS_Ps)
@@ -28,7 +28,11 @@ extract_skeleton_G_VT<-function(GWAS_Ps,trait_pair_pvals,P1,P2){
       if(i==j){next}
       tr2 = colnames(GWAS_Ps)[j]
       curr_p_mat = trait_pair_pvals[[tr1]][[tr2]][rownames(GWAS_Ps),]
-      for (testname in colnames(curr_p_mat)){
+      curr_columns = test_columns
+      if(is.null(curr_columns)){
+        curr_columns = colnames(curr_p_mat)
+      }
+      for (testname in curr_columns){
         # Do we have significant SNPs that become non-sig?
         curr_ci_test_results = curr_p_mat[,testname] >= P2
         curr_ci_test_results[is.na(curr_ci_test_results)]=F
@@ -183,6 +187,10 @@ EdgeSepTest<-function(GWAS_Ps,G_t,trait_pair_pvals,p1,pruned_snp_lists = NULL,
                           alternative = "l",paired=T)$p.value
       test1 = wilcox.test(GWAS_Ps[tr1_tr2_ivs,tr2],ps_with_tr2_cond_tr1,
                           alternative = "l",paired=T)$p.value
+      
+      # test2 = paired_ttest_on_ps(ps_with_tr1_cond_tr2,GWAS_Ps[tr1_tr2_ivs,tr1])
+      # test1 = paired_ttest_on_ps(ps_with_tr2_cond_tr1,GWAS_Ps[tr1_tr2_ivs,tr2])
+      
       edge_sep_tests = rbind(edge_sep_tests,c(tr1,tr2,test1))
       edge_sep_tests = rbind(edge_sep_tests,c(tr2,tr1,test2))
     }
@@ -193,25 +201,15 @@ EdgeSepTest<-function(GWAS_Ps,G_t,trait_pair_pvals,p1,pruned_snp_lists = NULL,
   return(edge_sep_tests)
 }
 
-EdgeSepTest2<-function(GWAS_Ps,G_t,G_vt,trait_pair_pvals,p1,pruned_snp_lists = NULL,
-                      text_col_name="test3"){
+EdgeSepTest2<-function(GWAS_Ps,G_t,trait_pair_pvals,text_col_name="test3"){
   edge_sep_tests = c()
   for(tr1 in colnames(GWAS_Ps)){
     for(tr2 in colnames(GWAS_Ps)){
       if(tr1==tr2){next}
-      tr1_ivs = rownames(GWAS_Ps)[G_vt[,tr1]]
-      if(!is.null(pruned_snp_lists)){
-        tr1_ivs = intersect(pruned_snp_lists[[tr1]],tr1_tr2_ivs)
-      }
-      if(length(tr1_ivs)<5){next}
-      # Go over skeleton edges only
       if(is.na(G_t[tr1,tr2]) || G_t[tr1,tr2]==0){next}
-      # Check which variants associated with both tr1 and tr2 lose the association with tr2
-      ps_with_tr2_cond_tr1 = trait_pair_pvals[[tr2]][[tr1]][tr1_ivs,text_col_name]
-      currN = length(tr1_ivs)
-      test1 = wilcox.test(GWAS_Ps[tr1_ivs,tr2],ps_with_tr2_cond_tr1,
-                          alternative = "l",paired=T)$p.value
-      # test1 = paired_ttest_on_ps(ps_with_tr2_cond_tr1,GWAS_Ps[tr1_ivs,tr2])
+      p1 = GWAS_Ps[,tr2]
+      ps_with_tr2_cond_tr1 = trait_pair_pvals[[tr2]][[tr1]][,text_col_name]
+      test1 = em_based_edgesep_test(p1,ps_with_tr2_cond_tr1)
       edge_sep_tests = rbind(edge_sep_tests,c(tr1,tr2,test1))
     }
   }
@@ -222,14 +220,86 @@ EdgeSepTest2<-function(GWAS_Ps,G_t,G_vt,trait_pair_pvals,p1,pruned_snp_lists = N
 }
 
 # check if pvalues in x1 are greater than those in x2
-paired_ttest_on_ps<-function(x1,x2){
+paired_ttest_on_ps<-function(x1,x2,diff_thr = 2){
   z1 = qnorm(x1)
   z2 = qnorm(x2)
-  diffs = z1-z2 
+  diffs = z1-z2  - diff_thr
   return(t.test(diffs,alternative = "g")$p.value)
 }
 # paired_ttest_on_ps(runif(100),runif(100)/10)
 # paired_ttest_on_ps(runif(100)/100,runif(100)/10)
+# paired_ttest_on_ps(runif(100)/1000,runif(100)/10000)
+library(mclust)
+tr1 = "T1"
+tr2 = "T12"
+p1 = GWAS_Ps[,tr2]
+p2 = trait_pair_pvals[[tr2]][[tr1]][,1]
+em_based_edgesep_test(p1,p2)
+# try semm
+library(semm)
+beta1 = GWAS_effects[,tr2]
+beta2 = trait_pair_pvals[[tr2]][[tr1]][,4]
+se1 = GWAS_ses[,tr2]
+se2 = trait_pair_pvals[[tr2]][[tr1]][,3]
+plot(beta1,beta2)
+B = cbind(beta1,beta2)
+SE = cbind(se1,se2)
+fit2 <- model2_stan(B=B,SE=SE, chains=4, warmup=10, iter=80, refresh=20)
+print(fit2, pars=c("pi", "sigmasq"), digits=5)
+
+
+em_based_edgesep_test<-function(p1,p2){
+  z1 = c(-qnorm(p1))
+  z2 = c(-qnorm(p2))
+  df = cbind(z1,z2)
+  # Use univariate EM with theoretical null
+  z1_m = modified_znormix(p1,theoretical_null = T)[1:5]
+  z2_m = modified_znormix(p2,theoretical_null = T)[1:5]
+  
+  # Infer the full model
+  mu = list(
+    c(z1_m[2],z2_m[2]),
+    c(z1_m[2],z2_m[4]),
+    c(z1_m[4],z2_m[2]),
+    c(z1_m[4],z2_m[4])
+  )
+  nullCovInds = (z1>-2 & z1<2 & z2>-2 & z2 < 2)
+  zzcov = cov(z1[nullCovInds],z2[nullCovInds])
+  na_mat = matrix(NA,2,2)
+  sigma = list(
+    matrix(c(1,zzcov,zzcov,1),2,2),
+    matrix(c(1,zzcov,zzcov,1),2,2),
+    matrix(c(1,zzcov,zzcov,1),2,2),
+    matrix(c(1,zzcov,zzcov,1),2,2)
+  )
+  model_full = mvnormalmixConstrainedEM(df,mu=mu,sigma=sigma,verb=F,
+                                        k=length(mu),epsilon = 1e-5)
+  
+  # Infer the reduced model
+  mu_null = list(
+    c(z1_m[2],z2_m[2]),
+    c(z1_m[2],z2_m[4]),
+    c(z1_m[4],z2_m[4])
+  )
+  sigma_null = list(
+    matrix(c(1,zzcov,zzcov,1),2,2),
+    matrix(c(1,zzcov,zzcov,1),2,2),
+    matrix(c(1,zzcov,zzcov,1),2,2)
+  )
+  model_null = mvnormalmixConstrainedEM(df,mu=mu_null,
+                   sigma=sigma_null,verb=F,k=length(mu_null))
+  
+  l1 = model_full$loglik
+  dfs1 =  3*3 + 3
+  l2 = model_null$loglik
+  dfs2 =  2*3 + 3
+  chi = 2*(l1 - l2)
+  dof = dfs1-dfs2
+  pval = pchisq(chi,dof,lower.tail = F)
+  return(pval)
+}
+
+
 
 #' Go over all trait pairs and run MR
 #' 

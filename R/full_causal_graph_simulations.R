@@ -527,10 +527,11 @@ for(pheno1 in phenos){
   for(pheno2 in phenos){
     if(pheno1==pheno2){next}
     gwas_res = t(sapply(ivs,run_lm,x=pheno1,z=pheno2,df = df))
-    trait_pair_pvals[[pheno1]][[pheno2]] = as.matrix(gwas_res[,4])
+    gwas_res = gwas_res[,4:1]
+    trait_pair_pvals[[pheno1]][[pheno2]] = gwas_res
   }
 }
-G_vt = extract_skeleton_G_VT(GWAS_Ps,trait_pair_pvals,P1=p1,P2=p2)[[1]]
+G_vt = extract_skeleton_G_VT(GWAS_Ps,trait_pair_pvals,P1=p1,P2=p2,test_columns = 1)[[1]]
 real_G_vt = abs(t(B[phenos,ivs])>0)
 
 # Get new instrument sets after the cGAUGE filter
@@ -640,7 +641,7 @@ try({
   }
 })
 
-edge_sep_results_statTest = EdgeSepTest2(GWAS_Ps,G_t,trait_pair_pvals,p1=p1,text_col_name=1)
+edge_sep_results_statTest = EdgeSepTest2(GWAS_Ps,G_t,trait_pair_pvals,text_col_name=1)
 edge_sep_results_statTest = add_distances(edge_sep_results_statTest,
                                  B_distances,newcolname = "KnownDistance")
 
@@ -707,6 +708,9 @@ print(paste(sum(!is_causal(xx$KnownDistance),na.rm = T)/nrow(xx),nrow(xx)))
 edge_sep_results_statTest = edge_sep_results_statTest[p.adjust(edge_sep_results_statTest$`pval:trait1->trait2`)<0.1,]
 print("EdgeSep, Bonf correction (0.1), FDR and num discoveries:")
 print(paste(sum(edge_sep_results_statTest$KnownDistance==-1)/nrow(edge_sep_results_statTest),nrow(edge_sep_results_statTest)))
+
+edge_sep_results = edge_sep_results[edge_sep_results$num_edgesep>2,]
+print(paste(sum(edge_sep_results$KnownDistance==-1)/nrow(edge_sep_results),nrow(edge_sep_results)))
 
 # dev.off()
 # plot(Bg)
