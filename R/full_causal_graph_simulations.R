@@ -705,12 +705,17 @@ print("IVW+cGAUGE, Bonf correction (0.1), FDR and num discoveries:")
 print(paste(sum(!is_causal(xx$KnownDistance),na.rm = T)/nrow(xx),nrow(xx)))
 
 # boxplot(-log10(edge_sep_results_statTest$`pval:trait1->trait2`)~edge_sep_results_statTest$KnownDistance)
-edge_sep_results_statTest = edge_sep_results_statTest[p.adjust(edge_sep_results_statTest$`pval:trait1->trait2`)<0.1,]
+edge_sep_results_statTest = edge_sep_results_statTest[p.adjust(edge_sep_results_statTest$`pval:trait1->trait2`)<0.01,]
 print("EdgeSep, Bonf correction (0.1), FDR and num discoveries:")
 print(paste(sum(edge_sep_results_statTest$KnownDistance==-1)/nrow(edge_sep_results_statTest),nrow(edge_sep_results_statTest)))
 
-edge_sep_results = edge_sep_results[edge_sep_results$num_edgesep>2,]
-print(paste(sum(edge_sep_results$KnownDistance==-1)/nrow(edge_sep_results),nrow(edge_sep_results)))
+# edge_sep_results = edge_sep_results[edge_sep_results$num_edgesep>2,]
+# print(paste(sum(edge_sep_results$KnownDistance==-1)/nrow(edge_sep_results),nrow(edge_sep_results)))
+# 
+# edge_sep_results_statTest = edge_sep_results_statTest[edge_sep_results_statTest$`pval:trait1->trait2` > 1,]
+# print("EdgeSep, Bonf correction (0.1), FDR and num discoveries:")
+# print(paste(sum(edge_sep_results_statTest$KnownDistance==-1)/nrow(edge_sep_results_statTest),nrow(edge_sep_results_statTest)))
+
 
 # dev.off()
 # plot(Bg)

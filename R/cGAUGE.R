@@ -209,7 +209,7 @@ EdgeSepTest2<-function(GWAS_Ps,G_t,trait_pair_pvals,text_col_name="test3"){
       if(is.na(G_t[tr1,tr2]) || G_t[tr1,tr2]==0){next}
       p1 = GWAS_Ps[,tr2]
       ps_with_tr2_cond_tr1 = trait_pair_pvals[[tr2]][[tr1]][,text_col_name]
-      test1 = em_based_edgesep_test(p1,ps_with_tr2_cond_tr1)
+      test1 = univar_mixtools_em(p1,ps_with_tr2_cond_tr1)
       edge_sep_tests = rbind(edge_sep_tests,c(tr1,tr2,test1))
     }
   }
@@ -229,12 +229,22 @@ paired_ttest_on_ps<-function(x1,x2,diff_thr = 2){
 # paired_ttest_on_ps(runif(100),runif(100)/10)
 # paired_ttest_on_ps(runif(100)/100,runif(100)/10)
 # paired_ttest_on_ps(runif(100)/1000,runif(100)/10000)
-library(mclust)
 tr1 = "T1"
 tr2 = "T12"
 p1 = GWAS_Ps[,tr2]
 p2 = trait_pair_pvals[[tr2]][[tr1]][,1]
-em_based_edgesep_test(p1,p2)
+univar_mixtools_em(p1,p2)
+table(z1-z2 > z1_m[4])
+
+# simple_count_test<-function(p1,p2){
+#   z1 = c(-qnorm(p1))
+#   z2 = c(-qnorm(p2))
+#   z1_m = modified_znormix(p1,theoretical_null = T)[1:5]
+#   z2_m = modified_znormix(p2,theoretical_null = T)[1:5]
+#   sum(z1-z2 > max(3,z1_m[4]))
+# }
+
+
 # try semm
 library(semm)
 beta1 = GWAS_effects[,tr2]
@@ -247,59 +257,14 @@ SE = cbind(se1,se2)
 fit2 <- model2_stan(B=B,SE=SE, chains=4, warmup=10, iter=80, refresh=20)
 print(fit2, pars=c("pi", "sigmasq"), digits=5)
 
-
-em_based_edgesep_test<-function(p1,p2){
+locfdr_ests<-function(p1,p2){
   z1 = c(-qnorm(p1))
   z2 = c(-qnorm(p2))
-  df = cbind(z1,z2)
-  # Use univariate EM with theoretical null
   z1_m = modified_znormix(p1,theoretical_null = T)[1:5]
   z2_m = modified_znormix(p2,theoretical_null = T)[1:5]
-  
-  # Infer the full model
-  mu = list(
-    c(z1_m[2],z2_m[2]),
-    c(z1_m[2],z2_m[4]),
-    c(z1_m[4],z2_m[2]),
-    c(z1_m[4],z2_m[4])
-  )
-  nullCovInds = (z1>-2 & z1<2 & z2>-2 & z2 < 2)
-  zzcov = cov(z1[nullCovInds],z2[nullCovInds])
-  na_mat = matrix(NA,2,2)
-  sigma = list(
-    matrix(c(1,zzcov,zzcov,1),2,2),
-    matrix(c(1,zzcov,zzcov,1),2,2),
-    matrix(c(1,zzcov,zzcov,1),2,2),
-    matrix(c(1,zzcov,zzcov,1),2,2)
-  )
-  model_full = mvnormalmixConstrainedEM(df,mu=mu,sigma=sigma,verb=F,
-                                        k=length(mu),epsilon = 1e-5)
-  
-  # Infer the reduced model
-  mu_null = list(
-    c(z1_m[2],z2_m[2]),
-    c(z1_m[2],z2_m[4]),
-    c(z1_m[4],z2_m[4])
-  )
-  sigma_null = list(
-    matrix(c(1,zzcov,zzcov,1),2,2),
-    matrix(c(1,zzcov,zzcov,1),2,2),
-    matrix(c(1,zzcov,zzcov,1),2,2)
-  )
-  model_null = mvnormalmixConstrainedEM(df,mu=mu_null,
-                   sigma=sigma_null,verb=F,k=length(mu_null))
-  
-  l1 = model_full$loglik
-  dfs1 =  3*3 + 3
-  l2 = model_null$loglik
-  dfs2 =  2*3 + 3
-  chi = 2*(l1 - l2)
-  dof = dfs1-dfs2
-  pval = pchisq(chi,dof,lower.tail = F)
-  return(pval)
+  z3_m = modified_znormix(p=NULL,z = z1-z2,theoretical_null = F)[1:5]
+  1-z3_m[1]
 }
-
-
 
 #' Go over all trait pairs and run MR
 #' 
