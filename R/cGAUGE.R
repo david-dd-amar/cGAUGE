@@ -230,9 +230,12 @@ paired_ttest_on_ps<-function(x1,x2,diff_thr = 2){
 # paired_ttest_on_ps(runif(100)/100,runif(100)/10)
 # paired_ttest_on_ps(runif(100)/1000,runif(100)/10000)
 tr1 = "T1"
-tr2 = "T12"
+tr2 = "T2"
 p1 = GWAS_Ps[,tr2]
 p2 = trait_pair_pvals[[tr2]][[tr1]][,1]
+z1 = -qnorm(p1)
+z2 = -qnorm(p2)
+plot(z1,z2)
 univar_mixtools_em(p1,p2)
 table(z1-z2 > z1_m[4])
 

@@ -178,7 +178,7 @@ for(p1 in tested_p1){
           # EdgeSepTest
           edge_sep_results_statTest = 
             edge_sep_results_statTest[
-              p.adjust(edge_sep_results_statTest$`pval:trait1->trait2`),method=FDR_method<FDR,]
+              p.adjust(edge_sep_results_statTest$`pval:trait1->trait2`,method=FDR_method)<FDR,]
           errs["edge_sep_test"] = sum(!is_causal(edge_sep_results_statTest$KnownDistance))
           preds["edge_sep_test"] = nrow(edge_sep_results_statTest)
           

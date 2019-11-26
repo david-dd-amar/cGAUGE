@@ -100,11 +100,13 @@ univar_mixtools_em<-function(p1,p2){
     chi = 2*(l1 - l0)
     dof = dfs1-dfs2
     pval = pchisq(chi,dof,lower.tail = F)
-    
+    return(pval)
     for(j in 1:10){
-      emEst0_samp = normalmixEM(zz,lambda = params0$pro,mean.constr = params0$mean,
+      emEst0_samp = normalmixEM(sample(zz,replace=T),
+                                lambda = params0$pro,mean.constr = params0$mean,
                                 sd.constr = c("a","a","a"),k=3,epsilon = 1e-4)
-      emEst1_samp = normalmixEM(zz,lambda = params1$pro,mean.constr = params1$mean,
+      emEst1_samp = normalmixEM(sample(zz,replace = T),
+                                lambda = params1$pro,mean.constr = params1$mean,
                                 sd.constr = c("a","a","a","a"),k=4,epsilon = 1e-4)
       
       l1 = emEst1_samp$loglik
