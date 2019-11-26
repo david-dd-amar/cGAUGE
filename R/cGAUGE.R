@@ -226,48 +226,48 @@ paired_ttest_on_ps<-function(x1,x2,diff_thr = 2){
   diffs = z1-z2  - diff_thr
   return(t.test(diffs,alternative = "g")$p.value)
 }
-# paired_ttest_on_ps(runif(100),runif(100)/10)
-# paired_ttest_on_ps(runif(100)/100,runif(100)/10)
-# paired_ttest_on_ps(runif(100)/1000,runif(100)/10000)
-tr1 = "T1"
-tr2 = "T2"
-p1 = GWAS_Ps[,tr2]
-p2 = trait_pair_pvals[[tr2]][[tr1]][,1]
-z1 = -qnorm(p1)
-z2 = -qnorm(p2)
-plot(z1,z2)
-univar_mixtools_em(p1,p2)
-table(z1-z2 > z1_m[4])
-
-# simple_count_test<-function(p1,p2){
+# # paired_ttest_on_ps(runif(100),runif(100)/10)
+# # paired_ttest_on_ps(runif(100)/100,runif(100)/10)
+# # paired_ttest_on_ps(runif(100)/1000,runif(100)/10000)
+# tr1 = "T1"
+# tr2 = "T2"
+# p1 = GWAS_Ps[,tr2]
+# p2 = trait_pair_pvals[[tr2]][[tr1]][,1]
+# z1 = -qnorm(p1)
+# z2 = -qnorm(p2)
+# plot(z1,z2)
+# univar_mixtools_em(p1,p2)
+# table(z1-z2 > z1_m[4])
+# 
+# # simple_count_test<-function(p1,p2){
+# #   z1 = c(-qnorm(p1))
+# #   z2 = c(-qnorm(p2))
+# #   z1_m = modified_znormix(p1,theoretical_null = T)[1:5]
+# #   z2_m = modified_znormix(p2,theoretical_null = T)[1:5]
+# #   sum(z1-z2 > max(3,z1_m[4]))
+# # }
+# 
+# 
+# # try semm
+# library(semm)
+# beta1 = GWAS_effects[,tr2]
+# beta2 = trait_pair_pvals[[tr2]][[tr1]][,4]
+# se1 = GWAS_ses[,tr2]
+# se2 = trait_pair_pvals[[tr2]][[tr1]][,3]
+# plot(beta1,beta2)
+# B = cbind(beta1,beta2)
+# SE = cbind(se1,se2)
+# fit2 <- model2_stan(B=B,SE=SE, chains=4, warmup=10, iter=80, refresh=20)
+# print(fit2, pars=c("pi", "sigmasq"), digits=5)
+# 
+# locfdr_ests<-function(p1,p2){
 #   z1 = c(-qnorm(p1))
 #   z2 = c(-qnorm(p2))
 #   z1_m = modified_znormix(p1,theoretical_null = T)[1:5]
 #   z2_m = modified_znormix(p2,theoretical_null = T)[1:5]
-#   sum(z1-z2 > max(3,z1_m[4]))
+#   z3_m = modified_znormix(p=NULL,z = z1-z2,theoretical_null = F)[1:5]
+#   1-z3_m[1]
 # }
-
-
-# try semm
-library(semm)
-beta1 = GWAS_effects[,tr2]
-beta2 = trait_pair_pvals[[tr2]][[tr1]][,4]
-se1 = GWAS_ses[,tr2]
-se2 = trait_pair_pvals[[tr2]][[tr1]][,3]
-plot(beta1,beta2)
-B = cbind(beta1,beta2)
-SE = cbind(se1,se2)
-fit2 <- model2_stan(B=B,SE=SE, chains=4, warmup=10, iter=80, refresh=20)
-print(fit2, pars=c("pi", "sigmasq"), digits=5)
-
-locfdr_ests<-function(p1,p2){
-  z1 = c(-qnorm(p1))
-  z2 = c(-qnorm(p2))
-  z1_m = modified_znormix(p1,theoretical_null = T)[1:5]
-  z2_m = modified_znormix(p2,theoretical_null = T)[1:5]
-  z3_m = modified_znormix(p=NULL,z = z1-z2,theoretical_null = F)[1:5]
-  1-z3_m[1]
-}
 
 #' Go over all trait pairs and run MR
 #' 
