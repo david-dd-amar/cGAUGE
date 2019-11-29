@@ -85,7 +85,6 @@ modified_znormix <- function (p, z = NULL,start.pi0=0.85, eps = 1e-03,
 #   return(p)
 # }
 
-# library(locfdr)
 #' Two groups estimation of the tendency of non-null observations from p1 to be null in p2.
 #' 
 #' We estimate the Bayes Fdr values of each point to infer two fdr vectors: fdr1 and fdr2.
