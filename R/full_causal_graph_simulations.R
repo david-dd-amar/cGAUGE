@@ -4,7 +4,7 @@
 required_libs = c("igraph","bnlearn","MRPRESSO",
                   "optparse","limma","MendelianRandomization")
 lib_loc = "~/R/packages3.5"
-lib_loc = .libPaths()
+lib_loc = c(lib_loc,.libPaths())
 for (lib_name in required_libs){
   tryCatch({library(lib_name,character.only = T,lib.loc = lib_loc)},
            error = function(e) {
@@ -13,6 +13,7 @@ for (lib_name in required_libs){
 }
 # Add the cGAUGE functions and auxiliary functions for MR
 source("https://raw.githubusercontent.com/david-dd-amar/cGAUGE/master/R/cGAUGE.R")
+source("https://raw.githubusercontent.com/david-dd-amar/cGAUGE/master/R/twogroups_em_tests.R")
 print("Completed loading libraries and code")
 
 ###################################################################################
@@ -41,7 +42,7 @@ option_list <- list(
               help="When applying pleiotropy, this is the min number of IV-trait links to add (at random)"),
   make_option(c( "--maxPleio"), action="store", default=10,type="integer",
               help="When applying pleiotropy, this is the max number of IV-trait links to add (at random)"),
-  make_option(c( "--probPleio"), action="store", default=0.2,type="double",
+  make_option(c( "--probPleio"), action="store", default=0.1,type="double",
               help="Probability that a variant is pleiotropic"),
   make_option(c( "--minMAF"), action="store", default=0.05,type="double",
               help="Minimal MAF - these are sampled with U(minMAF,maxMAF)"),
@@ -52,7 +53,10 @@ option_list <- list(
   make_option(c( "--p2"), action="store", default=0.01,type="double",
               help="P-value threshold for independence - i.e., if p>p2"),
   make_option(c( "--out"), action="store", default="simulation_result.RData",type="character",
-              help="Output RData file with the simulated data and the analysis results")
+              help="Output RData file with the simulated data and the analysis results"),
+  make_option(c( "--edgeSepRun"), action="store", default="0",type="character",
+              help="0: run edgeSep with the other methods; 1: run edge sep only, ignore p2")
+  
 )
 
 # get command line options, if help option encountered print help and exit,
@@ -75,6 +79,7 @@ maxMAF = opt$maxMAF
 p1 = opt$p1
 p2 = opt$p2
 outfile = opt$out
+edgeSepRun = opt$edgeSepRun
 
 print("Completed parsing input parameters, starting the simulation")
 
@@ -370,80 +375,6 @@ G_it = GWAS_Ps < p1
 print("Done, number of associations with p<p1 per instrument:")
 print(colSums(G_it))
 print("Running standard MR analysis")
-# Run MR
-# pleio size is set to 100 - no filtering of variants (a standard MR analysis)
-mr_anal_res = list(
-  "Egger" = run_pairwise_mr_analyses(G_it,GWAS_effects,GWAS_ses,
-                                     pleio_size=100,pruned_lists=NULL,func=mr_egger,robust=T),
-  "IVW" = run_pairwise_mr_analyses(G_it,GWAS_effects,GWAS_ses,
-                                   pleio_size=100,pruned_lists=NULL,func=mr_ivw,robust=T)
-)
-# Add MRPRESSO
-print("Done with Egger and IVW, running MRPRESSO")
-mrpresso_res = c()
-try({
-  for(tr1 in phenos){
-    currivs = rownames(GWAS_Ps)[G_it[,tr1]]
-    for(tr2 in phenos){
-      if(tr1==tr2){next}
-      X = data.frame(E1b=GWAS_effects[currivs,tr1],O1b=GWAS_effects[currivs,tr2],
-                     E1sd=GWAS_ses[currivs,tr1],O1sd=GWAS_ses[currivs,tr2])
-      try({
-        res = mr_presso(BetaOutcome = "O1b", BetaExposure = "E1b", 
-                        SdOutcome = "O1sd", SdExposure = "E1sd",data=X,
-                        OUTLIERtest=T,
-                        DISTORTIONtest = T,
-                        NbDistribution = 100,SignifThreshold = 0.1)
-        if(is.na(res$`Main MR results`[2,"P-value"])){
-          mrpresso_res = rbind(mrpresso_res,
-                               c(tr1,tr2,unlist(res$`Main MR results`[1,])))
-        }
-        else{
-          mrpresso_res = rbind(mrpresso_res,
-                               c(tr1,tr2,unlist(res$`Main MR results`[2,])))
-        }
-      })
-    }
-  }
-  if(!is.null(dim(mrpresso_res))){
-    mrpresso_res = as.data.frame(mrpresso_res)
-    for(j in 3:ncol(mrpresso_res)){
-      mrpresso_res[[j]] = as.numeric(as.character(mrpresso_res[[j]]))
-    }  
-  }
-})
-
-print("Done, adding LCV")
-lcv_res = c()
-try({
-  # Add LCV
-  for(tr1 in phenos){
-    for(tr2 in phenos){
-      if(tr1==tr2){next}
-      curr_lcv = exec_lcv_on_pair(GWAS_Zs[,tr1],GWAS_Zs[,tr2],N=N)
-      curr_p = pnorm(curr_lcv$zscore,lower.tail = F)
-      lcv_res = rbind(lcv_res,
-                      c(tr1,tr2,curr_lcv[[1]],curr_p,curr_lcv$gcp.pm,curr_lcv$gcp.pse,
-                        curr_lcv$rho.est,curr_lcv$rho.err))
-    }
-  }
-  colnames(lcv_res) = c("Trait1","Trait2","Z","P","gcp","gcpse","rho","rhose")
-  if(!is.null(dim(lcv_res))){
-    lcv_res = as.data.frame(lcv_res)
-    for(j in 3:ncol(lcv_res)){
-      lcv_res[[j]] = as.numeric(as.character(lcv_res[[j]]))
-    }
-  }
-})
-print("Done with LCV")
-
-print("Adding the known trait distances to the MR data frames:")
-# Save the MR results in a list
-standard_mr_results = list()
-try({standard_mr_results[["Egger"]] = add_distances(mr_anal_res$Egger,B_distances)})
-try({standard_mr_results[["IVW"]] = add_distances(mr_anal_res$IVW,B_distances)})
-try({standard_mr_results[["MRPRESSO"]] = add_distances(mrpresso_res,B_distances)})
-try({standard_mr_results[["LCV"]] = add_distances(lcv_res,B_distances)})
 
 ###########################
 # cGAUGE starts here:
@@ -507,6 +438,31 @@ G_t = skeleton_pmax < p1
 print("Done, node degrees:")
 print(colSums(G_t))
 
+if(edgeSepRun=="1"){
+  edge_sep_results_statTest = EdgeSepTest2(GWAS_Ps,G_t,trait_pair_pvals,text_col_name=1)
+  edge_sep_results_statTest = add_distances(edge_sep_results_statTest,
+                                            B_distances,newcolname = "KnownDistance")
+  
+  # boxplot(-log10(edge_sep_results_statTest$`pval:trait1->trait2`)~edge_sep_results_statTest$KnownDistance)
+  edge_sep_results_statTest = edge_sep_results_statTest[
+    p.adjust(edge_sep_results_statTest$`pval:trait1->trait2`)<0.01,]
+  print("EdgeSep, Bonf correction (0.1), FDR and num discoveries:")
+  print(paste(
+    sum(edge_sep_results_statTest$KnownDistance==-1)/nrow(edge_sep_results_statTest),
+    nrow(edge_sep_results_statTest)))
+  
+  save(
+    opt, # input parameters
+    B,Bg,simulated_data,B_distances, # simulated data
+    edge_sep_results_statTest, # EdgeSepStatTest
+    G_it,G_vt,G_t, iv_sets, # Skeletons
+    file = outfile
+  )
+  
+  q(save = "no",status = 0)
+}
+
+
 # Merge the sepsets
 merged_sepsets = list()
 for(tr1 in phenos){
@@ -551,7 +507,7 @@ for(tr1 in phenos){
   }
 }
 
-# Rerun the MR
+# Run the MR
 print("Done, rerunning MR")
 # Pleio size is set to 1, to satisfy the conditions of Theorem 3.1
 cgauge_mr_anal_res = list(
@@ -645,6 +601,90 @@ edge_sep_results_statTest = EdgeSepTest2(GWAS_Ps,G_t,trait_pair_pvals,text_col_n
 edge_sep_results_statTest = add_distances(edge_sep_results_statTest,
                                  B_distances,newcolname = "KnownDistance")
 
+# boxplot(-log10(edge_sep_results_statTest$`pval:trait1->trait2`)~edge_sep_results_statTest$KnownDistance)
+edge_sep_results_statTest = edge_sep_results_statTest[
+  p.adjust(edge_sep_results_statTest$`pval:trait1->trait2`)<0.01,]
+print("EdgeSep, Bonf correction (0.1), FDR and num discoveries:")
+print(paste(
+  sum(edge_sep_results_statTest$KnownDistance==-1)/nrow(edge_sep_results_statTest),
+  nrow(edge_sep_results_statTest)))
+
+#############################################################################
+# Run MR methods
+# pleio size is set to 100 - no filtering of variants (a standard MR analysis)
+mr_anal_res = list(
+  "Egger" = run_pairwise_mr_analyses(G_it,GWAS_effects,GWAS_ses,
+                                     pleio_size=100,pruned_lists=NULL,func=mr_egger,robust=T),
+  "IVW" = run_pairwise_mr_analyses(G_it,GWAS_effects,GWAS_ses,
+                                   pleio_size=100,pruned_lists=NULL,func=mr_ivw,robust=T)
+)
+# Add MRPRESSO
+print("Done with Egger and IVW, running MRPRESSO")
+mrpresso_res = c()
+try({
+  for(tr1 in phenos){
+    currivs = rownames(GWAS_Ps)[G_it[,tr1]]
+    for(tr2 in phenos){
+      if(tr1==tr2){next}
+      X = data.frame(E1b=GWAS_effects[currivs,tr1],O1b=GWAS_effects[currivs,tr2],
+                     E1sd=GWAS_ses[currivs,tr1],O1sd=GWAS_ses[currivs,tr2])
+      try({
+        res = mr_presso(BetaOutcome = "O1b", BetaExposure = "E1b", 
+                        SdOutcome = "O1sd", SdExposure = "E1sd",data=X,
+                        OUTLIERtest=T,
+                        DISTORTIONtest = T,
+                        NbDistribution = 100,SignifThreshold = 0.1)
+        if(is.na(res$`Main MR results`[2,"P-value"])){
+          mrpresso_res = rbind(mrpresso_res,
+                               c(tr1,tr2,unlist(res$`Main MR results`[1,])))
+        }
+        else{
+          mrpresso_res = rbind(mrpresso_res,
+                               c(tr1,tr2,unlist(res$`Main MR results`[2,])))
+        }
+      })
+    }
+  }
+  if(!is.null(dim(mrpresso_res))){
+    mrpresso_res = as.data.frame(mrpresso_res)
+    for(j in 3:ncol(mrpresso_res)){
+      mrpresso_res[[j]] = as.numeric(as.character(mrpresso_res[[j]]))
+    }  
+  }
+})
+
+print("Done, adding LCV")
+lcv_res = c()
+try({
+  # Add LCV
+  for(tr1 in phenos){
+    for(tr2 in phenos){
+      if(tr1==tr2){next}
+      curr_lcv = exec_lcv_on_pair(GWAS_Zs[,tr1],GWAS_Zs[,tr2],N=N)
+      curr_p = pnorm(curr_lcv$zscore,lower.tail = F)
+      lcv_res = rbind(lcv_res,
+                      c(tr1,tr2,curr_lcv[[1]],curr_p,curr_lcv$gcp.pm,curr_lcv$gcp.pse,
+                        curr_lcv$rho.est,curr_lcv$rho.err))
+    }
+  }
+  colnames(lcv_res) = c("Trait1","Trait2","Z","P","gcp","gcpse","rho","rhose")
+  if(!is.null(dim(lcv_res))){
+    lcv_res = as.data.frame(lcv_res)
+    for(j in 3:ncol(lcv_res)){
+      lcv_res[[j]] = as.numeric(as.character(lcv_res[[j]]))
+    }
+  }
+})
+print("Done with LCV")
+
+print("Adding the known trait distances to the MR data frames:")
+# Save the MR results in a list
+standard_mr_results = list()
+try({standard_mr_results[["Egger"]] = add_distances(mr_anal_res$Egger,B_distances)})
+try({standard_mr_results[["IVW"]] = add_distances(mr_anal_res$IVW,B_distances)})
+try({standard_mr_results[["MRPRESSO"]] = add_distances(mrpresso_res,B_distances)})
+try({standard_mr_results[["LCV"]] = add_distances(lcv_res,B_distances)})
+
 #############################################################################
 # Save the results in an RData file
 save(
@@ -705,9 +745,12 @@ print("IVW+cGAUGE, Bonf correction (0.1), FDR and num discoveries:")
 print(paste(sum(!is_causal(xx$KnownDistance),na.rm = T)/nrow(xx),nrow(xx)))
 
 # boxplot(-log10(edge_sep_results_statTest$`pval:trait1->trait2`)~edge_sep_results_statTest$KnownDistance)
-edge_sep_results_statTest = edge_sep_results_statTest[p.adjust(edge_sep_results_statTest$`pval:trait1->trait2`)<0.01,]
+edge_sep_results_statTest = edge_sep_results_statTest[
+  p.adjust(edge_sep_results_statTest$`pval:trait1->trait2`)<0.01,]
 print("EdgeSep, Bonf correction (0.1), FDR and num discoveries:")
-print(paste(sum(edge_sep_results_statTest$KnownDistance==-1)/nrow(edge_sep_results_statTest),nrow(edge_sep_results_statTest)))
+print(paste(
+  sum(edge_sep_results_statTest$KnownDistance==-1)/nrow(edge_sep_results_statTest),
+  nrow(edge_sep_results_statTest)))
 
 edge_sep_results = edge_sep_results[edge_sep_results$num_edgesep>2,]
 print(paste(sum(edge_sep_results$real_distance==-1)/nrow(edge_sep_results),
