@@ -71,19 +71,19 @@ modified_znormix <- function (p, z = NULL,start.pi0=0.85, eps = 1e-03,
   new.par
 }
 
-library(EnvStats)
-simple_hg_test<-function(p1,p2){
-  z1 = c(-qnorm(p1))
-  z2 = c(-qnorm(p2))
-  z1_m = modified_znormix(p1,theoretical_null = T,min_mean_z1 = 2)
-  z2_m = modified_znormix(p2,theoretical_null = T,min_mean_z1 = 2)
-  fdr1 = attr(z1_m,"fdr")
-  fdr2 = attr(z2_m,"fdr")
-  selected1 = fdr1 < 0.1
-  z2_s1 = z2[selected1]
-  p = varTest(z2_s1,alternative = "greater", sigma.squared =  z2_m[5]^2)$p.value
-  return(p)
-}
+# library(EnvStats)
+# simple_hg_test<-function(p1,p2){
+#   z1 = c(-qnorm(p1))
+#   z2 = c(-qnorm(p2))
+#   z1_m = modified_znormix(p1,theoretical_null = T,min_mean_z1 = 2)
+#   z2_m = modified_znormix(p2,theoretical_null = T,min_mean_z1 = 2)
+#   fdr1 = attr(z1_m,"fdr")
+#   fdr2 = attr(z2_m,"fdr")
+#   selected1 = fdr1 < 0.1
+#   z2_s1 = z2[selected1]
+#   p = varTest(z2_s1,alternative = "greater", sigma.squared =  z2_m[5]^2)$p.value
+#   return(p)
+# }
 
 library(locfdr)
 #' Two groups estimation of the tendency of non-null observations from p1 to be null in p2.

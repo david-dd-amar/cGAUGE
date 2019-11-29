@@ -438,31 +438,6 @@ G_t = skeleton_pmax < p1
 print("Done, node degrees:")
 print(colSums(G_t))
 
-if(edgeSepRun=="1"){
-  edge_sep_results_statTest = EdgeSepTest2(GWAS_Ps,G_t,trait_pair_pvals,text_col_name=1)
-  edge_sep_results_statTest = add_distances(edge_sep_results_statTest,
-                                            B_distances,newcolname = "KnownDistance")
-  
-  # boxplot(-log10(edge_sep_results_statTest$`pval:trait1->trait2`)~edge_sep_results_statTest$KnownDistance)
-  edge_sep_results_statTest = edge_sep_results_statTest[
-    p.adjust(edge_sep_results_statTest$`pval:trait1->trait2`)<0.01,]
-  print("EdgeSep, Bonf correction (0.1), FDR and num discoveries:")
-  print(paste(
-    sum(edge_sep_results_statTest$KnownDistance==-1)/nrow(edge_sep_results_statTest),
-    nrow(edge_sep_results_statTest)))
-  
-  save(
-    opt, # input parameters
-    B,Bg,simulated_data,B_distances, # simulated data
-    edge_sep_results_statTest, # EdgeSepStatTest
-    G_it,G_vt,G_t, iv_sets, # Skeletons
-    file = outfile
-  )
-  
-  q(save = "no",status = 0)
-}
-
-
 # Merge the sepsets
 merged_sepsets = list()
 for(tr1 in phenos){
@@ -490,6 +465,31 @@ for(pheno1 in phenos){
 G_vt = extract_skeleton_G_VT(GWAS_Ps,trait_pair_pvals,P1=p1,P2=p2,test_columns = 1)[[1]]
 real_G_vt = abs(t(B[phenos,ivs])>0)
 
+if(edgeSepRun=="1"){
+  edge_sep_results_statTest = EdgeSepTest2(GWAS_Ps,G_t,trait_pair_pvals,text_col_name=1)
+  edge_sep_results_statTest = add_distances(edge_sep_results_statTest,
+                                            B_distances,newcolname = "KnownDistance")
+  
+  # boxplot(-log10(edge_sep_results_statTest$`pval:trait1->trait2`)~edge_sep_results_statTest$KnownDistance)
+  edge_sep_results_statTest = edge_sep_results_statTest[
+    p.adjust(edge_sep_results_statTest$`pval:trait1->trait2`)<0.01,]
+  print("EdgeSep, Bonf correction (0.1), FDR and num discoveries:")
+  print(paste(
+    sum(edge_sep_results_statTest$KnownDistance==-1)/nrow(edge_sep_results_statTest),
+    nrow(edge_sep_results_statTest)))
+  
+  save(
+    opt, # input parameters
+    B,Bg,simulated_data,B_distances, # simulated data
+    edge_sep_results_statTest, # EdgeSepStatTest
+    G_it,G_vt,G_t, iv_sets, # Skeletons
+    file = outfile
+  )
+  
+  q(save = "no",status = 0)
+}
+
+
 # Get new instrument sets after the cGAUGE filter
 iv_sets = list()
 for(tr1 in phenos){
@@ -497,13 +497,12 @@ for(tr1 in phenos){
   for(tr2 in phenos){
     iv_sets[[tr1]][[tr2]] = rownames(GWAS_Ps)[GWAS_Ps[,tr1]<p1]
     currseps = merged_sepsets[[tr1]][[tr2]]
-    print(length(currseps))
     # remove IVs into separating variables
     for(sep in currseps){
       curr_sep_ivs = rownames(G_vt)[G_vt[,sep]]
       iv_sets[[tr1]][[tr2]] = setdiff(iv_sets[[tr1]][[tr2]],curr_sep_ivs)
     }
-    print(paste("before:",sum(G_it[,tr1]),"after:",length(iv_sets[[tr1]][[tr2]])))
+    print(paste("before:",sum(G_it[,tr1]),"after:",length(iv_sets[[tr1]][[tr2]]),"sepNodes:",length(currseps)))
   }
 }
 
