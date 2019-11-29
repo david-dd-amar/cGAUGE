@@ -469,6 +469,13 @@ if(edgeSepRun=="1"){
   edge_sep_results_statTest = EdgeSepTest2(GWAS_Ps,G_t,trait_pair_pvals,text_col_name=1)
   edge_sep_results_statTest = add_distances(edge_sep_results_statTest,
                                             B_distances,newcolname = "KnownDistance")
+  save(
+    opt, # input parameters
+    B,Bg,simulated_data,B_distances, # simulated data
+    edge_sep_results_statTest, # EdgeSepStatTest
+    G_it,G_vt,G_t, iv_sets, # Skeletons
+    file = outfile
+  )
   
   # boxplot(-log10(edge_sep_results_statTest$`pval:trait1->trait2`)~edge_sep_results_statTest$KnownDistance)
   edge_sep_results_statTest = edge_sep_results_statTest[
@@ -477,14 +484,6 @@ if(edgeSepRun=="1"){
   print(paste(
     sum(edge_sep_results_statTest$KnownDistance==-1)/nrow(edge_sep_results_statTest),
     nrow(edge_sep_results_statTest)))
-  
-  save(
-    opt, # input parameters
-    B,Bg,simulated_data,B_distances, # simulated data
-    edge_sep_results_statTest, # EdgeSepStatTest
-    G_it,G_vt,G_t, iv_sets, # Skeletons
-    file = outfile
-  )
   
   q(save = "no",status = 0)
 }
@@ -600,13 +599,13 @@ edge_sep_results_statTest = EdgeSepTest2(GWAS_Ps,G_t,trait_pair_pvals,text_col_n
 edge_sep_results_statTest = add_distances(edge_sep_results_statTest,
                                  B_distances,newcolname = "KnownDistance")
 
-# boxplot(-log10(edge_sep_results_statTest$`pval:trait1->trait2`)~edge_sep_results_statTest$KnownDistance)
-edge_sep_results_statTest = edge_sep_results_statTest[
-  p.adjust(edge_sep_results_statTest$`pval:trait1->trait2`)<0.01,]
-print("EdgeSep, Bonf correction (0.1), FDR and num discoveries:")
-print(paste(
-  sum(edge_sep_results_statTest$KnownDistance==-1)/nrow(edge_sep_results_statTest),
-  nrow(edge_sep_results_statTest)))
+# # boxplot(-log10(edge_sep_results_statTest$`pval:trait1->trait2`)~edge_sep_results_statTest$KnownDistance)
+# edge_sep_results_statTest = edge_sep_results_statTest[
+#   p.adjust(edge_sep_results_statTest$`pval:trait1->trait2`)<0.01,]
+# print("EdgeSep, Bonf correction (0.1), FDR and num discoveries:")
+# print(paste(
+#   sum(edge_sep_results_statTest$KnownDistance==-1)/nrow(edge_sep_results_statTest),
+#   nrow(edge_sep_results_statTest)))
 
 #############################################################################
 # Run MR methods
