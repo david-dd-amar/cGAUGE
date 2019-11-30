@@ -12,8 +12,16 @@ for (lib_name in required_libs){
   })
 }
 # Add the cGAUGE functions and auxiliary functions for MR
-source("https://raw.githubusercontent.com/david-dd-amar/cGAUGE/master/R/cGAUGE.R")
-source("https://raw.githubusercontent.com/david-dd-amar/cGAUGE/master/R/twogroups_em_tests.R")
+# From GitHub
+try({
+  source("https://raw.githubusercontent.com/david-dd-amar/cGAUGE/master/R/cGAUGE.R")
+  source("https://raw.githubusercontent.com/david-dd-amar/cGAUGE/master/R/twogroups_em_tests.R")
+})
+# From local clone (GitHub server sometimes has issues)
+try({
+  source("~/repos/cGAUGE/R/cGAUGE.R")
+  source("~/repos/cGAUGE/R/twogroups_em_tests.R")
+})
 print("Completed loading libraries and code")
 
 ###################################################################################

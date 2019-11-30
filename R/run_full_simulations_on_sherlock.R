@@ -3,7 +3,7 @@
 ###################################################################################
 ### Helper functions to run the simulations
 
-get_sh_prefix<-function(err="",log="",time="0:30:00"){
+get_sh_prefix<-function(err="",log="",time="0:45:00"){
   return(
     c(
       "#!/bin/bash",
@@ -40,7 +40,7 @@ exec_cmd_on_sherlock<-function(cmd,jobname,out_path){
 
 ###################################################################################
 reps = 20
-WD = "/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/simulations/"
+WD = "/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/simulations_2/"
 MAX_JOBS = 300
 
 tested_p1 = c(1e-02,1e-03,1e-04,1e-05)
@@ -95,6 +95,36 @@ for(p1 in tested_p1){
 
 ##############################################################################################
 # Go over the results
+
+# Check the errors
+for(p1 in tested_p1){
+  print(paste("p1",p1))
+  for(p2_f in tested_p2_factors){
+    p2 = p1*p2_f
+    print(paste("p2",p2))
+    if(p2 >0.1){next}
+    if(p2<p1){next}
+    print(paste("p2",p2))
+    for(pleio_p in tested_pleio_levels){
+      print(paste("pleio_p",pleio_p))
+      for(deg in tested_degrees){
+        print(paste("deg",deg))
+        curr_folder = paste(WD,"deg",deg,"_pleio",pleio_p,"_p1",p1,"_p2",p2,"/",sep="")
+        curr_files = list.files(curr_folder)
+        curr_files = curr_files[grepl("err$",curr_files)]
+        for(f in curr_files){
+          l = readLines(paste(curr_folder,f,sep=""))
+          err_lines = l[grepl("error",l,ignore.case = T)]
+          if(length(err_lines)>0){
+            print(l)
+          }
+        }
+      }
+    }
+  }
+}
+
+# Read the simulation results
 FDR = 0.1
 FDR_method = "BY"
 is_causal<-function(dists){

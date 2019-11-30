@@ -1,7 +1,7 @@
 # Modified code from znormix (pi0 was depricated from CRAN on 2018)
 modified_znormix <- function (p, z = NULL,start.pi0=0.85, eps = 1e-03, 
             niter = 1000, verbose = FALSE,min_mean_z1=1,theoretical_null=F,
-            sd1GreaterThanSd2 = F){
+            sd1GreaterThanSd2 = T){
   if(!is.null(p)){
     z = as.matrix(qnorm(1 - p))
     z[is.infinite(z) & z < 0] = min(z[is.finite(z)])
@@ -92,25 +92,16 @@ modified_znormix <- function (p, z = NULL,start.pi0=0.85, eps = 1e-03,
 #' become lower in p2. We therefore use the Kolmogorov-Smirnov test on the pairwise fdr values: 
 #' ks.test(fdr1,fdr2,alternative = "g").
 simple_lfdr_test<-function(p1,p2){
-  # p1 = round(p1,digits = 5)
-  # p1[p1==0] = 1e-06
-  # p1[p1==1] = 1-1e-06
-  # p2 = round(p2,digits = 5)
-  # p2[p2==0] = 1e-06
-  # p2[p2==1] = 1-1e-06
   z1 = c(-qnorm(p1))
   z2 = c(-qnorm(p2))
-  z1_m = modified_znormix(p1,theoretical_null = T)
-  z2_m = modified_znormix(p2,theoretical_null = T)
+  z1_m = modified_znormix(p1,theoretical_null = T,
+                          min_mean_z1 = 1,sd1GreaterThanSd2 = T)
+  z2_m = modified_znormix(p2,theoretical_null = T,
+                          min_mean_z1 = 1,sd1GreaterThanSd2 = T)
+  # print(cbind(z1_m[1:5],z2_m[1:5]))
   fdr1 = attr(z1_m,"fdr")
   fdr2 = attr(z2_m,"fdr")
-  # try({
-  #   locfdr1 = locfdr(z1,nulltype = 0,plot=0)
-  #   locfdr2 = locfdr(z2,nulltype = 0,plot=0)
-  #   fdr1 = locfdr1$fdr
-  #   fdr2 = locfdr2$fdr
-  # })
-
+  
   # Null hypothesis: CDF of fdr1 lies below that of fdr2 - thus, values
   # in fdr1 are greater than those in fdr2. 
   # Alternative - we have non-null p1 cases that become null in p2: low fdrs in
@@ -119,61 +110,90 @@ simple_lfdr_test<-function(p1,p2){
   return(pv)
 }
 # # tests
-# simple_lfdr_test(c(runif(1000),runif(100)/1000000000),
-#                  c(runif(1000),runif(100)/1000000000))
-# simple_lfdr_test(c(runif(1000),runif(100)/100),
-#                  c(runif(1000),runif(100)/100))
-# simple_hg_test(c(runif(1000),runif(100)/1000000),
-#                  c(runif(1000),runif(100)/100000))
-# simple_hg_test(c(runif(1000),runif(100)/100),
-#                  c(runif(1000),runif(100)/100))
+simple_lfdr_test(
+  c(runif(10000),runif(1000)/1000000000),
+  c(runif(10000),runif(1000)/1000000)
+)
+simple_lfdr_test(c(runif(10000),runif(1000)/100000),
+                 c(runif(10000),runif(1000)/10))
 
+univar_mixtools_em(
+  c(runif(10000),runif(1000)/1000000000),
+  c(runif(10000),runif(1000)/10)
+)
+
+zdiff_test<-function(p1,p2){
+  z1 = c(-qnorm(p1))
+  z2 = c(-qnorm(p2))
+  z1_m = modified_znormix(p1,theoretical_null = T)
+  z2_m = modified_znormix(p2,theoretical_null = T)
+  zdiff = pmax(z1-z2,0)
+  zdiff = z1-z2
+  z_diff_m = modified_znormix(z=zdiff,p=NULL,theoretical_null = F,min_mean_z1 = 0)
+  pv = ks.test(fdr1,fdr2,alternative = "g",paired=T)$p.value
+  return(pv)
+}
 
 # # Code from mixtools (copied and simplified to avoid messages and unneeded options)
 # library(mixtools)
 # library(mixtools)
-# univar_mixtools_em<-function(p1,p2,B=NULL){
-#   z1 = c(-qnorm(p1))
-#   z2 = c(-qnorm(p2))
-#   z1_m = modified_znormix(p1,theoretical_null = T)[1:5]
-#   z2_m = modified_znormix(p2,theoretical_null = T)[1:5]
-#   pval = 1
-#   try({
-#     zz = z1-z2
-#     
-#     params0 = list(
-#       pro = c(0.8,0.1,0.1),
-#       mean = c(0,-z2_m[4],z1_m[4]-z2_m[4])
-#     )
-#     emEst0 = normalmixEM(zz,lambda = params0$pro,mean.constr = params0$mean,
-#                          sd.constr = c("a","a","a"),k=3,epsilon = 1e-4)
-#     
-#     params1 = list(
-#       pro = c(0.8,0.05,0.1,0.05),
-#       mean = c(0,-z2_m[4],z1_m[4]-z2_m[4],z1_m[4])
-#     )
-#     emEst1 = normalmixEM(zz,lambda = params1$pro,mean.constr = params1$mean,
-#                          sd.constr = rep(emEst0$sigma[1],4),k=4,epsilon = 1e-4)
-#     
-#     l1 = emEst1$loglik
-#     l0 = emEst0$loglik
-#     dfs1 = 3 + 4 + 1
-#     dfs2 = 2 + 3 + 1
-#     chi = 2*(l1 - l0)
-#     dof = dfs1-dfs2
-#     pval = pchisq(chi,dof,lower.tail = F)
-#     if(is.null(B) || B < 2){return(pval)}
-#     l0_b = c()
-#     for(j in 1:B){
-#       emEst0_samp = normalmixEM(sample(zz,replace=T),
-#                                 lambda = params0$pro,mean.constr = params0$mean,
-#                                 sd.constr = c("a","a","a"),k=3,epsilon = 1e-4)
-#       l0_b[j] = emEst0_samp$loglik
-#     }
-#     pval = sum(l1 > l0_b) / length(l0_b)
-#   })
-#   return(pval)
-# }
+univar_mixtools_em<-function(p1,p2,B=NULL){
+  z1 = c(-qnorm(p1))
+  z2 = c(-qnorm(p2))
+  z1_m = modified_znormix(p1,theoretical_null = T,
+                          min_mean_z1 = 1,sd1GreaterThanSd2 = T)[1:5]
+  z2_m = modified_znormix(p2,theoretical_null = T,
+                          min_mean_z1 = 1,sd1GreaterThanSd2 = T)[1:5]
+  pval = 1
+  try({
+    zz = z1-z2
+
+    params0 = list(
+      pro = c(0.8,0.1,0.1),
+      mean = c(0,-z2_m[4],z1_m[4]-z2_m[4])
+    )
+    emEst0_1 = normalmixEM(zz,lambda = params0$pro,mean.constr = params0$mean,
+                         # sd.constr = c("a","a","a"),
+                         k=3,epsilon = 1e-4)
+    emEst0_2 = normalmixEM(zz,lambda = c(0.8,0.2),mean.constr = c(0,z1_m[4]-z2_m[4]),
+                           # sd.constr = c("a","a"),
+                           k=2,epsilon = 1e-4)
+
+    params1 = list(
+      pro = c(0.8,0.05,0.1,0.05),
+      mean = c(0,-z2_m[4],z1_m[4]-z2_m[4],z1_m[4])
+    )
+    emEst1_1 = normalmixEM(zz,lambda = params1$pro,mean.constr = params1$mean,
+                         # sd.constr = rep(emEst0$sigma[1],4),
+                         k=4,epsilon = 1e-4)
+    emEst1_2 = normalmixEM(zz,lambda = params0$pro,mean.constr = c(0,z1_m[4]-z2_m[4],z1_m[4]),
+                           # sd.constr = rep(emEst0$sigma[1],4),
+                           k=3,epsilon = 1e-4)
+
+    l1_1 = emEst1_1$loglik
+    l1_2 = emEst1_2$loglik
+    l0_1 = emEst0_1$loglik
+    l0_2 = emEst0_2$loglik
+    
+    chi1 = 2*(l1_1 - l0_1)
+    chi2 = 2*(l1_2 - l0_2)
+    dof_diff = 2 # added dofs: one for additional prior, one for mean 
+    chi = max(chi1,chi2)
+
+    pval = pchisq(chi,dof_diff,lower.tail = F)
+    
+    if(is.null(B) || B < 2){return(pval)}
+    l0_b = c()
+    for(j in 1:B){
+      emEst0_samp = normalmixEM(sample(zz,replace=T),
+                                lambda = params0$pro,mean.constr = params0$mean,
+                                sd.constr = c("a","a","a"),k=3,epsilon = 1e-4)
+      l0_b[j] = emEst0_samp$loglik
+    }
+    pval = sum(l1 > l0_b) / length(l0_b)
+  })
+  return(pval)
+}
 
 # # Use rstan for a mixture model
 # # code based on
@@ -385,7 +405,8 @@ simple_lfdr_test<-function(p1,p2){
 # fit = stan(model_code=models4,data=data,chains=2,iter=100,warmup = 20)
 # 
 #
-# emEst1 = normalmixEM(z1,lambda = c(0.8,0.2),mean.constr = c(0,"a"),
-#                          sd.constr = c("b","b"),k=2,epsilon = 1e-8)
+zdiff = z1-z2
+emEst1 = normalmixEM(z1,lambda = c(0.8,0.2),mean.constr = c(0,"a"),
+                         sd.constr = c("b","b"),k=2,epsilon = 1e-8)
                          
                          
