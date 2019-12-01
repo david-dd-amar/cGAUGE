@@ -156,52 +156,17 @@ EdgeSep<-function(GWAS_Ps,G_t,trait_pair_pvals,p1,p2,pruned_snp_lists = NULL,
   return(detected_cis_per_edge)
 }
 
-#' #' Get all cases of disappearing correlations (based on p1)
-#' #'
-#' #' @details For each analyzed (x,y) G_t skeleton we compute the number of variants that are associated with x and y but not with y given x. We also compute the fraction of these cases out of all of x's variants. 
-#' #' @param GWAS_Ps A matrix. Rows are variants and columns are phenotypes. Cells are P-values.
-#' #' @param G_t A binary matrix. TRUE values represent trait skeleton edges.
-#' #' @param trait_pair_pvals. A named list. Each element is a list. Element [[tr1]][[tr2]] in the list is the conditional independence results for trait 1 conditioned on trait 2.
-#' #' @param P1 A number. A threshold used to define significant association.
-#' #' @param text_col_name a string. The column name to take for the pairwise p-value (i.e., from each element of trait_pair_pvals)
-#' #' @param pheno_names A named character vector. 
-#' #' @return A list with two matrices. In each matrix, each row has four elements: the snp id, trait1, trait2, p-value of trait 1, p-value of trait 2. The first matrix contains all emerging associations. The second matrix contains only the variants that have significant GWAS association with tr2 (at p1).
-#' EdgeSepTest<-function(GWAS_Ps,G_t,trait_pair_pvals,p1,pruned_snp_lists = NULL,
-#'                   text_col_name="test3"){
-#'   edge_sep_tests = c()
-#'   for(tr1 in colnames(GWAS_Ps)){
-#'     for(tr2 in colnames(GWAS_Ps)){
-#'       if(tr1==tr2){break}
-#'       tr1_tr2_ivs = rownames(GWAS_Ps)[GWAS_Ps[,tr1]<p1 & GWAS_Ps[,tr2]<p1]
-#'       if(!is.null(pruned_snp_lists)){
-#'         tr1_tr2_ivs = intersect(pruned_snp_lists[[tr1]],tr1_tr2_ivs)
-#'       }
-#'       if(length(tr1_tr2_ivs)<5){next}
-#'       # Go over skeleton edges only
-#'       if(is.na(G_t[tr1,tr2]) || G_t[tr1,tr2]==0){next}
-#'       # Check which variants associated with both tr1 and tr2 lose the association with tr2
-#'       ps_with_tr2_cond_tr1 = trait_pair_pvals[[tr2]][[tr1]][tr1_tr2_ivs,text_col_name]
-#'       ps_with_tr1_cond_tr2 = trait_pair_pvals[[tr1]][[tr2]][tr1_tr2_ivs,text_col_name]
-#'       currN = length(tr1_tr2_ivs)
-#'       test2 = wilcox.test(GWAS_Ps[tr1_tr2_ivs,tr1],ps_with_tr1_cond_tr2,
-#'                           alternative = "l",paired=T)$p.value
-#'       test1 = wilcox.test(GWAS_Ps[tr1_tr2_ivs,tr2],ps_with_tr2_cond_tr1,
-#'                           alternative = "l",paired=T)$p.value
-#'       
-#'       # test2 = paired_ttest_on_ps(ps_with_tr1_cond_tr2,GWAS_Ps[tr1_tr2_ivs,tr1])
-#'       # test1 = paired_ttest_on_ps(ps_with_tr2_cond_tr1,GWAS_Ps[tr1_tr2_ivs,tr2])
-#'       
-#'       edge_sep_tests = rbind(edge_sep_tests,c(tr1,tr2,test1))
-#'       edge_sep_tests = rbind(edge_sep_tests,c(tr2,tr1,test2))
-#'     }
-#'   }
-#'   colnames(edge_sep_tests) = c("trait1","trait2","pval:trait1->trait2")
-#'   edge_sep_tests = as.data.frame(edge_sep_tests)
-#'   edge_sep_tests[[3]] = as.numeric(as.character(edge_sep_tests[[3]]))
-#'   return(edge_sep_tests)
-#' }
-
-EdgeSepTest2<-function(GWAS_Ps,G_t,trait_pair_pvals,text_col_name="test3"){
+#' Statistical test analysis for separation along skeleton edges
+#'
+#' @details 
+#' @param GWAS_Ps A matrix. Rows are variants and columns are phenotypes. Cells are P-values.
+#' @param G_t A binary matrix. TRUE values represent trait skeleton edges.
+#' @param trait_pair_pvals. A named list. Each element is a list. Element [[tr1]][[tr2]] in the list is the conditional independence results for trait 1 conditioned on trait 2.
+#' @param text_col_name a string. The column name to take for the pairwise p-value (i.e., from each element of trait_pair_pvals)
+#' @param test_func a function. Takes two (paired) p-value vectors and returns a statistic (typically a p-value) testing if there is evidence for "disappearing associations"
+#' @return A matrix with three columns.
+EdgeSepTest<-function(GWAS_Ps,G_t,trait_pair_pvals,text_col_name="test3",
+                      test_func = simple_lfdr_test){
   edge_sep_tests = c()
   for(tr1 in colnames(GWAS_Ps)){
     for(tr2 in colnames(GWAS_Ps)){
@@ -209,7 +174,7 @@ EdgeSepTest2<-function(GWAS_Ps,G_t,trait_pair_pvals,text_col_name="test3"){
       if(is.na(G_t[tr1,tr2]) || G_t[tr1,tr2]==0){next}
       p1 = GWAS_Ps[,tr2]
       ps_with_tr2_cond_tr1 = trait_pair_pvals[[tr2]][[tr1]][,text_col_name]
-      test1 = simple_lfdr_test(p1,ps_with_tr2_cond_tr1)
+      test1 = test_func(p1,ps_with_tr2_cond_tr1)
       edge_sep_tests = rbind(edge_sep_tests,c(tr1,tr2,test1))
     }
   }
@@ -222,13 +187,14 @@ EdgeSepTest2<-function(GWAS_Ps,G_t,trait_pair_pvals,text_col_name="test3"){
 # # paired_ttest_on_ps(runif(100),runif(100)/10)
 # # paired_ttest_on_ps(runif(100)/100,runif(100)/10)
 # # paired_ttest_on_ps(runif(100)/1000,runif(100)/10000)
-# tr1 = "T6"
-# tr2 = "T14"
+# tr1 = "T2"
+# tr2 = "T15"
 # p1 = GWAS_Ps[,tr2]
 # p2 = trait_pair_pvals[[tr2]][[tr1]][,1]
 # z1 = -qnorm(p1)
 # z2 = -qnorm(p2)
 # plot(z1,z2)
+# simple_lfdr_test(p1,p2)
 
 # simple_count_test<-function(p1,p2){
 #   z1 = c(-qnorm(p1))
