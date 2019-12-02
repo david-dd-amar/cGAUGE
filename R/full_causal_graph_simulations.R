@@ -603,7 +603,7 @@ try({
   }
 })
 
-edge_sep_results_statTest = EdgeSepTest2(GWAS_Ps,G_t,trait_pair_pvals,text_col_name=1)
+edge_sep_results_statTest = EdgeSepTest(GWAS_Ps,G_t,trait_pair_pvals,text_col_name=1)
 edge_sep_results_statTest = add_distances(edge_sep_results_statTest,
                                  B_distances,newcolname = "KnownDistance")
 

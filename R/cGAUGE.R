@@ -184,9 +184,9 @@ EdgeSepTest<-function(GWAS_Ps,G_t,trait_pair_pvals,text_col_name="test3",
   return(edge_sep_tests)
 }
 
-# # paired_ttest_on_ps(runif(100),runif(100)/10)
-# # paired_ttest_on_ps(runif(100)/100,runif(100)/10)
-# # paired_ttest_on_ps(runif(100)/1000,runif(100)/10000)
+# # # paired_ttest_on_ps(runif(100),runif(100)/10)
+# # # paired_ttest_on_ps(runif(100)/100,runif(100)/10)
+# # # paired_ttest_on_ps(runif(100)/1000,runif(100)/10000)
 # tr1 = "T2"
 # tr2 = "T15"
 # p1 = GWAS_Ps[,tr2]

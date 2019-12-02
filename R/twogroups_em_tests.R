@@ -1,12 +1,13 @@
 # Modified code from znormix (pi0 was depricated from CRAN on 2018)
-modified_znormix <- function (p, z = NULL,start.pi0=0.85, eps = 1e-03, 
-            niter = 1000, verbose = FALSE,min_mean_z1=1,theoretical_null=F,
-            sd1GreaterThanSd2 = T){
+# Alternatives: spEMsymlocN01, locfdr, fdrtool
+modified_znormix <- function (p, z = NULL,start.pi0=0.85, eps = 1e-04, 
+            niter = 1000, verbose = FALSE,min_mean_z1=1,theoretical_null=T,
+            min_sd1 = 1){
   if(!is.null(p)){
-    z = as.matrix(qnorm(1 - p))
-    z[is.infinite(z) & z < 0] = min(z[is.finite(z)])
-    z[is.infinite(z) & z > 0] = max(z[is.finite(z)])    
+    z = -qnorm(p)
   }
+  z[is.infinite(z) & z < 0] = min(z[is.finite(z)])
+  z[is.infinite(z) & z > 0] = max(z[is.finite(z)])  
 
   G = length(z)
   stopifnot(G >= 4)
@@ -18,20 +19,24 @@ modified_znormix <- function (p, z = NULL,start.pi0=0.85, eps = 1e-03,
   z0.idx = which(z < zcut)
   last.par = c(start.pi0, mean(z[z0.idx]), sd(drop(z[z0.idx])), 
                mean(z[-z0.idx]), sd(drop(z[-z0.idx])))
+  if(theoretical_null){
+    last.par[2] = 0
+    last.par[3] = 1
+  }
   iter = 1
   new.par = last.par
   repeat {
     f0 = last.par[1] * dnorm(z, last.par[2], last.par[3])
-    ppee = pmin(1 - 1e-06, pmax(1e-06, f0/(f0 + (1 - last.par[1]) * 
-                                             dnorm(z, last.par[4], last.par[5]))))
+    f1 = (1 - last.par[1]) * dnorm(z, last.par[4], last.par[5])
+    ppee = pmin(1 - 1e-10,pmax(1e-10, f0/(f0 + f1)))
+
     new.par[1] = mean(ppee)
     sum.ppee = sum(ppee)
     new.par[4] = crossprod(z, 1 - ppee)/(G - sum.ppee)
-    new.par[5] = sqrt(crossprod((z - new.par[4])^2, 1 - ppee)/(G - 
-                                                                 sum.ppee))
-    
+    new.par[5] = sqrt(crossprod((z - new.par[4])^2, 1 - ppee)/(G - sum.ppee))
     new.par[2] = crossprod(z, ppee)/sum.ppee
     new.par[3] = sqrt(crossprod((z - new.par[2])^2, ppee)/sum.ppee)
+   
     if (abs(new.par[2]) > abs(new.par[4])) {
       tmp = new.par[2]
       new.par[2] = new.par[4]
@@ -40,28 +45,44 @@ modified_znormix <- function (p, z = NULL,start.pi0=0.85, eps = 1e-03,
       new.par[3] = new.par[5]
       new.par[5] = tmp
     }
-    new.par[2] = 0
-    new.par[3] = max(new.par[3],1)
+    
+    if(min_mean_z1>0){
+      new.par[4] = max(min_mean_z1,new.par[4])
+    }
+    if(min_sd1 > 0){
+      new.par[5] = max(min_sd1,new.par[5])
+    }
+    
     if(theoretical_null){
+      new.par[2] = 0
       new.par[3] = 1
     }
-    if(sd1GreaterThanSd2){
-      new.par[5] = max(new.par[3],new.par[5])
+    else{
+      new.par[3] = max(new.par[3],1)
     }
-    new.par[4] = max(min_mean_z1,new.par[4])
+    
+
     if (isTRUE(verbose)) 
       cat("iter", iter, "\tparameters=", new.par, "\tmax.diff=", 
           max(abs(new.par - last.par)), fill = TRUE)
     if (iter >= niter || max(abs(new.par - last.par)) < eps) 
       break
+    
     last.par = new.par
     iter = iter + 1
   }
-  ord = order(ppee)
-  fdr = numeric(G)
-  fdr[ord] = cumsum(ppee[ord])/(1:G)
-  names(new.par) = c("pi0", "mean.z0", "sd.z0", "mean.z1", 
-                     "sd.z1")
+  
+  # ord = order(ppee)
+  # fdr = numeric(G)
+  # fdr[ord] = cumsum(ppee[ord])/(1:G)
+  
+  F0 = new.par[1] * pnorm(z, new.par[2], new.par[3],lower.tail = F)
+  F1 = (1 - new.par[1]) * pnorm(z, new.par[4], new.par[5],lower.tail = F)
+  fdr = pmin(1 - 1e-10,pmax(1e-10, F0/(F0 + F1)))
+  
+  print(cor(z,fdr))
+  
+  names(new.par) = c("pi0", "mean.z0", "sd.z0", "mean.z1", "sd.z1")
   attr(new.par, "converged") = iter < niter
   attr(new.par, "iter") = iter
   attr(new.par, "call") = match.call()
@@ -94,10 +115,8 @@ modified_znormix <- function (p, z = NULL,start.pi0=0.85, eps = 1e-03,
 simple_lfdr_test<-function(p1,p2){
   z1 = c(-qnorm(p1))
   z2 = c(-qnorm(p2))
-  z1_m = modified_znormix(p1,theoretical_null = T,
-                          min_mean_z1 = 1,sd1GreaterThanSd2 = T)
-  z2_m = modified_znormix(p2,theoretical_null = T,
-                          min_mean_z1 = 1,sd1GreaterThanSd2 = T)
+  z1_m = modified_znormix(p1,theoretical_null = T,min_mean_z1 = 1)
+  z2_m = modified_znormix(p2,theoretical_null = T,min_mean_z1 = 1)
   # print(cbind(z1_m[1:5],z2_m[1:5]))
   fdr1 = attr(z1_m,"fdr")
   fdr2 = attr(z2_m,"fdr")
@@ -119,7 +138,7 @@ simple_lfdr_test(c(runif(10000),runif(1000)/100000),
 
 univar_mixtools_em(
   c(runif(10000),runif(1000)/1000000000),
-  c(runif(10000),runif(1000)/10)
+  c(runif(10000),runif(1000)/100)
 )
 
 zdiff_test<-function(p1,p2){
@@ -141,9 +160,9 @@ univar_mixtools_em<-function(p1,p2,B=NULL){
   z1 = c(-qnorm(p1))
   z2 = c(-qnorm(p2))
   z1_m = modified_znormix(p1,theoretical_null = T,
-                          min_mean_z1 = 1,sd1GreaterThanSd2 = T)[1:5]
+                          min_mean_z1 = 1)[1:5]
   z2_m = modified_znormix(p2,theoretical_null = T,
-                          min_mean_z1 = 1,sd1GreaterThanSd2 = T)[1:5]
+                          min_mean_z1 = 1)[1:5]
   pval = 1
   try({
     zz = z1-z2
@@ -408,5 +427,5 @@ univar_mixtools_em<-function(p1,p2,B=NULL){
 zdiff = z1-z2
 emEst1 = normalmixEM(z1,lambda = c(0.8,0.2),mean.constr = c(0,"a"),
                          sd.constr = c("b","b"),k=2,epsilon = 1e-8)
-                         
+m2 = spEMsymlocN01(z1,maxiter = 20)                      
                          
