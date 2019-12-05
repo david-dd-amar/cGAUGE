@@ -603,17 +603,18 @@ try({
   }
 })
 
-edge_sep_results_statTest = EdgeSepTest(GWAS_Ps,G_t,trait_pair_pvals,text_col_name=1)
+edge_sep_results_statTest = EdgeSepTest(GWAS_Ps,G_t,trait_pair_pvals,
+                      text_col_name=1,test_func = univar_mixtools_em)
 edge_sep_results_statTest = add_distances(edge_sep_results_statTest,
                                  B_distances,newcolname = "KnownDistance")
 
-# # boxplot(-log10(edge_sep_results_statTest$`pval:trait1->trait2`)~edge_sep_results_statTest$KnownDistance)
-# edge_sep_results_statTest = edge_sep_results_statTest[
-#   p.adjust(edge_sep_results_statTest$`pval:trait1->trait2`)<0.01,]
-# print("EdgeSep, Bonf correction (0.1), FDR and num discoveries:")
-# print(paste(
-#   sum(edge_sep_results_statTest$KnownDistance==-1)/nrow(edge_sep_results_statTest),
-#   nrow(edge_sep_results_statTest)))
+boxplot(-log10(edge_sep_results_statTest$`pval:trait1->trait2`)~edge_sep_results_statTest$KnownDistance)
+edge_sep_results_statTest = edge_sep_results_statTest[
+  p.adjust(edge_sep_results_statTest$`pval:trait1->trait2`)<0.01,]
+print("EdgeSep, Bonf correction (0.1), FDR and num discoveries:")
+print(paste(
+  sum(edge_sep_results_statTest$KnownDistance==-1)/nrow(edge_sep_results_statTest),
+  nrow(edge_sep_results_statTest)))
 
 #############################################################################
 # Run MR methods

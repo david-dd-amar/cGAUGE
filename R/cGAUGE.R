@@ -184,14 +184,13 @@ EdgeSepTest<-function(GWAS_Ps,G_t,trait_pair_pvals,text_col_name="test3",
   return(edge_sep_tests)
 }
 
-# tr1 = "T15"
-# tr2 = "T2"
-# p1 = GWAS_Ps[,tr2]
-# p2 = trait_pair_pvals[[tr2]][[tr1]][,1]
-# z1 = -qnorm(p1)
-# z2 = -qnorm(p2)
-# plot(z1,z2)
-# simple_lfdr_test(p1,p2)
+tr1 = "T15"
+tr2 = "T14"
+p1 = GWAS_Ps[,tr2]
+p2 = trait_pair_pvals[[tr2]][[tr1]][,1]
+z1 = -qnorm(p1)
+z2 = -qnorm(p2)
+plot(z1,z2);abline(0,1)
 
 # simple_count_test<-function(p1,p2){
 #   z1 = c(-qnorm(p1))
