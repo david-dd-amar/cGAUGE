@@ -184,22 +184,15 @@ EdgeSepTest<-function(GWAS_Ps,G_t,trait_pair_pvals,text_col_name="test3",
   return(edge_sep_tests)
 }
 
-tr1 = "T15"
-tr2 = "T14"
-p1 = GWAS_Ps[,tr2]
-p2 = trait_pair_pvals[[tr2]][[tr1]][,1]
-z1 = -qnorm(p1)
-z2 = -qnorm(p2)
-plot(z1,z2);abline(0,1)
-
-# simple_count_test<-function(p1,p2){
-#   z1 = c(-qnorm(p1))
-#   z2 = c(-qnorm(p2))
-#   z1_m = modified_znormix(p1,theoretical_null = T)[1:5]
-#   z2_m = modified_znormix(p2,theoretical_null = T)[1:5]
-#   sum(z1-z2 > max(3,z1_m[4]))
-# }
-
+# tr1 = "T9"
+# tr2 = "T2"
+# p1 = GWAS_Ps[,tr2]
+# p2 = trait_pair_pvals[[tr2]][[tr1]][,1]
+# z1 = -qnorm(p1)
+# z2 = -qnorm(p2)
+# plot(z1,z2);abline(0,1)
+# param_bootstrap_test(p1,p2)
+# le = loess(z1~z2)
 
 # # try semm
 # devtools::install_github("rivas-lab/semm",ref="dev",force=T)

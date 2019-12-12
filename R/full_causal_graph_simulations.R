@@ -2,7 +2,8 @@
 
 # Set the session
 required_libs = c("igraph","bnlearn","MRPRESSO",
-                  "optparse","limma","MendelianRandomization")
+                  "optparse","limma","MendelianRandomization",
+                  "mixtools")
 lib_loc = "~/R/packages3.5"
 lib_loc = c(lib_loc,.libPaths())
 for (lib_name in required_libs){
@@ -474,24 +475,37 @@ G_vt = extract_skeleton_G_VT(GWAS_Ps,trait_pair_pvals,P1=p1,P2=p2,test_columns =
 real_G_vt = abs(t(B[phenos,ivs])>0)
 
 if(edgeSepRun=="1"){
-  edge_sep_results_statTest = EdgeSepTest2(GWAS_Ps,G_t,trait_pair_pvals,text_col_name=1)
-  edge_sep_results_statTest = add_distances(edge_sep_results_statTest,
+  edge_sep_results_statTest1 = EdgeSepTest(GWAS_Ps,G_t,trait_pair_pvals,text_col_name=1,
+                                           test = univar_mixtools_em)
+  edge_sep_results_statTest1 = add_distances(edge_sep_results_statTest1,
                                             B_distances,newcolname = "KnownDistance")
+  edge_sep_results_statTest2 = EdgeSepTest(GWAS_Ps,G_t,trait_pair_pvals,text_col_name=1,
+                                            test = simple_lfdr_test)
+  edge_sep_results_statTest2 = add_distances(edge_sep_results_statTest2,
+                                             B_distances,newcolname = "KnownDistance")
+  
   save(
     opt, # input parameters
     B,Bg,simulated_data,B_distances, # simulated data
-    edge_sep_results_statTest, # EdgeSepStatTest
+    edge_sep_results_statTest1, # EdgeSepStatTest1
+    edge_sep_results_statTest2, # EdgeSepStatTest2
     G_it,G_vt,G_t, iv_sets, # Skeletons
     file = outfile
   )
   
-  # boxplot(-log10(edge_sep_results_statTest$`pval:trait1->trait2`)~edge_sep_results_statTest$KnownDistance)
-  edge_sep_results_statTest = edge_sep_results_statTest[
-    p.adjust(edge_sep_results_statTest$`pval:trait1->trait2`)<0.01,]
-  print("EdgeSep, Bonf correction (0.1), FDR and num discoveries:")
+  edge_sep_results_statTest1 = edge_sep_results_statTest1[
+    p.adjust(edge_sep_results_statTest1$`pval:trait1->trait2`)<0.01,]
+  print("EdgeSepTest1, Bonf correction (0.1), FDR and num discoveries:")
   print(paste(
-    sum(edge_sep_results_statTest$KnownDistance==-1)/nrow(edge_sep_results_statTest),
-    nrow(edge_sep_results_statTest)))
+    sum(edge_sep_results_statTest1$KnownDistance==-1)/nrow(edge_sep_results_statTest1),
+    nrow(edge_sep_results_statTest1)))
+
+  edge_sep_results_statTest2 = edge_sep_results_statTest2[
+    p.adjust(edge_sep_results_statTest2$`pval:trait1->trait2`)<0.01,]
+  print("EdgeSepTest1, Bonf correction (0.1), FDR and num discoveries:")
+  print(paste(
+    sum(edge_sep_results_statTest2$KnownDistance==-1)/nrow(edge_sep_results_statTest2),
+    nrow(edge_sep_results_statTest2)))
   
   q(save = "no",status = 0)
 }
@@ -603,18 +617,14 @@ try({
   }
 })
 
-edge_sep_results_statTest = EdgeSepTest(GWAS_Ps,G_t,trait_pair_pvals,
-                      text_col_name=1,test_func = univar_mixtools_em)
-edge_sep_results_statTest = add_distances(edge_sep_results_statTest,
-                                 B_distances,newcolname = "KnownDistance")
-
-boxplot(-log10(edge_sep_results_statTest$`pval:trait1->trait2`)~edge_sep_results_statTest$KnownDistance)
-edge_sep_results_statTest = edge_sep_results_statTest[
-  p.adjust(edge_sep_results_statTest$`pval:trait1->trait2`)<0.01,]
-print("EdgeSep, Bonf correction (0.1), FDR and num discoveries:")
-print(paste(
-  sum(edge_sep_results_statTest$KnownDistance==-1)/nrow(edge_sep_results_statTest),
-  nrow(edge_sep_results_statTest)))
+edge_sep_results_statTest1 = EdgeSepTest(GWAS_Ps,G_t,trait_pair_pvals,text_col_name=1,
+                                         test = univar_mixtools_em)
+edge_sep_results_statTest1 = add_distances(edge_sep_results_statTest1,
+                                           B_distances,newcolname = "KnownDistance")
+edge_sep_results_statTest2 = EdgeSepTest(GWAS_Ps,G_t,trait_pair_pvals,text_col_name=1,
+                                         test = simple_lfdr_test)
+edge_sep_results_statTest2 = add_distances(edge_sep_results_statTest2,
+                                           B_distances,newcolname = "KnownDistance")
 
 #############################################################################
 # Run MR methods
@@ -699,7 +709,8 @@ save(
   B,Bg,simulated_data,B_distances, # simulated data
   cgauge_mr_results,standard_mr_results, # MR results
   edge_sep_results, # EdgeSep
-  edge_sep_results_statTest, # EdgeSepStatTest
+  edge_sep_results_statTest1, # EdgeSepStatTest using EM
+  edge_sep_results_statTest2, # EdgeSepStatTest using lfdrs
   G_it,G_vt,G_t, iv_sets, # Skeletons
   file = outfile
 )
@@ -736,7 +747,6 @@ xx = xx[p.adjust(xx$p)<0.1 & !is.na(xx$p),]
 print("Egger+cGAUGE, Bonf correction (0.1), FDR and num discoveries:")
 print(paste(sum(!is_causal(xx$KnownDistance),na.rm = T)/nrow(xx),nrow(xx)))
 
-par(mfrow=c(1,2))
 xx = standard_mr_results$IVW
 # cor.test(xx$p,xx$NumIVs,method = "spearman")$p.value
 # boxplot(-log10(xx$p)~xx$KnownDistance,main="IVW",las=2)
@@ -751,12 +761,19 @@ xx = xx[p.adjust(xx$p)<0.1,]
 print("IVW+cGAUGE, Bonf correction (0.1), FDR and num discoveries:")
 print(paste(sum(!is_causal(xx$KnownDistance),na.rm = T)/nrow(xx),nrow(xx)))
 
-edge_sep_results_statTest = edge_sep_results_statTest[
-  p.adjust(edge_sep_results_statTest$`pval:trait1->trait2`)<0.01,]
-print("EdgeSepTest, Bonf correction (0.1), FDR and num discoveries:")
+edge_sep_results_statTest1 = edge_sep_results_statTest1[
+  p.adjust(edge_sep_results_statTest1$`pval:trait1->trait2`)<0.01,]
+print("EdgeSepTest1, Bonf correction (0.1), FDR and num discoveries:")
 print(paste(
-  sum(edge_sep_results_statTest$KnownDistance==-1)/nrow(edge_sep_results_statTest),
-  nrow(edge_sep_results_statTest)))
+  sum(edge_sep_results_statTest1$KnownDistance==-1)/nrow(edge_sep_results_statTest1),
+  nrow(edge_sep_results_statTest1)))
+
+edge_sep_results_statTest2 = edge_sep_results_statTest2[
+  p.adjust(edge_sep_results_statTest2$`pval:trait1->trait2`)<0.01,]
+print("EdgeSepTest2, Bonf correction (0.1), FDR and num discoveries:")
+print(paste(
+  sum(edge_sep_results_statTest2$KnownDistance==-1)/nrow(edge_sep_results_statTest2),
+  nrow(edge_sep_results_statTest2)))
 
 print("EdgeSep naive, Bonf correction (0.1), FDR and num discoveries:")
 edge_sep_results = edge_sep_results[edge_sep_results$num_edgesep>2,]
