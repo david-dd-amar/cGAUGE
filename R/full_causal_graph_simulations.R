@@ -37,7 +37,7 @@ option_list <- list(
               help="Sample size for simulated data"),
   make_option(c("--p"), action="store", default=15,type="integer",
               help="Number of phenotypes"),
-  make_option(c("--deg"), action="store", default=1,type="double",
+  make_option(c("--deg"), action="store", default=1.5,type="double",
               help="Expected in/out degree in the causal graph, greater values mean more cycles"),
   make_option(c("--minBeta"), action="store", default=0.1,type="double",
               help="Min absolue value for causal effects (beta coefficients)"),

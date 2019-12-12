@@ -166,9 +166,15 @@ normalmixEM_wrapper<-function(zz,reps=100,k,...){
 #' Under the null hypothesis of no such events (Pr(h1=1,h2=0) = 0), fdr values from p1 can only
 #' become lower in p2. We therefore use the Kolmogorov-Smirnov test on the pairwise fdr values: 
 #' ks.test(fdr1,fdr2,alternative = "g").
-simple_lfdr_test<-function(p1,p2){
+simple_lfdr_test<-function(p1,p2,zthr = 10){
   z1 = c(-qnorm(p1))
+  z1 = fix_inf_z(z1)
+  z1[z1 > zthr] = zthr
+  z1[z1 < -zthr] = -zthr
   z2 = c(-qnorm(p2))
+  z2 = fix_inf_z(z2)
+  z2[z2>zthr]  = zthr
+  z2[z2<-zthr]  = -zthr
   z1_m = modified_znormix(p1,theoretical_null = T,min_mean_z1 = 1,min_sd1 = 0.5)
   z2_m = modified_znormix(p2,theoretical_null = T,min_mean_z1 = 1,min_sd1 = 0.5)
   # print(cbind(z1_m[1:5],z2_m[1:5]))
@@ -239,9 +245,11 @@ univar_mixtools_em<-function(p1,p2,zthr = 10,...){
   z1 = c(-qnorm(p1))
   z1 = fix_inf_z(z1)
   z1[z1 > zthr] = zthr
+  z1[z1 < -zthr] = -zthr
   z2 = c(-qnorm(p2))
   z2 = fix_inf_z(z2)
   z2[z2>zthr]  = zthr
+  z2[z2<-zthr]  = -zthr
   z1_m = znormix_wrapper(p1,theoretical_null = T,
                           min_mean_z1 = 1,min_sd1 = 0.25)[1:5]
   z2_m = znormix_wrapper(p2,theoretical_null = T,
@@ -249,17 +257,19 @@ univar_mixtools_em<-function(p1,p2,zthr = 10,...){
 
   # define the differences
   zz = z1-z2
-  
-  possible_means = c(0,-z2_m[4],z1_m[4]-z2_m[4],z1_m[4])
-  null_prior = c(0.8,rep(0.2/2,2))
-  null_m = normalmixEM_wrapper(zz,lambda = null_prior,
-             mean.constr = possible_means[1:3],k=3)
-  alt_prior = c(0.8,rep(0.2/3,3))
-  alt_m = normalmixEM_wrapper(zz,lambda = alt_prior,
-             mean.constr = possible_means[1:4],k=4)
-  l_diff = alt_m$loglik - null_m$loglik
-  l_diff_p = pchisq(2*l_diff,2,lower.tail = F)
-  return(l_diff_p)
+  try({
+    possible_means = c(0,-z2_m[4],z1_m[4]-z2_m[4],z1_m[4])
+    null_prior = c(0.8,rep(0.2/2,2))
+    null_m = normalmixEM_wrapper(zz,lambda = null_prior,
+                                 mean.constr = possible_means[1:3],k=3)
+    alt_prior = c(0.8,rep(0.2/3,3))
+    alt_m = normalmixEM_wrapper(zz,lambda = alt_prior,
+                                mean.constr = possible_means[1:4],k=4)
+    l_diff = alt_m$loglik - null_m$loglik
+    l_diff_p = pchisq(2*l_diff,2,lower.tail = F)
+    return(l_diff_p)
+  })
+
   return(1)
 }
 
