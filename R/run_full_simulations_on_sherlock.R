@@ -39,14 +39,16 @@ exec_cmd_on_sherlock<-function(cmd,jobname,out_path){
 }
 
 ###################################################################################
-reps = 20
+reps = 40
 WD = "/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/simulations_3/"
-MAX_JOBS = 300
+MAX_JOBS = 250
 
 tested_p1 = c(1e-02,1e-03,1e-04,1e-05)
 tested_p2_factors = c(1,10,100)
 tested_pleio_levels = c(0,0.1,0.2,0.3,0.4)
 tested_degrees = c(1,1.25,1.5,1.75,2)
+
+reps*length(tested_p1)*length(tested_p2_factors)*length(tested_pleio_levels)*length(tested_degrees)
 
 for(p1 in tested_p1){
   print(paste("p1",p1))
@@ -154,6 +156,7 @@ for(p1 in tested_p1){
           print("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$")
           print(curr_folder)
           print("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$")
+          if(length(curr_files)==0){next}
         }
         
         # Measure how many of the "-1"'s are marked as TRUE - obvious errors
@@ -206,12 +209,19 @@ for(p1 in tested_p1){
           errs["edge_sep"] = sum(!is_causal(edge_sep_results$real_distance))
           preds["edge_sep"] = nrow(edge_sep_results)
           
-          # EdgeSepTest
-          edge_sep_results_statTest = 
-            edge_sep_results_statTest[
-              p.adjust(edge_sep_results_statTest$`pval:trait1->trait2`,method=FDR_method)<FDR,]
-          errs["edge_sep_test"] = sum(!is_causal(edge_sep_results_statTest$KnownDistance))
-          preds["edge_sep_test"] = nrow(edge_sep_results_statTest)
+          # EdgeSepTest 1
+          edge_sep_results_statTest1 = 
+            edge_sep_results_statTest1[
+              p.adjust(edge_sep_results_statTest1$`pval:trait1->trait2`,method=FDR_method)<FDR,]
+          errs["edge_sep_test1"] = sum(!is_causal(edge_sep_results_statTest1$KnownDistance))
+          preds["edge_sep_test1"] = nrow(edge_sep_results_statTest1)
+          
+          # EdgeSepTest 2
+          edge_sep_results_statTest2 = 
+            edge_sep_results_statTest2[
+              p.adjust(edge_sep_results_statTest2$`pval:trait1->trait2`,method=FDR_method)<FDR,]
+          errs["edge_sep_test2"] = sum(!is_causal(edge_sep_results_statTest2$KnownDistance))
+          preds["edge_sep_test2"] = nrow(edge_sep_results_statTest2)
           
           method2num_discoveries = rbind(method2num_discoveries,preds)
           method2false_discoveries = rbind(method2false_discoveries,errs)
@@ -236,26 +246,90 @@ for(p1 in tested_p1){
     }
   }
 }
-mean_errs = aggregate(all_sim_results_errs[,1:9],
+mean_errs = aggregate(all_sim_results_errs[,1:10],
           by=list(p1=all_sim_results_errs$p1,p2=all_sim_results_errs$p2,
           deg = all_sim_results_errs$deg,prob_pleio = all_sim_results_errs$prob_pleio),
           FUN=mean)
 
-sd_errs = aggregate(all_sim_results_errs[,1:9],
-                      by=list(p1=all_sim_results_errs$p1,p2=all_sim_results_errs$p2,
-                              deg = all_sim_results_errs$deg,prob_pleio = all_sim_results_errs$prob_pleio),
-                      FUN=sd)
+sd_errs = aggregate(all_sim_results_errs[,1:10],
+           by=list(p1=all_sim_results_errs$p1,p2=all_sim_results_errs$p2,
+              deg = all_sim_results_errs$deg,prob_pleio = all_sim_results_errs$prob_pleio),
+                 FUN=sd)
+mean_num_discoveries = aggregate(all_sim_results_preds[,1:10],
+            by=list(p1=all_sim_results_errs$p1,p2=all_sim_results_errs$p2,
+             deg = all_sim_results_errs$deg,prob_pleio = all_sim_results_errs$prob_pleio),
+                  FUN=mean)
 
 
-all_sim_results_fdrs = (all_sim_results_errs/all_sim_results_preds)[,1:9]
-all_sim_results_fdrs[is.nan(all_sim_results_fdrs)] = 0
-all_sim_results_fdrs = cbind(all_sim_results_fdrs,all_sim_results_errs[,c("p1","p2","deg","prob_pleio")])
+all_sim_results_fdrs = (all_sim_results_errs/all_sim_results_preds)[,1:10]
+all_sim_results_fdrs[is.nan(as.matrix(all_sim_results_fdrs))] = 0
+all_sim_results_fdrs = 
+  cbind(all_sim_results_fdrs,all_sim_results_errs[,c("p1","p2","deg","prob_pleio")])
 mean_fdrs = aggregate(all_sim_results_fdrs,
-                      by=list(p1=all_sim_results_errs$p1,p2=all_sim_results_errs$p2,
-                              deg = all_sim_results_errs$deg,prob_pleio = all_sim_results_errs$prob_pleio),
-                      FUN=median,na.rm=T)
+              by=list(p1=all_sim_results_errs$p1,p2=all_sim_results_errs$p2,
+                deg = all_sim_results_errs$deg,prob_pleio = all_sim_results_errs$prob_pleio),
+                FUN=mean,na.rm=T)
 
 sd_fdrs = aggregate(all_sim_results_fdrs,
-                    by=list(p1=all_sim_results_errs$p1,p2=all_sim_results_errs$p2,
-                            deg = all_sim_results_errs$deg,prob_pleio = all_sim_results_errs$prob_pleio),
-                    FUN=sd,na.rm=T)
+            by=list(p1=all_sim_results_errs$p1,p2=all_sim_results_errs$p2,
+              deg = all_sim_results_errs$deg,prob_pleio = all_sim_results_errs$prob_pleio),
+              FUN=sd,na.rm=T)
+
+save(
+  all_sim_results_errs,all_sim_results_preds,
+  all_sim_results_fdrs,
+  mean_errs,sd_errs,mean_num_discoveries,
+  mean_fdrs,sd_fdrs,
+  file = paste(WD,"/simulation_summ_stats.RData",sep="")
+)
+
+
+# Locally
+setwd("~/Desktop/causal_inference_projects/ms3/")
+load("./simulation_summ_stats.RData")
+library(reshape2);library(ggplot2)
+deg = 1.5
+p1 = 1e-04
+p2 = 0.001
+inds = mean_fdrs$deg==deg & mean_fdrs$p1 == p1 & mean_fdrs$p2==p2
+df1 = mean_fdrs[inds,c("prob_pleio","p1","p2","egger","c-egger","ivw","c-ivw","mrpresso","c-mrpresso")]
+df2 = sd_fdrs[inds,names(df1)]
+df1 = melt(df1,id.vars = c("prob_pleio","p1","p2"))
+df2 = melt(df2,id.vars = c("prob_pleio","p1","p2"))
+names(df1) = c("prob_pleio","p1","p2","Method","EmpiricalFDR")
+names(df2) = c("prob_pleio","p1","p2","Method","SD")
+df1$SD = df2$SD
+print(
+  ggplot(df1, aes(x=as.character(prob_pleio), y=EmpiricalFDR, fill=Method)) +
+    geom_bar(position=position_dodge(), stat="identity", colour='black') +
+    geom_errorbar(aes(ymin=EmpiricalFDR-SD, ymax=EmpiricalFDR+SD),na.rm=T, 
+                  width=.2,position=position_dodge(.9))
+)
+
+inds = mean_fdrs$deg==deg & mean_fdrs$p1 == p1 & mean_fdrs$p2==p2
+df1 = mean_fdrs[inds,c("prob_pleio","p1","p2","edge_sep","edge_sep_test1","edge_sep_test2")]
+df2 = sd_fdrs[inds,names(df1)]
+df1 = melt(df1,id.vars = c("prob_pleio","p1","p2"))
+df2 = melt(df2,id.vars = c("prob_pleio","p1","p2"))
+names(df1) = c("prob_pleio","p1","p2","Method","EmpiricalFDR")
+names(df2) = c("prob_pleio","p1","p2","Method","SD")
+df1$SD = df2$SD
+print(
+  ggplot(df1, aes(x=as.character(prob_pleio), y=EmpiricalFDR, fill=Method)) +
+    geom_bar(position=position_dodge(), stat="identity", colour='black') +
+    geom_errorbar(aes(ymin=EmpiricalFDR-SD, ymax=EmpiricalFDR+SD),na.rm=T, 
+                  width=.2,position=position_dodge(.9))
+)
+
+# Try boxplots
+df = melt(all_sim_results_fdrs,id.vars = c("prob_pleio","p1","p2","deg"))
+df = melt(all_sim_results_preds,id.vars = c("prob_pleio","p1","p2","deg"))
+
+deg = 1.5
+p1 = 1e-04
+p2 = 0.001
+pleio = 0.3
+inds = df$deg==deg & df$p1 == p1 & df$p2==p2 & df$prob_pleio == pleio
+boxplot(value~variable,data=df[inds,])
+
+
