@@ -798,3 +798,42 @@ print(paste(sum(edge_sep_results$real_distance==-1)/nrow(edge_sep_results),
 # cor.test(GWAS_effects[,tr1],GWAS_effects[,tr2])
 # table(G_vt[,tr1],G_vt[,tr2])
 # 
+
+if (!requireNamespace("BiocManager", quietly = TRUE))
+  install.packages("BiocManager")
+BiocManager::install("RBGL")
+library(RBGL)
+library(PerfMeas)
+get_auc<-function(x,score_col=NULL,label_col=NULL,useroc=FALSE){
+  if(is.null(score_col)){score_col = ncol(x)-1}
+  if(is.null(label_col)){label_col = ncol(x)}
+  a = x[,label_col]
+  p = x[,score_col]
+  a = is_causal(a)
+  
+  if(useroc){
+    a1 = p[a]
+    a2 = p[!a]
+    mu_test = wilcox.test(a1,a2)
+    roc = mu_test$statistic / (length(a1)*length(a2))
+    roc = max(roc,1-roc)
+    return(roc)
+  }
+  
+  # lower p-values mean TRUE
+  scores = list("class" = precision.at.all.recall.levels(1-p,as.numeric(a)))
+  aupr = unname(AUPRC(scores,comp.precision=TRUE))
+  return(aupr)
+}
+get_auc(edge_sep_results_statTest2)
+get_auc(edge_sep_results)
+
+get_auc(cgauge_mr_results$Egger,"p","KnownDistance")
+get_auc(cgauge_mr_results$IVW,"p","KnownDistance")
+get_auc(cgauge_mr_results$MRPRESSO,"P-value","KnownDistance")
+
+get_auc(standard_mr_results$Egger,"p","KnownDistance")
+get_auc(standard_mr_results$IVW,"p","KnownDistance")
+get_auc(standard_mr_results$MRPRESSO,"P-value","KnownDistance")
+
+

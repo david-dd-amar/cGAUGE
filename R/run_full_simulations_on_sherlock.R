@@ -283,53 +283,150 @@ save(
   file = paste(WD,"/simulation_summ_stats.RData",sep="")
 )
 
-
+##############################################################
+##############################################################
 # Locally
+##############################################################
+##############################################################
 setwd("~/Desktop/causal_inference_projects/ms3/")
 load("./simulation_summ_stats.RData")
-library(reshape2);library(ggplot2)
+# library(reshape2);library(ggplot2)
+# deg = 1.5
+# p1 = 1e-03
+# p2 = 0.001
+# inds = mean_fdrs$deg==deg & mean_fdrs$p1 == p1 & mean_fdrs$p2==p2
+# df1 = mean_fdrs[inds,c("prob_pleio","p1","p2","egger","c-egger","ivw","c-ivw","mrpresso","c-mrpresso")]
+# df2 = sd_fdrs[inds,names(df1)]
+# df1 = melt(df1,id.vars = c("prob_pleio","p1","p2"))
+# df2 = melt(df2,id.vars = c("prob_pleio","p1","p2"))
+# names(df1) = c("prob_pleio","p1","p2","Method","EmpiricalFDR")
+# names(df2) = c("prob_pleio","p1","p2","Method","SD")
+# df1$SD = df2$SD
+# print(
+#   ggplot(df1, aes(x=as.character(prob_pleio), y=EmpiricalFDR, fill=Method)) +
+#     geom_bar(position=position_dodge(), stat="identity", colour='black') +
+#     geom_errorbar(aes(ymin=EmpiricalFDR-SD, ymax=EmpiricalFDR+SD),na.rm=T, 
+#                   width=.2,position=position_dodge(.9))
+# )
+# 
+# inds = mean_fdrs$deg==deg & mean_fdrs$p1 == p1 & mean_fdrs$p2==p2
+# df1 = mean_fdrs[inds,c("prob_pleio","p1","p2","edge_sep","edge_sep_test1","edge_sep_test2")]
+# df2 = sd_fdrs[inds,names(df1)]
+# df1 = melt(df1,id.vars = c("prob_pleio","p1","p2"))
+# df2 = melt(df2,id.vars = c("prob_pleio","p1","p2"))
+# names(df1) = c("prob_pleio","p1","p2","Method","EmpiricalFDR")
+# names(df2) = c("prob_pleio","p1","p2","Method","SD")
+# df1$SD = df2$SD
+# print(
+#   ggplot(df1, aes(x=as.character(prob_pleio), y=EmpiricalFDR, fill=Method)) +
+#     geom_bar(position=position_dodge(), stat="identity", colour='black') +
+#     geom_errorbar(aes(ymin=EmpiricalFDR-SD, ymax=EmpiricalFDR+SD),na.rm=T, 
+#                   width=.2,position=position_dodge(.9))
+# )
+# 
+# # Try boxplots
+# df1 = melt(all_sim_results_fdrs,id.vars = c("prob_pleio","p1","p2","deg"))
+# df2 = melt(all_sim_results_preds,id.vars = c("prob_pleio","p1","p2","deg"))
+# 
+# par(mfrow=c(3,2),mar=c(3,3,3,3))
+# deg = 1.5
+# p1 = 1e-02
+# p2 = 0.01
+# pleio = 0
+# inds = df$deg==deg & df$p1 == p1 & df$p2==p2 & df$prob_pleio == pleio
+# boxplot(value~variable,data=df1[inds,]);abline(h=0.1,col="red",lty=3,lwd=4)
+# boxplot(value~variable,data=df2[inds,])
+# pleio = 0.2
+# inds = df$deg==deg & df$p1 == p1 & df$p2==p2 & df$prob_pleio == pleio
+# boxplot(value~variable,data=df1[inds,]);abline(h=0.1,col="red",lty=3,lwd=4)
+# boxplot(value~variable,data=df2[inds,])
+# pleio = 0.4
+# inds = df$deg==deg & df$p1 == p1 & df$p2==p2 & df$prob_pleio == pleio
+# boxplot(value~variable,data=df1[inds,]);abline(h=0.1,col="red",lty=3,lwd=4)
+# boxplot(value~variable,data=df2[inds,])
+
+
+# Try spider plots
+# install.packages("fmsb")
+
+# (A) IVW, MR-PRESSO: num discoveries
+library(fmsb)
+method2col = c(hcl.colors(5)[1:2],heat.colors(5)[1:2],
+               rainbow(5)[1:2],"black","gray","blue")
+names(method2col) = c(
+  "mrpresso","c-mrpresso","ivw","c-ivw","egger","c-egger",
+  "edge_sep","edge_sep_test1","edge_sep_test2"
+)
+
 deg = 1.5
 p1 = 1e-04
 p2 = 0.001
-inds = mean_fdrs$deg==deg & mean_fdrs$p1 == p1 & mean_fdrs$p2==p2
-df1 = mean_fdrs[inds,c("prob_pleio","p1","p2","egger","c-egger","ivw","c-ivw","mrpresso","c-mrpresso")]
-df2 = sd_fdrs[inds,names(df1)]
-df1 = melt(df1,id.vars = c("prob_pleio","p1","p2"))
-df2 = melt(df2,id.vars = c("prob_pleio","p1","p2"))
-names(df1) = c("prob_pleio","p1","p2","Method","EmpiricalFDR")
-names(df2) = c("prob_pleio","p1","p2","Method","SD")
-df1$SD = df2$SD
-print(
-  ggplot(df1, aes(x=as.character(prob_pleio), y=EmpiricalFDR, fill=Method)) +
-    geom_bar(position=position_dodge(), stat="identity", colour='black') +
-    geom_errorbar(aes(ymin=EmpiricalFDR-SD, ymax=EmpiricalFDR+SD),na.rm=T, 
-                  width=.2,position=position_dodge(.9))
-)
+par(mfrow=c(2,2),mar=c(2,2,2,2))
 
-inds = mean_fdrs$deg==deg & mean_fdrs$p1 == p1 & mean_fdrs$p2==p2
-df1 = mean_fdrs[inds,c("prob_pleio","p1","p2","edge_sep","edge_sep_test1","edge_sep_test2")]
-df2 = sd_fdrs[inds,names(df1)]
-df1 = melt(df1,id.vars = c("prob_pleio","p1","p2"))
-df2 = melt(df2,id.vars = c("prob_pleio","p1","p2"))
-names(df1) = c("prob_pleio","p1","p2","Method","EmpiricalFDR")
-names(df2) = c("prob_pleio","p1","p2","Method","SD")
-df1$SD = df2$SD
-print(
-  ggplot(df1, aes(x=as.character(prob_pleio), y=EmpiricalFDR, fill=Method)) +
-    geom_bar(position=position_dodge(), stat="identity", colour='black') +
-    geom_errorbar(aes(ymin=EmpiricalFDR-SD, ymax=EmpiricalFDR+SD),na.rm=T, 
-                  width=.2,position=position_dodge(.9))
-)
+# (A) IVW, MR-PRESSO: Num discoveries
+resultsdf = mean_num_discoveries
+ndigits = 0
+inds = resultsdf$deg==deg & resultsdf$p1 == p1 & resultsdf$p2==p2
+df1 = resultsdf[inds,c("prob_pleio","mrpresso","c-mrpresso","ivw","c-ivw")]
+rownames(df1) = df1[,1]
+df1 = df1[,-1]
+df1 = t(df1)
+df1 = as.data.frame(df1)
+df1 = rbind(min(0.1,min(df1)),df1)
+df1 = rbind(max(df1),df1)
+axslabs = round(seq(min(df1),max(df1),length.out = 6),digits = ndigits)
+cols = method2col[rownames(df1)[-c(1:2)]]
+radarchart(df1,axistype=1,seg=5,plwd=2,caxislabels=axslabs,pcol=cols,plty=5)
+legend(x = "top",rownames(df1)[-c(1:2)],fill = cols,ncol = 2)
 
-# Try boxplots
-df = melt(all_sim_results_fdrs,id.vars = c("prob_pleio","p1","p2","deg"))
-df = melt(all_sim_results_preds,id.vars = c("prob_pleio","p1","p2","deg"))
+# (B) IVW, MR-PRESSO: FDRs
+resultsdf = mean_fdrs
+ndigits = 2
+inds = resultsdf$deg==deg & resultsdf$p1 == p1 & resultsdf$p2==p2
+df1 = resultsdf[inds,c("prob_pleio","mrpresso","c-mrpresso","ivw","c-ivw")]
+rownames(df1) = df1[,1]
+df1 = df1[,-1]
+df1 = t(df1)
+df1 = as.data.frame(df1)
+df1 = rbind(min(0.1,min(df1)),df1)
+df1 = rbind(max(df1),df1)
+axslabs = round(seq(min(df1),max(df1),length.out = 6),digits = ndigits)
+cols = method2col[rownames(df1)[-c(1:2)]]
+radarchart(df1,axistype=1,seg=5,plwd=2,caxislabels=axslabs,pcol=cols,plty=5)
+legend(x = "top",rownames(df1)[-c(1:2)],fill = cols,ncol = 2)
 
-deg = 1.5
-p1 = 1e-04
-p2 = 0.001
-pleio = 0.3
-inds = df$deg==deg & df$p1 == p1 & df$p2==p2 & df$prob_pleio == pleio
-boxplot(value~variable,data=df[inds,])
+# (C) EdgeSeps: Num discoveries
+resultsdf = mean_num_discoveries
+ndigits = 0
+inds = resultsdf$deg==deg & resultsdf$p1 == p1 & resultsdf$p2==p2
+df1 = resultsdf[inds,c("prob_pleio","edge_sep","edge_sep_test1","edge_sep_test2")]
+rownames(df1) = df1[,1]
+df1 = df1[,-1]
+df1 = t(df1)
+df1 = as.data.frame(df1)
+df1 = rbind(min(0.1,min(df1)),df1)
+df1 = rbind(max(df1),df1)
+axslabs = round(seq(min(df1),max(df1),length.out = 6),digits = ndigits)
+cols = method2col[rownames(df1)[-c(1:2)]]
+radarchart(df1,axistype=1,seg=5,plwd=2,caxislabels=axslabs,pcol=cols,plty=5)
+legend(x = "top",c("Naive count","EM test","lFDR test"),fill = cols,ncol = 2)
+
+# (D) IVW, MR-PRESSO: FDRs
+resultsdf = mean_fdrs
+ndigits = 2
+inds = resultsdf$deg==deg & resultsdf$p1 == p1 & resultsdf$p2==p2
+df1 = resultsdf[inds,c("prob_pleio","edge_sep","edge_sep_test1","edge_sep_test2")]
+rownames(df1) = df1[,1]
+df1 = df1[,-1]
+df1 = t(df1)
+df1 = as.data.frame(df1)
+df1 = rbind(min(0.1,min(df1)),df1)
+df1 = rbind(max(df1),df1)
+axslabs = round(seq(min(df1),max(df1),length.out = 6),digits = ndigits)
+cols = method2col[rownames(df1)[-c(1:2)]]
+radarchart(df1,axistype=1,seg=5,plwd=2,caxislabels=axslabs,pcol=cols,plty=5)
+legend(x = "top",c("Naive count","EM test","lFDR test"),fill = cols,ncol = 2)
+
+
 
 
