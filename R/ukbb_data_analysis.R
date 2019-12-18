@@ -1,0 +1,313 @@
+###################################################################################
+# Set the session
+required_libs = c("igraph","bnlearn","MRPRESSO",
+                  "optparse","limma","MendelianRandomization",
+                  "mixtools","limma")
+lib_loc = "~/R/packages3.5"
+lib_loc = c(lib_loc,.libPaths())
+for (lib_name in required_libs){
+  tryCatch({library(lib_name,character.only = T,lib.loc = lib_loc)},
+           error = function(e) {
+             print(paste("Cannot load",lib_name,", please install"))
+           })
+}
+# Add the cGAUGE functions and auxiliary functions for MR
+# From GitHub
+try({
+  source("https://raw.githubusercontent.com/david-dd-amar/cGAUGE/master/R/cGAUGE.R")
+  source("https://raw.githubusercontent.com/david-dd-amar/cGAUGE/master/R/twogroups_em_tests.R")
+})
+# From local clone (GitHub server sometimes has issues)
+try({
+  source("~/repos/cGAUGE/R/cGAUGE.R")
+  source("~/repos/cGAUGE/R/twogroups_em_tests.R")
+})
+print("Completed loading libraries and code")
+###################################################################################
+###################################################################################
+###################################################################################
+# Set input data 
+rivaslab_pheno_codes_file = "/oak/stanford/groups/mrivas/users/magu/repos/rivas-lab/wiki/ukbb/icdinfo/icdinfo.txt"
+rivaslab_codes = read.delim(rivaslab_pheno_codes_file,stringsAsFactors = F,header=F)
+rownames(rivaslab_codes) = rivaslab_codes[,1]
+icd2name = rivaslab_codes[,3];names(icd2name) = rownames(rivaslab_codes)
+
+# April 2019: Analysis of ~95 traits
+out_plink_path = "/oak/stanford/groups/mrivas/users/davidama/april2019_traits_causal_analysis_flow_results/"
+skeleton_file = "/oak/stanford/groups/mrivas/users/davidama/april2019_Gs_skeleton.RData"
+geno_data_path = "/oak/stanford/groups/mrivas/users/davidama/april2019_traits_genotypes/all_genotypes"
+gwas_res_data = "/oak/stanford/groups/mrivas/users/davidama/april2019_causal_analysis_flow_input.RData"
+gwas_res_path = "/oak/stanford/groups/mrivas/users/davidama/gwas_res/"
+
+###################################################################################
+###################################################################################
+###################################################################################
+
+# Load the data and set output paths
+out_path = paste(out_plink_path,"cguage_res/",sep="")
+system(paste("mkdir",out_path))
+# load the plink analysis results
+# this loads the list of pairwise CI tests
+load(paste(out_plink_path,"genetic_CI_tests_results.RData",sep=""))
+# this loads the standard GWAS results
+load(gwas_res_data)
+# load the skeleton: get a matrix of the maximal association p-values
+# and an object of the separating sets for non-edges
+load(skeleton_file)
+skeleton_pmax = pmax_network
+
+# set the phenotype names
+pheno_names = icd2name[colnames(skeleton_pmax)]
+pheno_names[colnames(skeleton_pmax)=="sex"] = "sex"
+pheno_names[colnames(skeleton_pmax)=="age"] = "age"
+names(pheno_names)[colnames(skeleton_pmax)=="sex"] = "sex"
+names(pheno_names)[colnames(skeleton_pmax)=="age"] = "age"
+# shorten some names
+pheno_names[pheno_names=="Age_when_periods_started_(menarche)"] = "Menarche"
+pheno_names[pheno_names=="Number_of_children_fathered"] = "Num children (f)"
+pheno_names[pheno_names=="Red_blood_cell_(erythrocyte)_count"] = "RBC"
+pheno_names[pheno_names=="Mean_corpuscular_haemoglobin"] = "Hemoglobin"
+pheno_names[pheno_names=="Red_blood_cell_(erythrocyte)_distribution_width"] = "RBC_distr_width"
+pheno_names[pheno_names=="White_blood_cell_(leukocyte)_count"] = "WBC"
+pheno_names[pheno_names=="Platelet_distribution_width"] = "Platelet_distr_width"
+pheno_names[pheno_names=="Mean_platelet_(thrombocyte)_volume"] = "Platelet_volume"
+pheno_names[pheno_names=="Forced_vital_capacity_(FVC)"] = "FVC"
+pheno_names[pheno_names=="Number_of_days/week_of_vigorous_physical_activity_10+_minutes"] = "Vigorous_PA"
+pheno_names[pheno_names=="Number_of_days/week_of_moderate_physical_activity_10+_minutes"] = "Moderate_PA"
+pheno_names[pheno_names=="Time_spend_outdoors_in_summer"] = "Summer_outdoor_time"
+pheno_names[pheno_names=="Time_spent_outdoors_in_winter"] = "Winter_outdoor_time"
+pheno_names[pheno_names=="Standing_height"] = "Height"
+pheno_names[pheno_names=="Pulse_rate,_automated_reading"] = "Pulse rate"
+pheno_names[pheno_names=="Average_weekly_beer_plus_cider_intake"] = "Beer intake"
+pheno_names[pheno_names=="Systolic_blood_pressure,_automated_reading"] = "SBP"
+pheno_names[pheno_names=="Diastolic_blood_pressure,_automated_reading" ] = "DBP"
+pheno_names[pheno_names=="Fluid_intelligence_score" ] = "Intelligence"
+pheno_names[pheno_names=="heart_attack/myocardial_infarction"] = "Myocardial infarction"
+pheno_names[pheno_names=="heart_failure/pulmonary_odema"] = "Heart failure"
+pheno_names[pheno_names=="large_bowel_cancer/colorectal_cancer" ] = "Colorectal cancer"
+pheno_names[pheno_names=="inflammatory_bowel_disease"] = "IBD"
+pheno_names[pheno_names=="gastro-oesophageal_reflux_(gord)_/_gastric_reflux" ] = "Gastric_reflux"
+pheno_names[pheno_names=="hayfever/allergic_rhinitis" ] = "Allergic_rhinitis"
+pheno_names[pheno_names=="urinary_tract_infection/kidney_infection" ] = "Kidney infection"
+pheno_names[pheno_names=="hypothyroidism/myxoedema"] = "Hypothyroidism"
+pheno_names = gsub(pheno_names,pattern="_",replacement = " ")
+pheno_names = sapply(pheno_names,function(x)paste(toupper(substr(x,1,1)),substr(x,2,nchar(x)),sep=""))
+
+# add missing names as is
+missing_names = setdiff(colnames(snp_matrix),names(pheno_names))
+pheno_names[missing_names] = missing_names
+missing_names2 = setdiff(colnames(snp_matrix),names(icd2name))
+icd2name[missing_names2] = missing_names2
+
+save(pheno_names,icd2name,rivaslab_codes,file=
+       paste(out_path,"all_pheno_name_metadata.RData",sep=""))
+
+# Select SNPs by their MAF
+pruned_snp_list = cl_unified_list
+pruned_snp_lists = code2clumped_list
+MAF = 0.01
+maf_file = paste(geno_data_path,".frq",sep="")
+mafs = read.table(maf_file,stringsAsFactors = F,header=T)
+bim = read.table(paste(geno_data_path,".bim",sep=""),stringsAsFactors = F)
+mhc_snps = bim[bim[,1]==6 & bim[,4]>23000000 & bim[,4]<35000000,2]
+our_snps = mafs$SNP[mafs$MAF >= MAF]
+pruned_snp_list = intersect(pruned_snp_list,our_snps)
+pruned_snp_list = intersect(pruned_snp_list,rownames(snp_matrix))
+pruned_snp_list = setdiff(pruned_snp_list,mhc_snps)
+for(nn in names(pruned_snp_lists)){
+  pruned_snp_lists[[nn]] = intersect(pruned_snp_lists[[nn]],pruned_snp_list)
+}
+iv2trait_p = snp_matrix[pruned_snp_list,]
+maf_as_weights = mafs$MAF;names(maf_as_weights) = mafs$SNP
+GWAS_Ps = iv2trait_p[pruned_snp_list,]
+
+###################################################################################
+###################################################################################
+###################################################################################
+
+
+# Check different combinations of the input parameters p1 and p2
+P1s = c(1e-5,1e-6,1e-7,1e-8)
+P2s = c(0.1,0.01,0.001)
+for(p1 in P1s){
+  for (p2 in P2s){
+    # load( paste(out_path,"three_rule_analysis_",p1,"_",p2,".RData",sep=""))
+    # Infer the G_T skeleton (use p1 as the threshold for significance)
+    all_skel_ps = skeleton_pmax[lower.tri(skeleton_pmax)]
+    skeleton_pthr = max(all_skel_ps[all_skel_ps<p1],na.rm = T)
+    G_t = skeleton_pmax < skeleton_pthr
+    diag(G_t) = F;mode(G_t)="numeric"
+    # Print G_T to a text file
+    G_t_edges = c()
+    for(i in 2:nrow(G_t)){
+      for(j in 1:(i-1)){
+        if(!is.na(G_t[i,j]) && G_t[i,j]>0){
+          G_t_edges = rbind(G_t_edges,c(pheno_names[colnames(G_t)[i]],pheno_names[colnames(G_t)[j]]))
+        }
+      }
+    }
+    skeleton_pthr[is.na(skeleton_pthr)]=0
+    write.table(G_t_edges,file=paste(out_path,"G_t_edges","p1_",p1,".txt",sep=""),sep="\t",
+                row.names = F,col.names = F,quote = F)
+    ####################################################################################################
+    # Step 2.1: infer the G_IT skeleton
+    initial_skel = get_iv_trait_skel(iv2trait_p[pruned_snp_list,],p1)
+    updated_skel = analyze_trait_pair_CI_tests_clean_IVs(iv2trait_p[pruned_snp_list,],
+                                                         initial_skel[[1]],trait_pair_pvals,p1,p2)
+    G_it_0 = initial_skel[[1]]
+    G_it = updated_skel[[1]]
+    ####################################################################################################
+    # Step 3.1: Analysis of the skeleton and simple CI test 1
+    # Here we get all cases of disappearing correlations (based on p1,p2)
+    # For each analyzed (x,y) G_t skeleton we compute the number of variants
+    # that are associated with x and y but not with y given x.
+    # We also compute the fraction of these cases out of all of x's
+    # variants.
+    detected_cis_per_edge = list()
+    for(tr1 in colnames(GWAS_Ps)){
+      for(tr2 in colnames(GWAS_Ps)){
+        if(tr1==tr2){next}
+        # Go over skeleton edges only
+        if(is.na(G_t[tr1,tr2]) || G_t[tr1,tr2]==0){next}
+        # Check which variants associated with both tr1 and tr2 lose the association with tr2
+        ps_with_tr2_cond_tr1 = trait_pair_pvals[[tr2]][[tr1]][pruned_snp_lists[[tr1]],"test3"]
+        currN = length(pruned_snp_lists[[tr1]])
+        currN2 = sum(GWAS_Ps[pruned_snp_lists[[tr1]],tr2] < p1,na.rm = T)
+        curr_test_inds = GWAS_Ps[pruned_snp_lists[[tr1]],tr2] < p1 &
+          GWAS_Ps[pruned_snp_lists[[tr1]],tr1] < p1 & ps_with_tr2_cond_tr1 > p2
+        if(sum(curr_test_inds,na.rm = T)==0){next}
+        currname = paste(tr1,"cause_of",tr2,pheno_names[tr1],"cause_of",pheno_names[tr2],sep = ";")
+        detected_cis_per_edge[[currname]] = list(num_tests_total_t1 = currN,
+                                                 num_tests_total_t1_andt2 = currN2,
+                                                 variants=pruned_snp_lists[[tr1]][curr_test_inds])
+      }
+    }
+    # Step 3.2: Filter out intersection between reverse edges
+    rev_edge_intersection_bias_sign=list()
+    for(nn in names(detected_cis_per_edge)){
+      arr = strsplit(nn,split=";")[[1]]
+      arr2 = arr[c(3:1,6:4)]
+      e1 = paste(arr,collapse = ";")
+      e2 = paste(arr2,collapse = ";")
+      if(!is.element(e2,set=names(detected_cis_per_edge))){next}
+      g1 = detected_cis_per_edge[[e1]]$variants
+      g2 = detected_cis_per_edge[[e2]]$variants
+      # print(paste(e1,length(intersect(g1,g2))))
+      if(length(intersect(g1,g2))>0){
+        rev_edge_intersection_bias_sign[[paste(arr[1],arr[3],sep=";")]]
+        detected_cis_per_edge[[e1]]$variants = setdiff(detected_cis_per_edge[[e1]],intersect(g1,g2))
+        detected_cis_per_edge[[e2]]$variants = setdiff(detected_cis_per_edge[[e2]],intersect(g1,g2))
+      }
+    }
+    # Print the resulting scored network into a file
+    edge_orientation_res = c()
+    for(nn in names(detected_cis_per_edge)){
+      arr = strsplit(nn,split=";")[[1]][c(4,6)]
+      score1 = length(detected_cis_per_edge[[nn]]$variants)
+      score2 = score1/detected_cis_per_edge[[nn]][[1]]
+      score3 = score1/detected_cis_per_edge[[nn]][[2]]
+      new_edge = c(arr,score1,score2,score3)
+      print(new_edge)
+      edge_orientation_res = rbind(edge_orientation_res,new_edge)
+    }
+    rownames(edge_orientation_res) = NULL
+    colnames(edge_orientation_res) = c("X->","Y","NumSepIVs","Percentage_vs_tr1","Percentage_vs_tr1_tr2")
+    write.table(edge_orientation_res,file=paste(out_path,"edge_orientation_res_",p1,"_",p2,".txt",sep=""),
+                quote=F,row.names = F,col.names = T,sep="\t")
+    edge_orientation_res2 = edge_orientation_res[as.numeric(edge_orientation_res[,3])>4,]
+    write.table(edge_orientation_res2,file=paste(out_path,"edge_orientation_res__atleast_5_ivs_",
+                                                 p1,"_",p2,".txt",sep=""),
+                quote=F,row.names = F,col.names = T,sep="\t")
+    ####################################################################################################
+    # Step 4.1: Analysis of emerging associations: get all cases
+    newly_formed_sigs = analyze_trait_pair_CI_tests_get_newly_formed_sig(
+      GWAS_Ps,trait_pair_pvals,p1,p2)
+    ps = as.numeric(newly_formed_sigs[,5])
+    newly_formed_sigs = newly_formed_sigs[ps<p1,]
+    # check the v-struct analysis results
+    tmp = newly_formed_sigs[,c(2,3)]
+    tmp[,1] = pheno_names[tmp[,1]]
+    tmp[,2] = pheno_names[tmp[,2]]
+    tmp_str = apply(tmp,1,paste,collapse=";")
+    partial_ev_res = table(tmp_str)
+    curr_edges = t(sapply(names(partial_ev_res),function(x)strsplit(x,split=";")[[1]]))
+    partial_ev_res = cbind(curr_edges,partial_ev_res)
+    rownames(partial_ev_res) = NULL
+    # Add the fraction of discovered cases out of all examined variants for a pair of traits
+    percentages = c()
+    for(i in 1:nrow(partial_ev_res)){
+      tr1 = partial_ev_res[i,1]
+      tr1 = names(pheno_names)[pheno_names==tr1]
+      tr2 = partial_ev_res[i,2]
+      tr2 = names(pheno_names)[pheno_names==tr2]
+      currN = sum(GWAS_Ps[,tr1]>p2 & GWAS_Ps[,tr2] <p1,na.rm = T)
+      percentages[i] = as.numeric(partial_ev_res[i,3])/currN
+    }
+    partial_ev_res = cbind(partial_ev_res,percentages)
+    # Print to file
+    colnames(partial_ev_res) = c("X*->","Y","NumIVs","Percentage")
+    write.table(partial_ev_res,file=paste(out_path,"partial_ev_res_",p1,"_",p2,".txt",sep=""),
+                quote=F,row.names = F,col.names = T,sep="\t")
+    partial_ev_res2 = partial_ev_res[as.numeric(partial_ev_res[,3])>4,]
+    write.table(partial_ev_res2,file=paste(out_path,"partial_ev_res_atleast_5_ivs_",p1,"_",p2,".txt",sep=""),
+                quote=F,row.names = F,col.names = T,sep="\t")
+    ####################################################################################################
+    # Step 5: Analysis for MR or meta-analysis for non skeleton edges
+    # Analysis 5.1: simple meta-analysis on all pairs
+    meta_anal_res = run_pairwise_pval_combination_analyses(G_it,GWAS_Ps,
+                                                           pruned_lists=code2clumped_list,weights=maf_as_weights,maxp=0.001)
+    # Analysis 5.2: Various MR methods
+    mr_anal_res = list(
+      "Egger" = run_pairwise_mr_analyses(G_it,sum_stat_matrix,sum_stat_se_matrix,
+                                         pleio_size=1,pruned_lists=code2clumped_list,func=mr_egger,robust=T),
+      "IVW" = run_pairwise_mr_analyses(G_it,sum_stat_matrix,sum_stat_se_matrix,
+                                       pleio_size=1,pruned_lists=code2clumped_list,func=mr_ivw,robust=T)
+    )
+    # mr_anal_res$median = run_pairwise_mr_analyses(G_it,sum_stat_matrix,sum_stat_se_matrix,
+    #         pleio_size=1,pruned_lists=code2clumped_list,func=mr_median)
+    print("Done updating the MR results")
+    
+    cleaned_Egger_res = combine_mm_mr_analyses(meta_anal_res,mr_anal_res[["Egger"]],
+                                               pi1_thr=2,p_h_thr = -1,minIVs = 3)
+    colnames(cleaned_Egger_res) = c("tr1->","tr2","p_MR","Est","pi1","numIVs")
+    cleaned_Egger_res_non_pleio = clean_non_pleio_pairs(cleaned_Egger_res,G_t)
+    is_non_pleio = is.element(rownames(cleaned_Egger_res),set=rownames(cleaned_Egger_res_non_pleio))
+    cleaned_Egger_res = cbind(cleaned_Egger_res,is_non_pleio)
+    effect_direction = rep("Up",nrow(cleaned_Egger_res))
+    effect_direction[as.numeric(cleaned_Egger_res[,"Est"])<0] = "Down"
+    cleaned_Egger_res = cbind(cleaned_Egger_res,effect_direction)
+    
+    # Represent the selected edges nicely
+    mr_edges = cleaned_Egger_res
+    rownames(mr_edges) = NULL
+    mr_edges[,1] = pheno_names[mr_edges[,1]]
+    mr_edges[,2] = pheno_names[mr_edges[,2]]
+    mr_edges[,3] = -log(as.numeric(as.character(mr_edges[,3]))+1e-100,10)
+    write.table(mr_edges,file=paste(out_path,"mr_Egger_non_pleio_",p1,"_",p2,".txt",sep=""),
+                quote=F,row.names = F,col.names = T,sep="\t")
+    mr_edges2 = mr_edges[as.numeric(mr_edges[,6])>9,]
+    write.table(mr_edges2,file=paste(out_path,"mr_Egger_non_pleio_atleast_10_ivs_",p1,"_",p2,".txt",sep=""),
+                quote=F,row.names = F,col.names = T,sep="\t")
+    
+    ####################################################################################################
+    # save the results of the analysis for further examination
+    save(
+      G_it_0, # The original associations of the GWAS without conditional independence filtering
+      G_t,G_it, # the skeleton of the traits
+      G_t_edges, # nice representation of skeleton edges
+      detected_cis_per_edge, # Edges that cause separation
+      edge_orientation_res, # Summary of the disappearing assoc analysis
+      updated_skel, # loci-trait skeleton
+      newly_formed_sigs, # Emerging associations
+      partial_ev_res, # summary of the emerging assoc analysis
+      cleaned_Egger_res, # MR+Meta-analysis results after filters
+      mr_edges, # MR+MM discovered edges - same as cleaned_Egger_res but formatted nicely
+      mr_anal_res, # All MR results
+      meta_anal_res, # All meta-analysis results with Stouffers method and maxp=0.001
+      file = paste(out_path,"three_rule_analysis_",p1,"_",p2,".RData",sep="")
+    )
+  }
+}
+
+
+

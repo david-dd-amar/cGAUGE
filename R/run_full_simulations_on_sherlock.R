@@ -360,8 +360,8 @@ names(method2col) = c(
 
 deg = 1.5
 p1 = 1e-04
-p2 = 0.001
-par(mfrow=c(2,2),mar=c(2,2,2,2))
+p2 = 0.01
+par(mfrow=c(2,2),mar=c(0,1,4,1),xpd=TRUE)
 
 # (A) IVW, MR-PRESSO: Num discoveries
 resultsdf = mean_num_discoveries
@@ -377,7 +377,8 @@ df1 = rbind(max(df1),df1)
 axslabs = round(seq(min(df1),max(df1),length.out = 6),digits = ndigits)
 cols = method2col[rownames(df1)[-c(1:2)]]
 radarchart(df1,axistype=1,seg=5,plwd=2,caxislabels=axslabs,pcol=cols,plty=5)
-legend(x = "top",rownames(df1)[-c(1:2)],fill = cols,ncol = 2)
+legend(x=-1,y=1.8,rownames(df1)[-c(1:2)],fill = cols,ncol = 2,border = F)
+text(0,0,"N",cex = 1.5)
 
 # (B) IVW, MR-PRESSO: FDRs
 resultsdf = mean_fdrs
@@ -393,7 +394,8 @@ df1 = rbind(max(df1),df1)
 axslabs = round(seq(min(df1),max(df1),length.out = 6),digits = ndigits)
 cols = method2col[rownames(df1)[-c(1:2)]]
 radarchart(df1,axistype=1,seg=5,plwd=2,caxislabels=axslabs,pcol=cols,plty=5)
-legend(x = "top",rownames(df1)[-c(1:2)],fill = cols,ncol = 2)
+legend(x=-1,y=1.8,rownames(df1)[-c(1:2)],fill = cols,ncol = 2,border = F)
+text(0,0,"FDR",cex = 1.2)
 
 # (C) EdgeSeps: Num discoveries
 resultsdf = mean_num_discoveries
@@ -409,7 +411,8 @@ df1 = rbind(max(df1),df1)
 axslabs = round(seq(min(df1),max(df1),length.out = 6),digits = ndigits)
 cols = method2col[rownames(df1)[-c(1:2)]]
 radarchart(df1,axistype=1,seg=5,plwd=2,caxislabels=axslabs,pcol=cols,plty=5)
-legend(x = "top",c("Naive count","EM test","lFDR test"),fill = cols,ncol = 2)
+legend(x=-1,y=1.8,c("Naive count","EM test","lfdr test"),fill = cols,ncol = 2,border=F)
+text(0,0,"N",cex = 1.5)
 
 # (D) IVW, MR-PRESSO: FDRs
 resultsdf = mean_fdrs
@@ -425,7 +428,8 @@ df1 = rbind(max(df1),df1)
 axslabs = round(seq(min(df1),max(df1),length.out = 6),digits = ndigits)
 cols = method2col[rownames(df1)[-c(1:2)]]
 radarchart(df1,axistype=1,seg=5,plwd=2,caxislabels=axslabs,pcol=cols,plty=5)
-legend(x = "top",c("Naive count","EM test","lFDR test"),fill = cols,ncol = 2)
+legend(x=-1,y=1.8,c("Naive count","EM test","lfdr test"),fill = cols,ncol = 2,border=F)
+text(0,0,"FDR",cex = 1.2)
 
 
 

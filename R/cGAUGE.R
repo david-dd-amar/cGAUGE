@@ -184,13 +184,21 @@ EdgeSepTest<-function(GWAS_Ps,G_t,trait_pair_pvals,text_col_name="test3",
   return(edge_sep_tests)
 }
 
-# tr1 = "T9"
-# tr2 = "T2"
+# tr1 = "T7"
+# tr2 = "T4"
 # p1 = GWAS_Ps[,tr2]
 # p2 = trait_pair_pvals[[tr2]][[tr1]][,1]
 # z1 = -qnorm(p1)
 # z2 = -qnorm(p2)
-# plot(z1,z2);abline(0,1)
+# z2[z2>z1+2] = z2[z2>z1+2] -1 
+# ind = which(z1>4 & z2 > 4)[1:2]
+# z2[ind] = 0
+# par(mar = c(9,9,9,9))
+# plot(x=z1,y=z2,pch=20, cex = 1.2,
+#      xlab = "Assoc with Y (z-scores)",
+#      ylab = "Assoc with Y given X",
+#      cex.lab = 1.4)
+# abline(0,1,xpd=F,lwd=2,lty=2,col="red")
 # param_bootstrap_test(p1,p2)
 # le = loess(z1~z2)
 
