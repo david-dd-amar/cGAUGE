@@ -1,3 +1,6 @@
+# Get all associations between tr1 and tr2 conditioned on
+# sets S of size depth (>0)
+
 print("trait pair analysis, usage:
       <RData file with objects><tr1><tr2><depth: integer > 0>
       <pval_thr><out_file>")
@@ -51,7 +54,7 @@ increase_index<-function(v,base){
 #   counter=counter+1
 #   print(v)
 # }
-# counter == choose(12,5)
+# counter == choose(12,1)
 
 inds = 1:depth
 counter = 1
