@@ -1,22 +1,19 @@
 # This script takes a matrix of traits and perform skeleton inference ignoring
 # any genetic data (variants or PCs)
 
-auxil_functions_R_code = "/home/users/davidama/repos/CCDfromD/scripts/auxil_functions.R"
-ccd_functions_R_code = "/home/users/davidama/repos/CCDfromD/scripts/ccdfromd_functions.R"
-library("bnlearn",lib.loc = "~/R/packages/")
-library("speedglm",lib.loc = "~/R/packages/")
-source(auxil_functions_R_code)
-source(ccd_functions_R_code)
+source("~/repos/cGAUGE/R/auxil_functions.R")
 
 # Define the input
 input_data = "/oak/stanford/groups/mrivas/users/davidama/april2019_traits_data.RData"
-out_path = "/oak/stanford/groups/mrivas/users/davidama/april2019_traits_skeleton/"
-out_object_to_store_results = "/oak/stanford/groups/mrivas/users/davidama/april2019_Gs_skeleton.RData"
+out_path = "/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/traits_skeleton/"
+out_object_to_store_results = "/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/Gs_skeleton.RData"
 
 system(paste("mkdir",out_path))
 FUNC = run_ci_test_logistic_linear_discrete
 NJOB = 2000
 depth = 2
+# this is an important threshold
+# we ignore pairs with marginal association p > pthr
 pthr = 0.01
 to_include = c("sex","age")
 load(input_data)
@@ -37,7 +34,7 @@ for(nn in colnames(pmax_network)){
   sepsets[[nn]] = list()
 }
 
-# Initial filtering to avoid some unecessary runs
+# Initial filtering to avoid many unnecessary runs
 for(i in 2:n){
   for(j in 1:(i-1)){
     xx = c(traits[i],traits[j])
@@ -49,11 +46,76 @@ for(i in 2:n){
   }
   print(i)
 }
-table(pmax_network < pthr)/2
+print(paste("number of pairs remaining with p < 0.01:",sum(pmax_network < pthr,na.rm=T)/2))
 save(pmax_network,file=paste(out_path,"initial_pmax_network.RData",sep=""))
 
 load(paste(out_path,"initial_pmax_network.RData",sep=""))
-# Now run an analysis for each pair
+
+############################################################################################
+############################################################################################
+############################################################################################
+############################################################################################
+
+exec_cmd_on_sherlock<-function(cmd,jobname,out_path,...){
+  err_path = paste(out_path,jobname,".err",sep="")
+  log_path = paste(out_path,jobname,".log",sep="")
+  curr_cmd = paste(cmd)
+  curr_sh_file = paste(out_path,jobname,".sh",sep="")
+  sh_prefix = get_sh_prefix(err_path,log_path)
+  print_sh_file(curr_sh_file,
+                get_sh_prefix_one_node_specify_cpu_and_mem,
+                curr_cmd,...)
+  system(paste("sbatch",curr_sh_file,'&'))
+}
+
+
+# Now run an analysis for each pair: condition on a single other trait
+for(i in 2:n){
+  for(j in 1:(i-1)){
+    if(is.na(pmax_network[i,j])){next}
+    if(pmax_network[i,j]>pthr){next}
+    tr1 = traits[i]
+    tr2 = traits[j]
+    curr_job_name = paste(tr1,"_",tr2,"_depth1",sep="")
+    
+    if(is.element(paste(curr_job_name,".RData",sep=""),set=list.files(out_path))){next}
+    
+    err_path = paste(out_path,curr_job_name,".err",sep="")
+    log_path = paste(out_path,curr_job_name,".log",sep="")
+    curr_cmd = paste(
+      "Rscript ~/repos/CCDfromD/R_batch_tools/analyze_trait_pair_for_skeleton.R",
+      input_data,tr1,tr2,1,pthr,paste(out_path,curr_job_name,".RData",sep="")
+    )
+    exec_cmd_on_sherlock(curr_cmd,curr_job_name,out_path)
+    curr_sh_file = paste(out_path,curr_job_name,".sh",sep="")
+    print_sh_file(curr_sh_file,
+                  get_sh_prefix_one_node_specify_cpu_and_mem(
+                    err_path,log_path,"plink/2.0a1",1,4000,time="04:00:00")
+                  ,curr_cmd)
+    system(paste("sbatch -x sh-113-15 ",curr_sh_file,'&'))
+    
+    job_state = system2("squeue",args = list("-u davidama | wc"),stdout=TRUE)
+    num_active_jobs = as.numeric(strsplit(job_state,split="\\s+",perl = T)[[1]][2])
+    while(num_active_jobs > MAX_JOBS){
+      Sys.sleep(5)
+      job_state = system2("squeue",args = list("-u davidama | wc"),stdout=TRUE)
+      num_active_jobs = as.numeric(strsplit(job_state,split="\\s+",perl = T)[[1]][2])
+    }
+    
+  }
+  print(i)
+}
+
+# Wait for the single-level analyses to end
+job_state = system2("squeue",args = list("-u davidama | wc"),stdout=TRUE)
+num_active_jobs = as.numeric(strsplit(job_state,split="\\s+",perl = T)[[1]][2])
+while(num_active_jobs > 5){
+  Sys.sleep(5)
+  job_state = system2("squeue",args = list("-u davidama | wc"),stdout=TRUE)
+  num_active_jobs = as.numeric(strsplit(job_state,split="\\s+",perl = T)[[1]][2])
+}
+
+# Now run an analysis for each pair but condition on a pair of other traits
 for(i in 2:n){
   for(j in 1:(i-1)){
     if(is.na(pmax_network[i,j])){next}
@@ -67,7 +129,6 @@ for(i in 2:n){
     err_path = paste(out_path,curr_job_name,".err",sep="")
     log_path = paste(out_path,curr_job_name,".log",sep="")
     curr_cmd = paste(
-      "module load R\n",
       "Rscript ~/repos/CCDfromD/R_batch_tools/analyze_trait_pair_for_skeleton.R",
       input_data,tr1,tr2,depth,pthr,paste(out_path,curr_job_name,".RData",sep="")
     )
@@ -81,8 +142,19 @@ for(i in 2:n){
   }
   print(i)
 }
+# Wait for the jobs to end
+job_state = system2("squeue",args = list("-u davidama | wc"),stdout=TRUE)
+num_active_jobs = as.numeric(strsplit(job_state,split="\\s+",perl = T)[[1]][2])
+while(num_active_jobs > 5){
+  Sys.sleep(5)
+  job_state = system2("squeue",args = list("-u davidama | wc"),stdout=TRUE)
+  num_active_jobs = as.numeric(strsplit(job_state,split="\\s+",perl = T)[[1]][2])
+}
 
-# for(rr in rownames(get_my_jobs())){system(paste("scancel",rr))}
+############################################################################################
+############################################################################################
+############################################################################################
+############################################################################################
 
 # Read the results
 load(paste(out_path,"initial_pmax_network.RData",sep=""))

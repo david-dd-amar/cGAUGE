@@ -5,7 +5,7 @@ print("trait pair analysis, usage:
       <RData file with objects><tr1><tr2><depth: integer > 0>
       <pval_thr><out_file>")
 
-source("~/davidama/repos/cGAUGE/R/auxil_functions.R")
+source("~/repos/cGAUGE/R/auxil_functions.R")
 args = commandArgs(trailingOnly=TRUE)
 print(paste("input args:",args))
 # Define the parameters of the current run
