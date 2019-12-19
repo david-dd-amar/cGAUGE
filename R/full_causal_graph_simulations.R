@@ -453,9 +453,12 @@ for(tr1 in phenos){
   merged_sepsets[[tr1]] = list()
   for(tr2 in phenos){
     l = sepsets[[tr1]][[tr2]]
-    if(length(l)==0){next}
     l = l[sapply(l,function(x)x$p)>p1]
-    merged_sepsets[[tr1]][[tr2]] = unique(unlist(sapply(l,function(x)x$sep)))
+    l = lapply(l,function(x)x$sep)
+    if(length(l)==0){next}
+    reduced_l = remove_non_minimal_sepsets(l)
+    # print(paste(length(l),length(reduced_l)))
+    merged_sepsets[[tr1]][[tr2]] = unique(unlist(reduced_l))
   }
 }
 

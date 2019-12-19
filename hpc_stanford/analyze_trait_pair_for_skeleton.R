@@ -112,10 +112,9 @@ while(counter <= Ntuple){
         try({
           currp = FUNC(tr1,tr2,condSet,data=alldata)
           sepset = rbind(sepset,
-                         c(paste(condSet,collapse=","),currp))
+                      c(paste(condSet,collapse=","),currp))
         })
       }
-      
       maxp = max(currp,maxp)
     }
   }

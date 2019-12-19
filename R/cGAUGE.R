@@ -55,41 +55,6 @@ extract_skeleton_G_VT<-function(GWAS_Ps,trait_pair_pvals,P1,P2,test_columns = NU
   return(list(G_VT,iv_trait_sepsets))
 }
 
-#' Search for newly-formed associations when conditioned on phenotypes.
-#' 
-#' @param GWAS_Ps A matrix. Rows are variants and columns are phenotypes. Cells are P-values.
-#' @param trait_pair_pvals. A named list. Each element is a list. Element [[tr1]][[tr2]] in the list is the conditional independence results for trait 1 conditioned on trait 2.
-#' @param P1 A number. A threshold used to define significant association.
-#' @param text_col_name a string. The column name to take for the pairwise p-value (i.e., from each element of trait_pair_pvals)
-#' @return A list with two matrices. In each matrix, each row has four elements: the snp id, trait1, trait2, p-value of trait 1, p-value of trait 2. The first matrix contains all emerging associations. The second matrix contains only the variants that have significant GWAS association with tr2 (at p1).
-DepEmerge<-function(GWAS_Ps,trait_pair_pvals,P1,P2,text_col_name="test3"){
-  num_traits = ncol(GWAS_Ps)
-  iv_trait_pairs_that_become_dep = c()
-  for(i in 1:num_traits){
-    tr1 = colnames(GWAS_Ps)[i]
-    ps_tr1 = GWAS_Ps[,tr1]
-    indep_tr1_snps = rownames(GWAS_Ps)[ps_tr1 >= P2]
-    for(j in 1:num_traits){
-      if(i==j){next}
-      tr2 = colnames(GWAS_Ps)[j]
-      curr_p_mat = trait_pair_pvals[[tr1]][[tr2]]
-      if(!is.element(text_col_name,set=colnames(curr_p_mat))){next}
-      curr_sig_snps = rownames(curr_p_mat)[curr_p_mat[,text_col_name] <= P1]
-      new_sig_prev_nonsig_snps = intersect(curr_sig_snps,indep_tr1_snps) # having snps here may point out to t2->t1
-      for(new_sig_s in new_sig_prev_nonsig_snps){
-        iv_trait_pairs_that_become_dep = rbind(
-          iv_trait_pairs_that_become_dep,c(new_sig_s,tr1,tr2,GWAS_Ps[new_sig_s,tr1],GWAS_Ps[new_sig_s,tr2]))
-      }
-    }
-  }
-  if(!is.null(dim(iv_trait_pairs_that_become_dep))){
-    colnames(iv_trait_pairs_that_become_dep) = c("Variant","Exposure","Outcome","PvalExposure","PvalOutcome")
-    ps = as.numeric(iv_trait_pairs_that_become_dep[,5])
-    newly_formed_sigs = iv_trait_pairs_that_become_dep[ps<p1,]
-    return(list("all"=iv_trait_pairs_that_become_dep,"only_tr2_genetic_variants"=newly_formed_sigs))  
-  }
-  return(iv_trait_pairs_that_become_dep)
-}
 
 #' Get all cases of disappearing correlations (based on p1,p2)
 #'
@@ -184,6 +149,31 @@ EdgeSepTest<-function(GWAS_Ps,G_t,trait_pair_pvals,text_col_name="test3",
   return(edge_sep_tests)
 }
 
+#' Remove non-minimal separating sets.
+#' 
+#' @param sepsets a list of sets
+#' @return a subset of the input lits
+#' @details remove all sets such that there exists another set that is contained in them; useful for cleaning instrument sets
+remove_non_minimal_sepsets<-function(sepsets){
+  if(length(sepsets)==0){return(list())}
+  if(length(sepsets)==1){return(l)}
+  to_rem = rep(F,length(sepsets))
+  # go over all pairs
+  for(i in 2:length(sepsets)){
+    for(j in 1:(i-1)){
+      set1 = sepsets[[i]]
+      set2 = sepsets[[j]]
+      if(all(set1 %in% set2)){
+        to_rem[j] = T
+      }
+      if(all(set2 %in% set1)){
+        to_rem[i] = T
+      }
+    }
+  }
+  return(sepsets[!to_rem])
+}
+
 # tr1 = "T7"
 # tr2 = "T4"
 # p1 = GWAS_Ps[,tr2]
@@ -200,25 +190,6 @@ EdgeSepTest<-function(GWAS_Ps,G_t,trait_pair_pvals,text_col_name="test3",
 #      cex.lab = 1.4)
 # abline(0,1,xpd=F,lwd=2,lty=2,col="red")
 # param_bootstrap_test(p1,p2)
-# le = loess(z1~z2)
-
-# # try semm
-# devtools::install_github("rivas-lab/semm",ref="dev",force=T)
-# library(semm)
-# beta1 = GWAS_effects[,tr2]
-# beta2 = trait_pair_pvals[[tr2]][[tr1]][,4]
-# se1 = GWAS_ses[,tr2]
-# se2 = trait_pair_pvals[[tr2]][[tr1]][,3]
-# plot(beta1,beta2)
-# B = cbind(beta1,beta2)
-# SE = cbind(se1,se2)
-# fit2 <- model2_stan(B=B,SE=SE, chains=4, warmup=5, iter=50, refresh=10)
-# list_of_draws = extract(fit2)
-# list_of_draws$pi
-# mu_tau_summary <- summary(fit2, pars = c("pi"),
-#                           probs = seq(0,0.5,length.out = 100))$summary
-# print(fit2, pars=c("pi", "sigmasq"), digits=5)
-# model2
 
 #' Go over all trait pairs and run MR
 #' 
@@ -376,4 +347,41 @@ run_single_mr_analysis<-function(snpset,tr1,tr2,X,Y,func=mr_egger,...){
   if(is.element("Estimate",set=slotNames(xx))){est = xx@Estimate}
   return(c(p,p_het,est,Q))
 }
+
+
+#' #' Search for newly-formed associations when conditioned on phenotypes.
+#' #' 
+#' #' @param GWAS_Ps A matrix. Rows are variants and columns are phenotypes. Cells are P-values.
+#' #' @param trait_pair_pvals. A named list. Each element is a list. Element [[tr1]][[tr2]] in the list is the conditional independence results for trait 1 conditioned on trait 2.
+#' #' @param P1 A number. A threshold used to define significant association.
+#' #' @param text_col_name a string. The column name to take for the pairwise p-value (i.e., from each element of trait_pair_pvals)
+#' #' @return A list with two matrices. In each matrix, each row has four elements: the snp id, trait1, trait2, p-value of trait 1, p-value of trait 2. The first matrix contains all emerging associations. The second matrix contains only the variants that have significant GWAS association with tr2 (at p1).
+#' DepEmerge<-function(GWAS_Ps,trait_pair_pvals,P1,P2,text_col_name="test3"){
+#'   num_traits = ncol(GWAS_Ps)
+#'   iv_trait_pairs_that_become_dep = c()
+#'   for(i in 1:num_traits){
+#'     tr1 = colnames(GWAS_Ps)[i]
+#'     ps_tr1 = GWAS_Ps[,tr1]
+#'     indep_tr1_snps = rownames(GWAS_Ps)[ps_tr1 >= P2]
+#'     for(j in 1:num_traits){
+#'       if(i==j){next}
+#'       tr2 = colnames(GWAS_Ps)[j]
+#'       curr_p_mat = trait_pair_pvals[[tr1]][[tr2]]
+#'       if(!is.element(text_col_name,set=colnames(curr_p_mat))){next}
+#'       curr_sig_snps = rownames(curr_p_mat)[curr_p_mat[,text_col_name] <= P1]
+#'       new_sig_prev_nonsig_snps = intersect(curr_sig_snps,indep_tr1_snps) # having snps here may point out to t2->t1
+#'       for(new_sig_s in new_sig_prev_nonsig_snps){
+#'         iv_trait_pairs_that_become_dep = rbind(
+#'           iv_trait_pairs_that_become_dep,c(new_sig_s,tr1,tr2,GWAS_Ps[new_sig_s,tr1],GWAS_Ps[new_sig_s,tr2]))
+#'       }
+#'     }
+#'   }
+#'   if(!is.null(dim(iv_trait_pairs_that_become_dep))){
+#'     colnames(iv_trait_pairs_that_become_dep) = c("Variant","Exposure","Outcome","PvalExposure","PvalOutcome")
+#'     ps = as.numeric(iv_trait_pairs_that_become_dep[,5])
+#'     newly_formed_sigs = iv_trait_pairs_that_become_dep[ps<p1,]
+#'     return(list("all"=iv_trait_pairs_that_become_dep,"only_tr2_genetic_variants"=newly_formed_sigs))  
+#'   }
+#'   return(iv_trait_pairs_that_become_dep)
+#' }
 
