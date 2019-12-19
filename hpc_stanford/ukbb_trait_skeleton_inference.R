@@ -61,10 +61,8 @@ exec_cmd_on_sherlock<-function(cmd,jobname,out_path,...){
   log_path = paste(out_path,jobname,".log",sep="")
   curr_cmd = paste(cmd)
   curr_sh_file = paste(out_path,jobname,".sh",sep="")
-  sh_prefix = get_sh_prefix(err_path,log_path)
-  print_sh_file(curr_sh_file,
-                get_sh_prefix_one_node_specify_cpu_and_mem,
-                curr_cmd,...)
+  sh_prefix = get_sh_prefix_one_node_specify_cpu_and_mem(err_path,log_path,...)
+  print_sh_file(curr_sh_file, sh_prefix,curr_cmd)
   system(paste("sbatch",curr_sh_file,'&'))
 }
 
@@ -87,7 +85,8 @@ for(i in 2:n){
       input_data,tr1,tr2,1,pthr,paste(out_path,curr_job_name,".RData",sep="")
     )
     exec_cmd_on_sherlock(curr_cmd,curr_job_name,out_path)
-    curr_sh_file = paste(out_path,curr_job_name,".sh",sep="")
+    curr_sh_file = paste(out_path,curr_job_name,".sh",sep="",
+                         time="04:00:00")
     print_sh_file(curr_sh_file,
                   get_sh_prefix_one_node_specify_cpu_and_mem(
                     err_path,log_path,"plink/2.0a1",1,4000,time="04:00:00")

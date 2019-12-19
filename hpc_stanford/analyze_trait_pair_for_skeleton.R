@@ -34,6 +34,7 @@ is_all_adj<-function(v){
 # is_all_adj(3:6)
 # is_all_adj(c(4,7,8))
 increase_index<-function(v,base){
+  if(length(v)==1){return(v+1)}
   if(is_all_adj(v) && max(v)==base){return(v)}
   n = length(v)
   if(is_all_adj(v)){
@@ -50,15 +51,15 @@ increase_index<-function(v,base){
 # v = 1:5
 # counter = 1
 # while(any(v!=8:12)){
-#   v = increase_index(v,12)
+#   v = increase_index(v,1)
 #   counter=counter+1
 #   print(v)
 # }
-# counter == choose(12,1)
+# counter == choose(12,5)
 
 inds = 1:depth
 counter = 1
-sepsets = c()
+sepset = c()
 maxp=-1
 Ntuple = choose(length(conditioned_traits),depth)
 
@@ -93,7 +94,7 @@ while(counter <= Ntuple){
       }
     }
     maxp = max(currp,maxp)
-    sepset = rbind(sepsets,
+    sepset = rbind(sepset,
                 c(paste(conditioned_traits[inds],collapse=","),currp))
     
     if (length(TO_INCLUDE) > 0){
@@ -108,12 +109,14 @@ while(counter <= Ntuple){
       else{
         condSet = condSet[!to_rem]
         currp = 0
-        try({currp = FUNC(tr1,tr2,condSet,data=alldata)})
+        try({
+          currp = FUNC(tr1,tr2,condSet,data=alldata)
+          sepset = rbind(sepset,
+                         c(paste(condSet,collapse=","),currp))
+        })
       }
       
       maxp = max(currp,maxp)
-      sepset = rbind(sepsets,
-          c(paste(conditioned_traits[inds],collapse=","),currp))
     }
   }
   # update the loop parameters
