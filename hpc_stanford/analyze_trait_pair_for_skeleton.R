@@ -75,7 +75,12 @@ while(counter <= Ntuple){
       condSet = conditioned_traits[inds]
       yy = alldata[curr_inds,condSet]
       # zero variance cols
-      zero_sd = apply(yy,2,sd)==0
+      if(!is.null(dim(yy))){
+        zero_sd = apply(yy,2,sd)==0
+      }
+      else{
+        zero_sd = sd(yy) == 0
+      }
       
       # TODO: add this analysis in case we are using discrete tests:
       # disc_cols = apply(yy,2,function(x)length(unique(x))<20)
@@ -89,18 +94,26 @@ while(counter <= Ntuple){
       }
       else{
         condSet = condSet[!to_rem]
-        currp = 0
+        currp = NULL
         try({currp = FUNC(tr1,tr2,condSet,data=alldata)})
       }
     }
-    maxp = max(currp,maxp)
-    sepset = rbind(sepset,
-                c(paste(conditioned_traits[inds],collapse=","),currp))
+    if(!is.null(currp)){
+      maxp = max(currp,maxp)
+      sepset = rbind(sepset,
+                     c(paste(conditioned_traits[inds],collapse=","),currp))
+    }
     
     if (length(TO_INCLUDE) > 0){
+      currp = NULL
       condSet = unique(c(TO_INCLUDE,conditioned_traits[inds]))
       yy = alldata[curr_inds,condSet]
-      zero_sd = apply(yy,2,sd)==0
+      if(!is.null(dim(yy))){
+        zero_sd = apply(yy,2,sd)==0
+      }
+      else{
+        zero_sd = sd(yy) == 0
+      }
       to_rem = zero_sd
       if(all(to_rem)){
         print(paste("cannot condition on",condSet, "skipping"))
@@ -108,14 +121,18 @@ while(counter <= Ntuple){
       }
       else{
         condSet = condSet[!to_rem]
-        currp = 0
         try({
           currp = FUNC(tr1,tr2,condSet,data=alldata)
           sepset = rbind(sepset,
                       c(paste(condSet,collapse=","),currp))
         })
       }
-      maxp = max(currp,maxp)
+      
+      if(!is.null(currp)){
+        maxp = max(currp,maxp)
+        sepset = rbind(sepset,
+                       c(paste(conditioned_traits[inds],collapse=","),currp))
+      }
     }
   }
   # update the loop parameters

@@ -46,7 +46,7 @@ for(i in 2:n){
   }
   print(i)
 }
-print(paste("number of pairs remaining with p < 0.01:",sum(pmax_network < pthr,na.rm=T)/2))
+print(paste("number of pairs remaining with p > 0.01:",sum(pmax_network > pthr,na.rm=T)/2))
 save(pmax_network,file=paste(out_path,"initial_pmax_network.RData",sep=""))
 
 load(paste(out_path,"initial_pmax_network.RData",sep=""))
@@ -81,21 +81,15 @@ for(i in 2:n){
     err_path = paste(out_path,curr_job_name,".err",sep="")
     log_path = paste(out_path,curr_job_name,".log",sep="")
     curr_cmd = paste(
-      "Rscript ~/repos/CCDfromD/R_batch_tools/analyze_trait_pair_for_skeleton.R",
+      "Rscript ~/repos/cGAUGE/hpc_stanford/analyze_trait_pair_for_skeleton.R",
       input_data,tr1,tr2,1,pthr,paste(out_path,curr_job_name,".RData",sep="")
     )
-    exec_cmd_on_sherlock(curr_cmd,curr_job_name,out_path)
-    curr_sh_file = paste(out_path,curr_job_name,".sh",sep="",
-                         time="04:00:00")
-    print_sh_file(curr_sh_file,
-                  get_sh_prefix_one_node_specify_cpu_and_mem(
-                    err_path,log_path,"plink/2.0a1",1,4000,time="04:00:00")
-                  ,curr_cmd)
-    system(paste("sbatch -x sh-113-15 ",curr_sh_file,'&'))
+    exec_cmd_on_sherlock(curr_cmd,curr_job_name,out_path,
+                         Ncpu= 1,mem_size= 4000,time="02:00:00")
     
     job_state = system2("squeue",args = list("-u davidama | wc"),stdout=TRUE)
     num_active_jobs = as.numeric(strsplit(job_state,split="\\s+",perl = T)[[1]][2])
-    while(num_active_jobs > MAX_JOBS){
+    while(num_active_jobs > NJOB){
       Sys.sleep(5)
       job_state = system2("squeue",args = list("-u davidama | wc"),stdout=TRUE)
       num_active_jobs = as.numeric(strsplit(job_state,split="\\s+",perl = T)[[1]][2])
@@ -121,7 +115,7 @@ for(i in 2:n){
     if(pmax_network[i,j]>pthr){next}
     tr1 = traits[i]
     tr2 = traits[j]
-    curr_job_name = paste(tr1,"_",tr2,sep="")
+    curr_job_name = paste(tr1,"_",tr2,"_depth2",sep="")
     
     if(is.element(paste(curr_job_name,".RData",sep=""),set=list.files(out_path))){next}
     
@@ -134,7 +128,8 @@ for(i in 2:n){
     curr_sh_file = paste(out_path,curr_job_name,".sh",sep="")
     print_sh_file(curr_sh_file,
                   get_sh_prefix_one_node_specify_cpu_and_mem(
-                        err_path,log_path,"plink/2.0a1",1,4000,time="04:00:00")
+                        err_path,log_path,"plink/2.0a1",Ncpu= 1,
+                        mem_size= 4000,time="04:00:00")
                   ,curr_cmd)
     system(paste("sbatch -x sh-113-15 ",curr_sh_file,'&'))
     while(nrow(get_my_jobs())>=NJOB){Sys.sleep(60)}

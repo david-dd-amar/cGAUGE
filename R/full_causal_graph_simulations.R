@@ -447,7 +447,7 @@ G_t = skeleton_pmax < p1
 print("Done, node degrees:")
 print(colSums(G_t))
 
-# Merge the sepsets
+# Merge and clean the sepsets
 merged_sepsets = list()
 for(tr1 in phenos){
   merged_sepsets[[tr1]] = list()
