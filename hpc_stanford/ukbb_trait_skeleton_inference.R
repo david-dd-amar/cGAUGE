@@ -126,7 +126,7 @@ for(i in 2:n){
       input_data,tr1,tr2,depth,pthr,paste(out_path,curr_job_name,".RData",sep="")
     )
     exec_cmd_on_sherlock(curr_cmd,curr_job_name,out_path,
-                         Ncpu= 1,mem_size= 4000,time="05:00:00")
+                         Ncpu= 1,mem_size= 4000,time="04:00:00")
     
     job_state = system2("squeue",args = list("-u davidama | wc"),stdout=TRUE)
     num_active_jobs = as.numeric(strsplit(job_state,split="\\s+",perl = T)[[1]][2])
