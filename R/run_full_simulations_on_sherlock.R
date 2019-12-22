@@ -40,7 +40,7 @@ exec_cmd_on_sherlock<-function(cmd,jobname,out_path){
 
 ###################################################################################
 reps = 40
-WD = "/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/simulations_3/"
+WD = "/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/simulations_default/"
 MAX_JOBS = 250
 
 tested_p1 = c(1e-02,1e-03,1e-04,1e-05)

@@ -64,7 +64,9 @@ option_list <- list(
   make_option(c( "--out"), action="store", default="simulation_result.RData",type="character",
               help="Output RData file with the simulated data and the analysis results"),
   make_option(c( "--edgeSepRun"), action="store", default="0",type="character",
-              help="0: run edgeSep with the other methods; 1: run edge sep only, ignore p2")
+              help="0: run edgeSep with the other methods; 1: run edge sep only, ignore p2"),
+  make_option(c( "--cgaugeMode"), action="store", default="0",type="character",
+              help="0: remove provably improper instruments (but may be imperfect); 1: take the potentially small set of provably true instruments")
   
 )
 
@@ -89,6 +91,7 @@ p1 = opt$p1
 p2 = opt$p2
 outfile = opt$out
 edgeSepRun = opt$edgeSepRun
+cgaugeMode = opt$cgaugeMode
 
 print("Completed parsing input parameters, starting the simulation")
 
@@ -492,7 +495,7 @@ if(edgeSepRun=="1"){
     B,Bg,simulated_data,B_distances, # simulated data
     edge_sep_results_statTest1, # EdgeSepStatTest1
     edge_sep_results_statTest2, # EdgeSepStatTest2
-    G_it,G_vt,G_t, iv_sets, # Skeletons
+    G_it,G_vt,G_t, # Skeletons
     file = outfile
   )
   
@@ -516,17 +519,30 @@ if(edgeSepRun=="1"){
 
 # Get new instrument sets after the cGAUGE filter
 iv_sets = list()
-for(tr1 in phenos){
-  iv_sets[[tr1]] = list()
-  for(tr2 in phenos){
-    iv_sets[[tr1]][[tr2]] = rownames(GWAS_Ps)[GWAS_Ps[,tr1]<p1]
-    currseps = merged_sepsets[[tr1]][[tr2]]
-    # remove IVs into separating variables
-    for(sep in currseps){
-      curr_sep_ivs = rownames(G_vt)[G_vt[,sep]]
-      iv_sets[[tr1]][[tr2]] = setdiff(iv_sets[[tr1]][[tr2]],curr_sep_ivs)
+if(cgaugeMode == "0"){
+  for(tr1 in phenos){
+    iv_sets[[tr1]] = list()
+    for(tr2 in phenos){
+      iv_sets[[tr1]][[tr2]] = rownames(GWAS_Ps)[GWAS_Ps[,tr1]<p1]
+      currseps = merged_sepsets[[tr1]][[tr2]]
+      # remove IVs into separating variables
+      for(sep in currseps){
+        curr_sep_ivs = rownames(G_vt)[G_vt[,sep]]
+        iv_sets[[tr1]][[tr2]] = setdiff(iv_sets[[tr1]][[tr2]],curr_sep_ivs)
+      }
+      print(paste("before:",sum(G_it[,tr1]),"after:",length(iv_sets[[tr1]][[tr2]]),"sepNodes:",length(currseps)))
     }
-    print(paste("before:",sum(G_it[,tr1]),"after:",length(iv_sets[[tr1]][[tr2]]),"sepNodes:",length(currseps)))
+  }
+}
+if(cgaugeMode == "1"){
+  uniquely_mapped_ivs = rownames(G_vt)[rowSums(G_vt)==1]
+  for(tr1 in phenos){
+    iv_sets[[tr1]] = list()
+    for(tr2 in phenos){
+      iv_sets[[tr1]][[tr2]] = rownames(GWAS_Ps)[GWAS_Ps[,tr1]<p1]
+      iv_sets[[tr1]][[tr2]] = intersect(iv_sets[[tr1]][[tr2]],
+                                        uniquely_mapped_ivs)
+    }
   }
 }
 
@@ -621,7 +637,7 @@ try({
 })
 
 edge_sep_results_statTest1 = EdgeSepTest(GWAS_Ps,G_t,trait_pair_pvals,text_col_name=1,
-                                         test = univar_mixtools_em)
+                                         test = univar_mixtools_em,reps=5)
 edge_sep_results_statTest1 = add_distances(edge_sep_results_statTest1,
                                            B_distances,newcolname = "KnownDistance")
 edge_sep_results_statTest2 = EdgeSepTest(GWAS_Ps,G_t,trait_pair_pvals,text_col_name=1,
@@ -736,7 +752,7 @@ xx = xx[p.adjust(xx$`P-value`)< 0.1,]
 print("MRPRESSO+cGAUGE, Bonf correction (0.1), FDR and num discoveries:")
 print(paste(sum(!is_causal(xx$KnownDistance))/nrow(xx),nrow(xx)))
 
-par(mfrow=c(1,2))
+# par(mfrow=c(1,2))
 xx = standard_mr_results$Egger
 # cor.test(xx$p,xx$NumIVs,method = "spearman")$p.value
 # boxplot(-log10(xx$p)~xx$KnownDistance,main="Egger",las=2)

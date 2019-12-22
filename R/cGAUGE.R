@@ -131,7 +131,7 @@ EdgeSep<-function(GWAS_Ps,G_t,trait_pair_pvals,p1,p2,pruned_snp_lists = NULL,
 #' @param test_func a function. Takes two (paired) p-value vectors and returns a statistic (typically a p-value) testing if there is evidence for "disappearing associations"
 #' @return A matrix with three columns.
 EdgeSepTest<-function(GWAS_Ps,G_t,trait_pair_pvals,text_col_name="test3",
-                      test_func = simple_lfdr_test){
+                      test_func = simple_lfdr_test,...){
   edge_sep_tests = c()
   for(tr1 in colnames(GWAS_Ps)){
     for(tr2 in colnames(GWAS_Ps)){
@@ -139,7 +139,7 @@ EdgeSepTest<-function(GWAS_Ps,G_t,trait_pair_pvals,text_col_name="test3",
       if(is.na(G_t[tr1,tr2]) || G_t[tr1,tr2]==0){next}
       p1 = GWAS_Ps[,tr2]
       ps_with_tr2_cond_tr1 = trait_pair_pvals[[tr2]][[tr1]][,text_col_name]
-      test1 = test_func(p1,ps_with_tr2_cond_tr1)
+      test1 = test_func(p1,ps_with_tr2_cond_tr1,...)
       edge_sep_tests = rbind(edge_sep_tests,c(tr1,tr2,test1))
     }
   }

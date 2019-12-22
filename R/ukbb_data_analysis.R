@@ -34,17 +34,17 @@ icd2name = rivaslab_codes[,3];names(icd2name) = rownames(rivaslab_codes)
 
 # April 2019: Analysis of ~95 traits
 out_plink_path = "/oak/stanford/groups/mrivas/users/davidama/april2019_traits_causal_analysis_flow_results/"
-skeleton_file = "/oak/stanford/groups/mrivas/users/davidama/april2019_Gs_skeleton.RData"
+skeleton_file = "/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/Gs_skeleton.RData"
 geno_data_path = "/oak/stanford/groups/mrivas/users/davidama/april2019_traits_genotypes/all_genotypes"
 gwas_res_data = "/oak/stanford/groups/mrivas/users/davidama/april2019_causal_analysis_flow_input.RData"
 gwas_res_path = "/oak/stanford/groups/mrivas/users/davidama/gwas_res/"
+out_path = "/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/ukbb_res/"
 
 ###################################################################################
 ###################################################################################
 ###################################################################################
 
 # Load the data and set output paths
-out_path = paste(out_plink_path,"cguage_res/",sep="")
 system(paste("mkdir",out_path))
 # load the plink analysis results
 # this loads the list of pairwise CI tests
@@ -125,32 +125,57 @@ GWAS_Ps = iv2trait_p[pruned_snp_list,]
 ###################################################################################
 ###################################################################################
 
-
 # Check different combinations of the input parameters p1 and p2
 P1s = c(1e-5,1e-6,1e-7,1e-8)
 P2s = c(0.1,0.01,0.001)
 for(p1 in P1s){
-  for (p2 in P2s){
-    # load( paste(out_path,"three_rule_analysis_",p1,"_",p2,".RData",sep=""))
-    # Infer the G_T skeleton (use p1 as the threshold for significance)
-    all_skel_ps = skeleton_pmax[lower.tri(skeleton_pmax)]
-    skeleton_pthr = max(all_skel_ps[all_skel_ps<p1],na.rm = T)
-    G_t = skeleton_pmax < skeleton_pthr
-    diag(G_t) = F;mode(G_t)="numeric"
-    # Print G_T to a text file
-    G_t_edges = c()
-    for(i in 2:nrow(G_t)){
-      for(j in 1:(i-1)){
-        if(!is.na(G_t[i,j]) && G_t[i,j]>0){
-          G_t_edges = rbind(G_t_edges,c(pheno_names[colnames(G_t)[i]],pheno_names[colnames(G_t)[j]]))
-        }
+  
+  ####################################################################################################
+  # Infer the G_T skeleton (use p1 as the threshold for significance)
+  G_t = skeleton_pmax < p1
+  diag(G_t) = F;mode(G_t)="numeric"
+  # Print G_T to a text file
+  G_t_edges = c()
+  for(i in 2:nrow(G_t)){
+    for(j in 1:(i-1)){
+      if(!is.na(G_t[i,j]) && G_t[i,j]>0){
+        G_t_edges = rbind(G_t_edges,c(pheno_names[colnames(G_t)[i]],pheno_names[colnames(G_t)[j]]))
       }
     }
-    skeleton_pthr[is.na(skeleton_pthr)]=0
-    write.table(G_t_edges,file=paste(out_path,"G_t_edges","p1_",p1,".txt",sep=""),sep="\t",
-                row.names = F,col.names = F,quote = F)
+  }
+  skeleton_pthr[is.na(skeleton_pthr)]=0
+  write.table(G_t_edges,file=paste(out_path,"G_t_edges","p1_",p1,".txt",sep=""),sep="\t",
+              row.names = F,col.names = F,quote = F)
+  
+  # Clean the separating sets
+  for(nn1 in names(sepsets)){
+    for(nn2 in names(sepsets[[nn1]])){
+      m = sepsets[[nn1]][[nn2]]
+      if(is.null(dim(m))|| nrow(m)<2){next}
+      m_pvals = as.numeric(m[,2])
+      to_rem = m_pvals <= p1
+      m = m[!to_rem,]
+      print(nrow(m))
+      sepsets[[nn1]][[nn2]] = m
+      print(sum(to_rem,na.rm = T))
+    }
+  }
+  # transform to lists and remove the non minimal separating sets
+  p1_sepsets = list()
+  for(nn1 in names(sepsets)){
+    for(nn2 in names(sepsets[[nn1]])){
+      m = unique(sepsets[[nn1]][[nn2]])
+      if(is.null(dim(m))|| nrow(m)<2){next}
+      l = lapply(m[,1], function(x)strsplit(x,split=",")[[1]])
+      l = remove_non_minimal_sepsets(l)
+      p1_sepsets[[nn1]][[nn2]] = l
+    }
+  }
+  
+  for (p2 in P2s){
+    
+    
     ####################################################################################################
-    # Step 2.1: infer the G_IT skeleton
     initial_skel = get_iv_trait_skel(iv2trait_p[pruned_snp_list,],p1)
     updated_skel = analyze_trait_pair_CI_tests_clean_IVs(iv2trait_p[pruned_snp_list,],
                                                          initial_skel[[1]],trait_pair_pvals,p1,p2)

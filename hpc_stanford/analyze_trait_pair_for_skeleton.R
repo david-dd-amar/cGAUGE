@@ -50,10 +50,12 @@ increase_index<-function(v,base){
 }
 # v = 1:5
 # counter = 1
+# vs = c()
 # while(any(v!=8:12)){
 #   v = increase_index(v,1)
 #   counter=counter+1
 #   print(v)
+#   vs = rbind(vs,v)
 # }
 # counter == choose(12,5)
 

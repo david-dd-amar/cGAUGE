@@ -261,10 +261,10 @@ univar_mixtools_em<-function(p1,p2,zthr = 10,...){
     possible_means = c(0,-z2_m[4],z1_m[4]-z2_m[4],z1_m[4])
     null_prior = c(0.8,rep(0.2/2,2))
     null_m = normalmixEM_wrapper(zz,lambda = null_prior,
-                                 mean.constr = possible_means[1:3],k=3)
+                                 mean.constr = possible_means[1:3],k=3,...)
     alt_prior = c(0.8,rep(0.2/3,3))
     alt_m = normalmixEM_wrapper(zz,lambda = alt_prior,
-                                mean.constr = possible_means[1:4],k=4)
+                                mean.constr = possible_means[1:4],k=4,...)
     l_diff = alt_m$loglik - null_m$loglik
     l_diff_p = pchisq(2*l_diff,2,lower.tail = F)
     return(l_diff_p)

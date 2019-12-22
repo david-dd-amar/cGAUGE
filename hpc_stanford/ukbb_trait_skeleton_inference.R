@@ -126,7 +126,7 @@ for(i in 2:n){
       input_data,tr1,tr2,depth,pthr,paste(out_path,curr_job_name,".RData",sep="")
     )
     exec_cmd_on_sherlock(curr_cmd,curr_job_name,out_path,
-                         Ncpu= 1,mem_size= 4000,time="04:00:00")
+                         Ncpu= 1,mem_size= 4000,time="05:00:00")
     
     job_state = system2("squeue",args = list("-u davidama | wc"),stdout=TRUE)
     num_active_jobs = as.numeric(strsplit(job_state,split="\\s+",perl = T)[[1]][2])
@@ -161,20 +161,29 @@ while(num_active_jobs > 5){
 ############################################################################################
 ############################################################################################
 
-# Read the results
+# Read the results and save in a single object
 load(paste(out_path,"initial_pmax_network.RData",sep=""))
+marginal_pvalues = pmax_network
+sepsets = list()
+for(nn in colnames(pmax_network)){
+  sepsets[[nn]] = list()
+}
 
+pthr2 = 1e-10 # remove all sepsets with p<pthr2 to save space
+
+# conditioning on a single other trait
 for(i in 2:n){
   print(i)
   for(j in 1:(i-1)){
     tr1 = traits[i]
     tr2 = traits[j]
-    if(is.na(pmax_network[i,j]) || pmax_network[i,j]>pthr){
+    if(is.na(pmax_network[i,j]) || marginal_pvalues[i,j]>pthr){
       sepsets[[tr1]][[tr2]] = NULL
       sepsets[[tr2]][[tr1]] = NULL
       next
     }
-    curr_job_name = paste(tr1,"_",tr2,sep="")
+    curr_job_name = curr_job_name = paste(tr1,"_",tr2,"_depth1",sep="")
+    try({rm(sepset);rm(maxp)})
     maxp=NA;sepset=NULL
     try({(load(paste(out_path,curr_job_name,".RData",sep="")))})
     if(is.na(maxp)){
@@ -189,8 +198,86 @@ for(i in 2:n){
   }
 }
 
+# conditioning on trait pairs
+for(i in 2:n){
+  print(i)
+  for(j in 1:(i-1)){
+    tr1 = traits[i]
+    tr2 = traits[j]
+    if(is.na(pmax_network[i,j]) || marginal_pvalues[i,j]>pthr){
+      next
+    }
+    curr_job_name = curr_job_name = paste(tr1,"_",tr2,"_depth2",sep="")
+    try({rm(sepset);rm(maxp)})
+    maxp=NA;sepset=NULL
+    try({(load(paste(out_path,curr_job_name,".RData",sep="")))})
+    if(is.na(maxp)){
+      print(paste("missing analysis for pair:",curr_job_name))
+      next
+    }
+    if(!is.na(pmax_network[i,j])){maxp = max(maxp,pmax_network[i,j])}
+    pmax_network[i,j] = maxp
+    pmax_network[j,i] = maxp
+    sepsets[[tr1]][[tr2]] = rbind(sepsets[[tr1]][[tr2]],sepset)
+    sepsets[[tr2]][[tr1]] = sepsets[[tr1]][[tr2]]
+  }
+}
+
+# QA and sanity checks
+# sets are unique in each matrix
+# p-values are numeric
+for(nn1 in names(sepsets)){
+  for(nn2 in names(sepsets[[nn1]])){
+    m = sepsets[[nn1]][[nn2]]
+    m = unique(m)
+    if(nrow(m)!=length(unique(m[,1]))){
+      print(paste("Error in:",nn1,nn2))
+    }
+  }
+}
+
 table(is.na(pmax_network[lower.tri(pmax_network)]))
 table(pmax_network[lower.tri(pmax_network)] < pthr)
 
-save(pmax_network,sepsets,file=out_object_to_store_results)
+# clean the separating sets
+# Note, the separating sets may contain duplications because:
+#   We may have duplications for sets with sex, age 
+#   In some subsets of the data we may have traits with zero variance
+#   and these are removed.
+#   By definition, in these cases, we use the first occurance of the set 
+#   (because otherwise we subset by other traits first).
+for(nn1 in names(sepsets)){
+  for(nn2 in names(sepsets[[nn1]])){
+    m = sepsets[[nn1]][[nn2]]
+    if(is.null(dim(m))|| nrow(m)<2){next}
+    
+    g = m[,1]
+    newm = tapply(m[,2],INDEX = g,FUN = function(x)x[1])
+    newm = cbind(names(newm),newm)
+    m = newm
+    
+    m_pvals = as.numeric(m[,2])
+    to_rem = m_pvals <= pthr2
+    m = m[!to_rem,]
+    sepsets[[nn1]][[nn2]] = m
+    if(is.null(dim(m))|| nrow(m)<2){next}
+    print(nrow(sepsets[[nn1]][[nn2]]) ==
+            length(unique(sepsets[[nn1]][[nn2]][,1])))
+  }
+}
 
+# Add the marginal associations to the separating sets
+for(nn1 in names(sepsets)){
+  for(nn2 in names(sepsets[[nn1]])){
+    v = c("",marginal_pvalues[nn1,nn2])
+    m = sepsets[[nn1]][[nn2]]
+    if(is.null(dim(m))|| nrow(m)<2){next}
+    m = rbind(v,m)
+    sepsets[[nn1]][[nn2]] = m
+  }
+}
+
+save(pmax_network,marginal_pvalues,
+     sepsets,file=out_object_to_store_results)
+
+system(paste("ls -lh",out_object_to_store_results))
