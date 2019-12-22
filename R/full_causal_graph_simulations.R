@@ -636,8 +636,11 @@ try({
   }
 })
 
+emreps = 100 # default repeats for EM
+# faster for the cgauge mode 1 (no need to repeat computations)
+if(cgaugeMode=="1"){emreps=5}
 edge_sep_results_statTest1 = EdgeSepTest(GWAS_Ps,G_t,trait_pair_pvals,text_col_name=1,
-                                         test = univar_mixtools_em,reps=5)
+                                         test = univar_mixtools_em,reps=emreps)
 edge_sep_results_statTest1 = add_distances(edge_sep_results_statTest1,
                                            B_distances,newcolname = "KnownDistance")
 edge_sep_results_statTest2 = EdgeSepTest(GWAS_Ps,G_t,trait_pair_pvals,text_col_name=1,
