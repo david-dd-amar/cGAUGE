@@ -144,11 +144,12 @@ GWAS_Ps = iv2trait_p[pruned_snp_list,]
 ###################################################################################
 ###################################################################################
 
-# Check different combinations of the input parameters p1 and p2
 P1s = c(1e-5,1e-6,1e-7,1e-8)
 P2s = c(0.1,0.01,0.001)
+
+# Perform the G_t skeleton learning for the different p1 values
+p12G_t = list()
 for(p1 in P1s){
-  
   #######################################################################################
   # Infer the G_T skeleton (use p1 as the threshold for significance)
   sepsets = all_sepsets
@@ -163,7 +164,6 @@ for(p1 in P1s){
       }
     }
   }
-  skeleton_pthr[is.na(skeleton_pthr)]=0
   write.table(G_t_edges,file=paste(out_path,"G_t_edges","p1_",p1,".txt",sep=""),sep="\t",
               row.names = F,col.names = F,quote = F)
   
@@ -183,25 +183,72 @@ for(p1 in P1s){
   # (this may take some time)
   p1_sepsets = list()
   for(nn1 in names(sepsets)){
+    print(nn1)
     for(nn2 in names(sepsets[[nn1]])){
       m = unique(sepsets[[nn1]][[nn2]])
       if(is.null(dim(m))|| nrow(m)<2){next}
       l = lapply(m[,1], function(x)strsplit(x,split=",")[[1]])
-      l = remove_non_minimal_sepsets(l)
-      p1_sepsets[[nn1]][[nn2]] = l
+      l1 = remove_non_minimal_sepsets(l)
+      
+      # # QC - minimal sepset extraction
+      # l2 = remove_non_minimal_sepsets_naive(l)
+      # print(length(l1)==length(l2))
+      # for(set1 in l1){
+      #   testres = F
+      #   for(set2 in l2){
+      #     if(length(set1)==length(set2) && all(set1 %in% set2)){
+      #       testres = T
+      #       break
+      #     }
+      #   }
+      #   if(!testres){
+      #     print(paste("error"))
+      #   }
+      # }
+      
+      p1_sepsets[[nn1]][[nn2]] = l1
     }
   }
   
+  p12G_t[[as.character((p1))]] = list(
+    G_t=G_t,mseps = p1_sepsets
+  )
+}
+
+save(
+  p12G_t,
+  file = paste(out_path,"p12G_t_",p1,".RData",sep="")
+)
+
+# Check different combinations of the input parameters p1 and p2
+
+for(p1 in P1s){
   for (p2 in P2s){
     
     G_vt = extract_skeleton_G_VT(GWAS_Ps,trait_pair_pvals,P1=p1,
                                  P2=p2,test_columns = c("test2","test3"))[[1]]
     
     # Perform the EdgeSep statistical tests
-    edge_sep_results_statTest1 = EdgeSepTest(GWAS_Ps,G_t,trait_pair_pvals,text_col_name="test3",
-                                             test = univar_mixtools_em)
-    edge_sep_results_statTest2 = EdgeSepTest(GWAS_Ps,G_t,trait_pair_pvals,text_col_name="test3",
+    NonNA_GWAS_Ps = GWAS_Ps
+    NonNA_GWAS_Ps[is.na(NonNA_GWAS_Ps)] = 0.5
+
+    edge_sep_results_statTest2 = EdgeSepTest(NonNA_GWAS_Ps,G_t,trait_pair_pvals,text_col_name="test3",
                                              test = simple_lfdr_test)
+    edge_sep_results_statTest2[grepl("cancer",edge_sep_results_statTest2[,2]),]
+    
+    save(
+      edge_sep_results_statTest2,
+      file = paste(out_path,"cgauge_res_",p1,"_",p2,".RData",sep="")
+    )
+    
+    edge_sep_results_statTest1 = EdgeSepTest(NonNA_GWAS_Ps,G_t,trait_pair_pvals,text_col_name="test3",
+                                             test = univar_mixtools_em)
+    
+    save(
+      edge_sep_results_statTest1,
+      edge_sep_results_statTest2,
+      file = paste(out_path,"cgauge_res_",p1,"_",p2,".RData",sep="")
+    )
         
     # Print the resulting scored network to files
     edge_orientation_res = c()
@@ -226,9 +273,9 @@ for(p1 in P1s){
     
     # Run MR analysis
     # Get the iv sets for each MR analysis
+    
     # Analysis 5.1: simple meta-analysis on all pairs
-    meta_anal_res = run_pairwise_pval_combination_analyses(G_it,GWAS_Ps,
-                        pruned_lists=code2clumped_list,weights=maf_as_weights,maxp=0.001)
+    meta_anal_res = run_pairwise_pval_combination_analysis_from_iv_sets(iv_sets,GWAS_Ps,maxp=0.001)
     iv2_res = run_pairwise_mr_analyses_with_iv_sets(sum_stat_matrix,sum_stat_se_matrix,iv_sets,
                                                     func=mr_ivw,robust=T)
     print("Done updating the MR results")
@@ -270,7 +317,7 @@ for(p1 in P1s){
       mr_edges, # MR+MM discovered edges - same as cleaned_Egger_res but formatted nicely
       mr_anal_res, # All MR results
       meta_anal_res, # All meta-analysis results with Stouffers method and maxp=0.001
-      file = paste(out_path,"three_rule_analysis_",p1,"_",p2,".RData",sep="")
+      file = paste(out_path,"cgauge_res_",p1,"_",p2,".RData",sep="")
     )
   }
 }

@@ -143,7 +143,12 @@ EdgeSepTest<-function(GWAS_Ps,G_t,trait_pair_pvals,text_col_name="test3",
       if(tr1==tr2){next}
       if(is.na(G_t[tr1,tr2]) || G_t[tr1,tr2]==0){next}
       p1 = GWAS_Ps[,tr2]
-      ps_with_tr2_cond_tr1 = trait_pair_pvals[[tr2]][[tr1]][,text_col_name]
+      if(is.null(rownames(GWAS_Ps))){
+        ps_with_tr2_cond_tr1 = trait_pair_pvals[[tr2]][[tr1]][,text_col_name]
+      }
+      else{
+        ps_with_tr2_cond_tr1 = trait_pair_pvals[[tr2]][[tr1]][rownames(GWAS_Ps),text_col_name]
+      }
       test1 = test_func(p1,ps_with_tr2_cond_tr1,...)
       edge_sep_tests = rbind(edge_sep_tests,c(tr1,tr2,test1))
     }
@@ -154,12 +159,12 @@ EdgeSepTest<-function(GWAS_Ps,G_t,trait_pair_pvals,text_col_name="test3",
   return(edge_sep_tests)
 }
 
-#' Remove non-minimal separating sets.
-#' 
+#' Remove non-minimal separating sets (naive implementation, for QC).
+#'
 #' @param sepsets a list of sets
 #' @return a subset of the input lits
 #' @details remove all sets such that there exists another set that is contained in them; useful for cleaning instrument sets
-remove_non_minimal_sepsets<-function(sepsets){
+remove_non_minimal_sepsets_naive<-function(sepsets){
   if(length(sepsets)==0){return(list())}
   if(length(sepsets)==1){return(l)}
   to_rem = rep(F,length(sepsets))
@@ -177,6 +182,38 @@ remove_non_minimal_sepsets<-function(sepsets){
     }
   }
   return(sepsets[!to_rem])
+}
+
+# a faster version of the above
+#' Remove non-minimal separating sets.
+#' 
+#' @param sepsets a list of sets
+#' @return a subset of the input lits
+#' @details remove all sets such that there exists another set that is contained in them; useful for cleaning instrument sets
+remove_non_minimal_sepsets<-function(l){
+  if(length(l)==0){return(list())}
+  if(length(l)==1){return(l)}
+  
+  sizes = sapply(l,length)
+  l = l[order(sizes)]
+  sizes = sapply(l,length)
+  i = 1
+  while(i < length(l)){
+    set1 = l[[i]]
+    to_rem = rep(F,length(l))
+    for(j in (i+1):length(l)){
+      if(sizes[i]==sizes[j]){next}
+      set2 = l[[j]]
+      if(all(set1 %in% set2)){
+        to_rem[j] = T
+      }
+    }
+    i = i+1
+    l = l[!to_rem]
+    sizes = sizes[!to_rem]
+  }
+  
+  return(l)
 }
 
 # tr1 = "T7"
