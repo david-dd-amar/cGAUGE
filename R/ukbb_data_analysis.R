@@ -26,18 +26,36 @@ print("Completed loading libraries and code")
 ###################################################################################
 ###################################################################################
 ###################################################################################
-# Set input data 
+# Set input data (see explanation of each file)
+
+#' This is a table with phenotype code, description, and sample size
+#' We also use this table to create a mapping from phenotype code to its name
+#' (the object name is called icd2name but is not limited to icds only)
 rivaslab_pheno_codes_file = "/oak/stanford/groups/mrivas/users/magu/repos/rivas-lab/wiki/ukbb/icdinfo/icdinfo.txt"
 rivaslab_codes = read.delim(rivaslab_pheno_codes_file,stringsAsFactors = F,header=F)
 rownames(rivaslab_codes) = rivaslab_codes[,1]
 icd2name = rivaslab_codes[,3];names(icd2name) = rownames(rivaslab_codes)
 
-# April 2019: Analysis of ~95 traits
-out_plink_path = "/oak/stanford/groups/mrivas/users/davidama/april2019_traits_causal_analysis_flow_results/"
+#### Analysis of 96 traits for the paper ####
+
+#' This file contains an object with the p-values of all conditional independence tests
+#'  for each variant G vs. a trait X. 
+#' We represent this object using a named list of lists in which element [[tr1]][[tr2]]
+#'is a matrix with the conditional independence results (p-values) for trait 1 conditioned on
+#' trait 2 (rows are variants).
+#' One of the columns in this matrix has the p-values, and these are used within cGAUGE's filters
+genetic_ci_tests_plink_path = "/oak/stanford/groups/mrivas/users/davidama/april2019_traits_causal_analysis_flow_results/genetic_CI_tests_results.RData"
+#' This file contains three objects:
+#' marginal association p-values
+#' maximal p-values for each pair (overl all tests)
+#' a matrix with all potential separating sets (p>1e-10) for each pair
 skeleton_file = "/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/Gs_skeleton.RData"
+
 geno_data_path = "/oak/stanford/groups/mrivas/users/davidama/april2019_traits_genotypes/all_genotypes"
 gwas_res_data = "/oak/stanford/groups/mrivas/users/davidama/april2019_causal_analysis_flow_input.RData"
 gwas_res_path = "/oak/stanford/groups/mrivas/users/davidama/gwas_res/"
+
+#' Set a path for the output files
 out_path = "/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/ukbb_res/"
 
 ###################################################################################
@@ -48,7 +66,7 @@ out_path = "/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/ukbb_res/"
 system(paste("mkdir",out_path))
 # load the plink analysis results
 # this loads the list of pairwise CI tests
-load(paste(out_plink_path,"genetic_CI_tests_results.RData",sep=""))
+load(genetic_ci_tests_plink_path)
 # this loads the standard GWAS results
 load(gwas_res_data)
 # load the skeleton: get a matrix of the maximal association p-values
@@ -130,7 +148,7 @@ P1s = c(1e-5,1e-6,1e-7,1e-8)
 P2s = c(0.1,0.01,0.001)
 for(p1 in P1s){
   
-  ####################################################################################################
+  #######################################################################################
   # Infer the G_T skeleton (use p1 as the threshold for significance)
   G_t = skeleton_pmax < p1
   diag(G_t) = F;mode(G_t)="numeric"

@@ -1,5 +1,9 @@
 # This script takes a matrix of traits and perform skeleton inference ignoring
 # any genetic data (variants or PCs)
+# Output has three objects:
+# marginal association p-values
+# maximal p-values for each pair (overl all tests)
+# a matrix with all potential separating sets (p>1e-10) for each pair
 
 source("~/repos/cGAUGE/R/auxil_functions.R")
 
@@ -223,22 +227,6 @@ for(i in 2:n){
   }
 }
 
-# QA and sanity checks
-# sets are unique in each matrix
-# p-values are numeric
-for(nn1 in names(sepsets)){
-  for(nn2 in names(sepsets[[nn1]])){
-    m = sepsets[[nn1]][[nn2]]
-    m = unique(m)
-    if(nrow(m)!=length(unique(m[,1]))){
-      print(paste("Error in:",nn1,nn2))
-    }
-  }
-}
-
-table(is.na(pmax_network[lower.tri(pmax_network)]))
-table(pmax_network[lower.tri(pmax_network)] < pthr)
-
 # clean the separating sets
 # Note, the separating sets may contain duplications because:
 #   We may have duplications for sets with sex, age 
@@ -261,8 +249,8 @@ for(nn1 in names(sepsets)){
     m = m[!to_rem,]
     sepsets[[nn1]][[nn2]] = m
     if(is.null(dim(m))|| nrow(m)<2){next}
-    print(nrow(sepsets[[nn1]][[nn2]]) ==
-            length(unique(sepsets[[nn1]][[nn2]][,1])))
+    # print(nrow(sepsets[[nn1]][[nn2]]) ==
+    #         length(unique(sepsets[[nn1]][[nn2]][,1])))
   }
 }
 
@@ -277,7 +265,51 @@ for(nn1 in names(sepsets)){
   }
 }
 
+# QA and sanity checks
+# sets are unique in each matrix
+# p-values are numeric
+for(nn1 in names(sepsets)){
+  for(nn2 in names(sepsets[[nn1]])){
+    m = sepsets[[nn1]][[nn2]]
+    if(is.null(dim(m))|| nrow(m)<2){next}
+    # m = unique(m)
+    if(nrow(m)!=length(unique(m[,1]))){
+      print(paste("Error in:",nn1,nn2))
+    }
+  }
+}
+
+# QA and sanity checks
+# maximal observed p-value fits the sepset table
+for(nn1 in names(sepsets)){
+  for(nn2 in names(sepsets[[nn1]])){
+    m = sepsets[[nn1]][[nn2]]
+    currp = pmax_network[nn1,nn2]
+    if(is.na(currp)){next}
+    if(is.null(dim(m))|| nrow(m)<2){next}
+    currps = as.numeric(m[,2])
+    if(abs(currp - max(currps,na.rm = T))>1e-10){
+      print(paste("Error in:",nn1,nn2))
+    }
+  }
+}
+
 save(pmax_network,marginal_pvalues,
      sepsets,file=out_object_to_store_results)
 
-system(paste("ls -lh",out_object_to_store_results))
+# # check file size
+# system(paste("ls -lh",out_object_to_store_results))
+
+# # compare to an older version of the pmax matrix
+# all(colnames(P1)==colnames(P2))
+# P1 = pmax_network
+# load("/oak/stanford/groups/mrivas/users/davidama/april2019_Gs_skeleton.RData")
+# P2 = pmax_network
+# diffs = abs(P1-P2)
+# quantile(c(diffs),na.rm = T) # there may be differences as P2 is more precise
+# P1v = c(P1)
+# P2v = c(P2)
+# table(P1v<0.01,P2v<0.01) # diagonal matrix, perfect fit
+# all((P1v<0.01) == (P2v<0.01),na.rm=T)
+# all((P1v<0.001) == (P2v<0.001),na.rm=T)
+# all((P1v<1e-07) == (P2v<1e-07),na.rm=T)

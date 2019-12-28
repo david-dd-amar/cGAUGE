@@ -40,7 +40,8 @@ exec_cmd_on_sherlock<-function(cmd,jobname,out_path){
 
 ###################################################################################
 reps = 40
-WD = "/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/simulations_default/"
+WD = "/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/simulations_uniqueivs/"
+try(system(paste("mkdir",WD)))
 MAX_JOBS = 250
 
 tested_p1 = c(1e-02,1e-03,1e-04,1e-05)
@@ -82,6 +83,7 @@ for(p1 in tested_p1){
             "~/repos/cGAUGE/R/full_causal_graph_simulations.R",
             "--deg",deg,
             "--probPleio",pleio_p,
+            "--cgaugeMode 1",
             "--p1",p1,
             "--p2",p2,
             "--out",curr_out_file
@@ -349,7 +351,8 @@ load("./simulation_summ_stats.RData")
 # Try spider plots
 # install.packages("fmsb")
 
-# (A) IVW, MR-PRESSO: num discoveries
+setwd("~/Desktop/causal_inference_projects/ms3/")
+
 library(fmsb)
 method2col = c(hcl.colors(5)[1:2],heat.colors(5)[1:2],
                rainbow(5)[1:2],"black","gray","blue")
@@ -362,6 +365,8 @@ deg = 1.5
 p1 = 1e-04
 p2 = 0.01
 par(mfrow=c(2,2),mar=c(0,1,4,1),xpd=TRUE)
+
+load("simulations_strict/simulation_summ_stats.RData")
 
 # (A) IVW, MR-PRESSO: Num discoveries
 resultsdf = mean_num_discoveries
@@ -396,6 +401,43 @@ cols = method2col[rownames(df1)[-c(1:2)]]
 radarchart(df1,axistype=1,seg=5,plwd=2,caxislabels=axslabs,pcol=cols,plty=5)
 legend(x=-1,y=1.8,rownames(df1)[-c(1:2)],fill = cols,ncol = 2,border = F)
 text(0,0,"FDR",cex = 1.2)
+
+load("simulations_def/simulation_summ_stats.RData")
+
+# (A) IVW, MR-PRESSO: Num discoveries
+resultsdf = mean_num_discoveries
+ndigits = 0
+inds = resultsdf$deg==deg & resultsdf$p1 == p1 & resultsdf$p2==p2
+df1 = resultsdf[inds,c("prob_pleio","mrpresso","c-mrpresso","ivw","c-ivw")]
+rownames(df1) = df1[,1]
+df1 = df1[,-1]
+df1 = t(df1)
+df1 = as.data.frame(df1)
+df1 = rbind(min(0.1,min(df1)),df1)
+df1 = rbind(max(df1),df1)
+axslabs = round(seq(min(df1),max(df1),length.out = 6),digits = ndigits)
+cols = method2col[rownames(df1)[-c(1:2)]]
+radarchart(df1,axistype=1,seg=5,plwd=2,caxislabels=axslabs,pcol=cols,plty=5)
+legend(x=-1,y=1.8,rownames(df1)[-c(1:2)],fill = cols,ncol = 2,border = F)
+text(0,0,"N",cex = 1.5)
+
+# (B) IVW, MR-PRESSO: FDRs
+resultsdf = mean_fdrs
+ndigits = 2
+inds = resultsdf$deg==deg & resultsdf$p1 == p1 & resultsdf$p2==p2
+df1 = resultsdf[inds,c("prob_pleio","mrpresso","c-mrpresso","ivw","c-ivw")]
+rownames(df1) = df1[,1]
+df1 = df1[,-1]
+df1 = t(df1)
+df1 = as.data.frame(df1)
+df1 = rbind(min(0.1,min(df1)),df1)
+df1 = rbind(max(df1),df1)
+axslabs = round(seq(min(df1),max(df1),length.out = 6),digits = ndigits)
+cols = method2col[rownames(df1)[-c(1:2)]]
+radarchart(df1,axistype=1,seg=5,plwd=2,caxislabels=axslabs,pcol=cols,plty=5)
+legend(x=-1,y=1.8,rownames(df1)[-c(1:2)],fill = cols,ncol = 2,border = F)
+text(0,0,"FDR",cex = 1.2)
+
 
 # (C) EdgeSeps: Num discoveries
 resultsdf = mean_num_discoveries
