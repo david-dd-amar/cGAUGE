@@ -13,8 +13,10 @@ try({library(MendelianRandomization)})
 #' Use conditional independencies to infer the variants-traits skeleton.
 #' 
 #' @param GWAS_Ps A matrix. Rows are variants and columns are phenotypes. Cells are P-values.
+#' @param trait_pair_pvals. A named list. Each element is a list. Element [[tr1]][[tr2]] in the list is the conditional independence results for trait 1 conditioned on trait 2.
 #' @param P1 A number. A threshold used to define significant association.
 #' @param P2 A number. A threshold used to define independent association (when p >P2).
+#' @param test_columns A vector. Contains either the index or name of the column with the P-values. May have more than one index/name. If NULL, we assume that all columns are p-values of different tests.
 #' @return A list wit two objects: a binary matrix with the skeleton and the list of the separating sets that rendered associations independent.
 extract_skeleton_G_VT<-function(GWAS_Ps,trait_pair_pvals,P1,P2,test_columns = NULL){
   G_VT = GWAS_Ps <= P1
@@ -31,6 +33,9 @@ extract_skeleton_G_VT<-function(GWAS_Ps,trait_pair_pvals,P1,P2,test_columns = NU
       curr_columns = test_columns
       if(is.null(curr_columns)){
         curr_columns = colnames(curr_p_mat)
+      }
+      if(is.character(curr_columns)){
+        curr_columns = intersect(curr_columns,colnames(curr_p_mat))
       }
       for (testname in curr_columns){
         # Do we have significant SNPs that become non-sig?
@@ -286,6 +291,33 @@ run_pairwise_pval_combination_analyses<-function(G_VT,GWAS_Ps,pleio_size=1,prune
     if(length(ivs)<1){next}
     for(tr2 in traits){
       if(tr1==tr2){next}
+      curr_ps = GWAS_Ps[ivs,tr2]
+      curr_ps = pmax(curr_ps,maxp)
+      curr_ps = curr_ps[!is.na(curr_ps)]
+      if(length(curr_ps)==0){next}
+      curr_prop = 1-propTrueNull(curr_ps)
+      trait_pairs_analysis = rbind(trait_pairs_analysis,c(tr1,tr2,curr_prop,length(ivs)))
+    }
+  }
+  return(trait_pairs_analysis)
+}
+
+#' Go over all trait pairs compute the proportion of non-null p-values.
+#'  
+#' @param G_VT A binary matrix. The instruments-trait skeleton from which genetic variants are chosen. 
+#' @param GWAS_Ps A matrix. Rows are variants and columns are phenotypes. Cells are P-values.
+#' @param pleio_size A number. The maximal number of phenotypes added per variant 
+#' @param pruned_lists A named list. Contains a set of pruned or clumped variants per phenotype. The variant names should fit the rownames in the matrices above.
+#' @return A matrix. A row for each analyzed pair. First elements are phenotype 1 (cause), phenotype 2. Then the estimated proportion and the number of variants of phenotype 1 that were used in the analysis.
+run_pairwise_pval_combination_analysis_from_iv_sets<-function(iv_sets,GWAS_Ps,maxp=0.001){
+  trait_pairs_analysis = c()
+  traits = colnames(GWAS_Ps)
+  num_tests = 0
+  for(tr1 in traits){
+    for(tr2 in traits){
+      if(tr1==tr2){next}
+      ivs = iv_sets[[tr1]][[tr2]]
+      if(length(ivs)<2){next}
       curr_ps = GWAS_Ps[ivs,tr2]
       curr_ps = pmax(curr_ps,maxp)
       curr_ps = curr_ps[!is.na(curr_ps)]

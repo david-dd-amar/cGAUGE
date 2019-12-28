@@ -2,7 +2,7 @@
 # Set the session
 required_libs = c("igraph","bnlearn","MRPRESSO",
                   "optparse","limma","MendelianRandomization",
-                  "mixtools","limma")
+                  "mixtools")
 lib_loc = "~/R/packages3.5"
 lib_loc = c(lib_loc,.libPaths())
 for (lib_name in required_libs){
@@ -73,6 +73,7 @@ load(gwas_res_data)
 # and an object of the separating sets for non-edges
 load(skeleton_file)
 skeleton_pmax = pmax_network
+all_sepsets = sepsets
 
 # set the phenotype names
 pheno_names = icd2name[colnames(skeleton_pmax)]
@@ -150,6 +151,7 @@ for(p1 in P1s){
   
   #######################################################################################
   # Infer the G_T skeleton (use p1 as the threshold for significance)
+  sepsets = all_sepsets
   G_t = skeleton_pmax < p1
   diag(G_t) = F;mode(G_t)="numeric"
   # Print G_T to a text file
@@ -173,12 +175,12 @@ for(p1 in P1s){
       m_pvals = as.numeric(m[,2])
       to_rem = m_pvals <= p1
       m = m[!to_rem,]
-      print(nrow(m))
+      # print(nrow(m))
       sepsets[[nn1]][[nn2]] = m
-      print(sum(to_rem,na.rm = T))
     }
   }
   # transform to lists and remove the non minimal separating sets
+  # (this may take some time)
   p1_sepsets = list()
   for(nn1 in names(sepsets)){
     for(nn2 in names(sepsets[[nn1]])){
@@ -192,57 +194,16 @@ for(p1 in P1s){
   
   for (p2 in P2s){
     
+    G_vt = extract_skeleton_G_VT(GWAS_Ps,trait_pair_pvals,P1=p1,
+                                 P2=p2,test_columns = c("test2","test3"))[[1]]
     
-    ####################################################################################################
-    initial_skel = get_iv_trait_skel(iv2trait_p[pruned_snp_list,],p1)
-    updated_skel = analyze_trait_pair_CI_tests_clean_IVs(iv2trait_p[pruned_snp_list,],
-                                                         initial_skel[[1]],trait_pair_pvals,p1,p2)
-    G_it_0 = initial_skel[[1]]
-    G_it = updated_skel[[1]]
-    ####################################################################################################
-    # Step 3.1: Analysis of the skeleton and simple CI test 1
-    # Here we get all cases of disappearing correlations (based on p1,p2)
-    # For each analyzed (x,y) G_t skeleton we compute the number of variants
-    # that are associated with x and y but not with y given x.
-    # We also compute the fraction of these cases out of all of x's
-    # variants.
-    detected_cis_per_edge = list()
-    for(tr1 in colnames(GWAS_Ps)){
-      for(tr2 in colnames(GWAS_Ps)){
-        if(tr1==tr2){next}
-        # Go over skeleton edges only
-        if(is.na(G_t[tr1,tr2]) || G_t[tr1,tr2]==0){next}
-        # Check which variants associated with both tr1 and tr2 lose the association with tr2
-        ps_with_tr2_cond_tr1 = trait_pair_pvals[[tr2]][[tr1]][pruned_snp_lists[[tr1]],"test3"]
-        currN = length(pruned_snp_lists[[tr1]])
-        currN2 = sum(GWAS_Ps[pruned_snp_lists[[tr1]],tr2] < p1,na.rm = T)
-        curr_test_inds = GWAS_Ps[pruned_snp_lists[[tr1]],tr2] < p1 &
-          GWAS_Ps[pruned_snp_lists[[tr1]],tr1] < p1 & ps_with_tr2_cond_tr1 > p2
-        if(sum(curr_test_inds,na.rm = T)==0){next}
-        currname = paste(tr1,"cause_of",tr2,pheno_names[tr1],"cause_of",pheno_names[tr2],sep = ";")
-        detected_cis_per_edge[[currname]] = list(num_tests_total_t1 = currN,
-                                                 num_tests_total_t1_andt2 = currN2,
-                                                 variants=pruned_snp_lists[[tr1]][curr_test_inds])
-      }
-    }
-    # Step 3.2: Filter out intersection between reverse edges
-    rev_edge_intersection_bias_sign=list()
-    for(nn in names(detected_cis_per_edge)){
-      arr = strsplit(nn,split=";")[[1]]
-      arr2 = arr[c(3:1,6:4)]
-      e1 = paste(arr,collapse = ";")
-      e2 = paste(arr2,collapse = ";")
-      if(!is.element(e2,set=names(detected_cis_per_edge))){next}
-      g1 = detected_cis_per_edge[[e1]]$variants
-      g2 = detected_cis_per_edge[[e2]]$variants
-      # print(paste(e1,length(intersect(g1,g2))))
-      if(length(intersect(g1,g2))>0){
-        rev_edge_intersection_bias_sign[[paste(arr[1],arr[3],sep=";")]]
-        detected_cis_per_edge[[e1]]$variants = setdiff(detected_cis_per_edge[[e1]],intersect(g1,g2))
-        detected_cis_per_edge[[e2]]$variants = setdiff(detected_cis_per_edge[[e2]],intersect(g1,g2))
-      }
-    }
-    # Print the resulting scored network into a file
+    # Perform the EdgeSep statistical tests
+    edge_sep_results_statTest1 = EdgeSepTest(GWAS_Ps,G_t,trait_pair_pvals,text_col_name="test3",
+                                             test = univar_mixtools_em)
+    edge_sep_results_statTest2 = EdgeSepTest(GWAS_Ps,G_t,trait_pair_pvals,text_col_name="test3",
+                                             test = simple_lfdr_test)
+        
+    # Print the resulting scored network to files
     edge_orientation_res = c()
     for(nn in names(detected_cis_per_edge)){
       arr = strsplit(nn,split=";")[[1]][c(4,6)]
@@ -261,53 +222,15 @@ for(p1 in P1s){
     write.table(edge_orientation_res2,file=paste(out_path,"edge_orientation_res__atleast_5_ivs_",
                                                  p1,"_",p2,".txt",sep=""),
                 quote=F,row.names = F,col.names = T,sep="\t")
-    ####################################################################################################
-    # Step 4.1: Analysis of emerging associations: get all cases
-    newly_formed_sigs = analyze_trait_pair_CI_tests_get_newly_formed_sig(
-      GWAS_Ps,trait_pair_pvals,p1,p2)
-    ps = as.numeric(newly_formed_sigs[,5])
-    newly_formed_sigs = newly_formed_sigs[ps<p1,]
-    # check the v-struct analysis results
-    tmp = newly_formed_sigs[,c(2,3)]
-    tmp[,1] = pheno_names[tmp[,1]]
-    tmp[,2] = pheno_names[tmp[,2]]
-    tmp_str = apply(tmp,1,paste,collapse=";")
-    partial_ev_res = table(tmp_str)
-    curr_edges = t(sapply(names(partial_ev_res),function(x)strsplit(x,split=";")[[1]]))
-    partial_ev_res = cbind(curr_edges,partial_ev_res)
-    rownames(partial_ev_res) = NULL
-    # Add the fraction of discovered cases out of all examined variants for a pair of traits
-    percentages = c()
-    for(i in 1:nrow(partial_ev_res)){
-      tr1 = partial_ev_res[i,1]
-      tr1 = names(pheno_names)[pheno_names==tr1]
-      tr2 = partial_ev_res[i,2]
-      tr2 = names(pheno_names)[pheno_names==tr2]
-      currN = sum(GWAS_Ps[,tr1]>p2 & GWAS_Ps[,tr2] <p1,na.rm = T)
-      percentages[i] = as.numeric(partial_ev_res[i,3])/currN
-    }
-    partial_ev_res = cbind(partial_ev_res,percentages)
-    # Print to file
-    colnames(partial_ev_res) = c("X*->","Y","NumIVs","Percentage")
-    write.table(partial_ev_res,file=paste(out_path,"partial_ev_res_",p1,"_",p2,".txt",sep=""),
-                quote=F,row.names = F,col.names = T,sep="\t")
-    partial_ev_res2 = partial_ev_res[as.numeric(partial_ev_res[,3])>4,]
-    write.table(partial_ev_res2,file=paste(out_path,"partial_ev_res_atleast_5_ivs_",p1,"_",p2,".txt",sep=""),
-                quote=F,row.names = F,col.names = T,sep="\t")
-    ####################################################################################################
-    # Step 5: Analysis for MR or meta-analysis for non skeleton edges
+    
+    
+    # Run MR analysis
+    # Get the iv sets for each MR analysis
     # Analysis 5.1: simple meta-analysis on all pairs
     meta_anal_res = run_pairwise_pval_combination_analyses(G_it,GWAS_Ps,
-                                                           pruned_lists=code2clumped_list,weights=maf_as_weights,maxp=0.001)
-    # Analysis 5.2: Various MR methods
-    mr_anal_res = list(
-      "Egger" = run_pairwise_mr_analyses(G_it,sum_stat_matrix,sum_stat_se_matrix,
-                                         pleio_size=1,pruned_lists=code2clumped_list,func=mr_egger,robust=T),
-      "IVW" = run_pairwise_mr_analyses(G_it,sum_stat_matrix,sum_stat_se_matrix,
-                                       pleio_size=1,pruned_lists=code2clumped_list,func=mr_ivw,robust=T)
-    )
-    # mr_anal_res$median = run_pairwise_mr_analyses(G_it,sum_stat_matrix,sum_stat_se_matrix,
-    #         pleio_size=1,pruned_lists=code2clumped_list,func=mr_median)
+                        pruned_lists=code2clumped_list,weights=maf_as_weights,maxp=0.001)
+    iv2_res = run_pairwise_mr_analyses_with_iv_sets(sum_stat_matrix,sum_stat_se_matrix,iv_sets,
+                                                    func=mr_ivw,robust=T)
     print("Done updating the MR results")
     
     cleaned_Egger_res = combine_mm_mr_analyses(meta_anal_res,mr_anal_res[["Egger"]],
