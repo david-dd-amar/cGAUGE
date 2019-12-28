@@ -147,11 +147,9 @@ GWAS_Ps = iv2trait_p[pruned_snp_list,]
 P1s = c(1e-5,1e-6,1e-7,1e-8)
 P2s = c(0.1,0.01,0.001)
 
-# Perform the G_t skeleton learning for the different p1 values
+#### Perform the G_t skeleton learning for the different p1 values #####
 p12G_t = list()
 for(p1 in P1s){
-  #######################################################################################
-  # Infer the G_T skeleton (use p1 as the threshold for significance)
   sepsets = all_sepsets
   G_t = skeleton_pmax < p1
   diag(G_t) = F;mode(G_t)="numeric"
@@ -215,41 +213,51 @@ for(p1 in P1s){
   )
 }
 
+save(p12G_t,file = paste(out_path,"p12G_t.RData",sep=""))
+
+#### Run the EdgeSep tests for the maximum p1 (contains the results for lower p1 values) ####
+p1 = max(P1s)
+G_t = p12G_t[[as.character((p1))]]$G_t
+
+# Perform the EdgeSep statistical tests
+NonNA_GWAS_Ps = GWAS_Ps
+NonNA_GWAS_Ps[is.na(NonNA_GWAS_Ps)] = 0.5
+for(n1 in names(trait_pair_pvals)){
+  for(n2 in names(trait_pair_pvals[[n1]])){
+    m = trait_pair_pvals[[n1]][[n2]]
+    m = m[rownames(GWAS_Ps),]
+    m[is.na(m)] = 0.5
+    trait_pair_pvals[[n1]][[n2]] = m
+  }
+  gc()
+}
+
+edge_sep_results_statTest2 = EdgeSepTest(NonNA_GWAS_Ps,G_t,trait_pair_pvals,
+                                         text_col_name="test3",test = simple_lfdr_test)
+edge_sep_results_statTest2[grepl("cancer",edge_sep_results_statTest2[,2]),]
+
 save(
-  p12G_t,
-  file = paste(out_path,"p12G_t_",p1,".RData",sep="")
+  edge_sep_results_statTest2,
+  file = paste(out_path,"cgauge_res_",p1,"_",p2,".RData",sep="")
 )
 
-# Check different combinations of the input parameters p1 and p2
+edge_sep_results_statTest1 = EdgeSepTest(NonNA_GWAS_Ps,G_t,trait_pair_pvals,
+                                         text_col_name="test3",test = univar_mixtools_em)
 
+save(
+  edge_sep_results_statTest1,
+  edge_sep_results_statTest2,
+  file = paste(out_path,"cgauge_res_",p1,"_",p2,".RData",sep="")
+)
+
+
+# For MR: check different combinations of the input parameters p1 and p2
 for(p1 in P1s){
   for (p2 in P2s){
     
     G_vt = extract_skeleton_G_VT(GWAS_Ps,trait_pair_pvals,P1=p1,
                                  P2=p2,test_columns = c("test2","test3"))[[1]]
     
-    # Perform the EdgeSep statistical tests
-    NonNA_GWAS_Ps = GWAS_Ps
-    NonNA_GWAS_Ps[is.na(NonNA_GWAS_Ps)] = 0.5
-
-    edge_sep_results_statTest2 = EdgeSepTest(NonNA_GWAS_Ps,G_t,trait_pair_pvals,text_col_name="test3",
-                                             test = simple_lfdr_test)
-    edge_sep_results_statTest2[grepl("cancer",edge_sep_results_statTest2[,2]),]
-    
-    save(
-      edge_sep_results_statTest2,
-      file = paste(out_path,"cgauge_res_",p1,"_",p2,".RData",sep="")
-    )
-    
-    edge_sep_results_statTest1 = EdgeSepTest(NonNA_GWAS_Ps,G_t,trait_pair_pvals,text_col_name="test3",
-                                             test = univar_mixtools_em)
-    
-    save(
-      edge_sep_results_statTest1,
-      edge_sep_results_statTest2,
-      file = paste(out_path,"cgauge_res_",p1,"_",p2,".RData",sep="")
-    )
-        
     # Print the resulting scored network to files
     edge_orientation_res = c()
     for(nn in names(detected_cis_per_edge)){
