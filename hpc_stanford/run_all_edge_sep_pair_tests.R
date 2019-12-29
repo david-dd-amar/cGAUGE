@@ -43,7 +43,7 @@ skeleton_file = "/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/Gs_skel
 geno_data_path = "/oak/stanford/groups/mrivas/users/davidama/april2019_traits_genotypes/all_genotypes"
 gwas_res_data = "/oak/stanford/groups/mrivas/users/davidama/april2019_causal_analysis_flow_input.RData"
 gwas_res_path = "/oak/stanford/groups/mrivas/users/davidama/gwas_res/"
-out_path = "/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/ukbb_res/em_edge_sep_jobs"
+out_path = "/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/ukbb_res/em_edge_sep_jobs/"
 system(paste("mkdir",out_path))
 # Input data- load into session
 load(genetic_ci_tests_plink_path)
@@ -94,17 +94,17 @@ for(tr1 in colnames(GWAS_Ps)){
   for(tr2 in colnames(GWAS_Ps)){
     if(tr1==tr2){next}
     if(is.na(G_t[tr1,tr2]) || G_t[tr1,tr2]==0){next}
-    ps1 = GWAS_Ps[,tr2]
-    if(is.null(rownames(GWAS_Ps))){
-      ps_with_tr2_cond_tr1 = trait_pair_pvals[[tr2]][[tr1]][,text_col_name]
-    }
-    else{
-      ps_with_tr2_cond_tr1 = trait_pair_pvals[[tr2]][[tr1]][rownames(GWAS_Ps),text_col_name]
-    }
+    ps1 = NonNA_GWAS_Ps[,tr2]
+    ps_with_tr2_cond_tr1 = trait_pair_pvals[[tr2]][[tr1]][rownames(GWAS_Ps),"test3"]
     
     ps = cbind(ps1,ps_with_tr2_cond_tr1)
     rdata_name = paste(tr1,"_",tr2,"_input.RData",sep="")
     out_name = paste(tr1,"_",tr2,"_edgesep_em_output.RData",sep="")
+    
+    if(out_name %in% list.files(out_path)){next}
+    rdata_name = paste(out_path,rdata_name,sep="")
+    out_name = paste(out_path,out_name,sep="")
+    
     job_name = paste(tr1,"_vs_",tr2,sep="")
     save(ps,file=rdata_name)
     cmd = paste(

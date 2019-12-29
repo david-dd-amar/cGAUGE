@@ -205,57 +205,66 @@ save(p12G_t,file = paste(out_path,"p12G_t.RData",sep=""))
 # run_all_edge_sep_pair_tests.R - a script that loads the data and runs the EM test for all pairs
 # Below the commented code we load the results of these scripts and use them subsequently.
 # We leave this code for the readers interetsed in replication.
-p1 = max(P1s)
-G_t = p12G_t[[as.character((p1))]]$G_t
+# p1 = max(P1s)
+# G_t = p12G_t[[as.character((p1))]]$G_t
+# 
+# # Perform the EdgeSep statistical tests
+# NonNA_GWAS_Ps = GWAS_Ps
+# NonNA_GWAS_Ps[is.na(NonNA_GWAS_Ps)] = 0.5
+# for(n1 in names(trait_pair_pvals)){
+#   for(n2 in names(trait_pair_pvals[[n1]])){
+#     m = trait_pair_pvals[[n1]][[n2]]
+#     m = m[rownames(GWAS_Ps),]
+#     m[is.na(m)] = 0.5
+#     trait_pair_pvals[[n1]][[n2]] = m
+#   }
+#   gc()
+# }
+# 
+# edge_sep_results_statTest2 = EdgeSepTest(NonNA_GWAS_Ps,G_t,trait_pair_pvals,
+#                                          text_col_name="test3",test = simple_lfdr_test)
+# edge_sep_results_statTest1 = EdgeSepTest(NonNA_GWAS_Ps,G_t,trait_pair_pvals,
+#                                          text_col_name="test3",test = univar_mixtools_em)
 
-# Perform the EdgeSep statistical tests
-NonNA_GWAS_Ps = GWAS_Ps
-NonNA_GWAS_Ps[is.na(NonNA_GWAS_Ps)] = 0.5
-for(n1 in names(trait_pair_pvals)){
-  for(n2 in names(trait_pair_pvals[[n1]])){
-    m = trait_pair_pvals[[n1]][[n2]]
-    m = m[rownames(GWAS_Ps),]
-    m[is.na(m)] = 0.5
-    trait_pair_pvals[[n1]][[n2]] = m
-  }
-  gc()
-}
-
-edge_sep_results_statTest2 = EdgeSepTest(NonNA_GWAS_Ps,G_t,trait_pair_pvals,
-                                         text_col_name="test3",test = simple_lfdr_test)
-edge_sep_results_statTest1 = EdgeSepTest(NonNA_GWAS_Ps,G_t,trait_pair_pvals,
-                                         text_col_name="test3",test = univar_mixtools_em)
+# Load the EdgeSep results, create output files and networks
 
 # For MR: check different combinations of the input parameters p1 and p2
+load(paste(out_path,"p12G_t.RData",sep=""))
 for(p1 in P1s){
+  G_t = p12G_t[[as.character((p1))]]$G_t
+  mseps = p12G_t[[as.character((p1))]]$mseps
   for (p2 in P2s){
-    
     G_vt = extract_skeleton_G_VT(GWAS_Ps,trait_pair_pvals,P1=p1,
                                  P2=p2,test_columns = c("test2","test3"))[[1]]
+    uniquely_mapped_ivs = rownames(G_vt)[rowSums(G_vt)==1]
     
-    # Print the resulting scored network to files
-    edge_orientation_res = c()
-    for(nn in names(detected_cis_per_edge)){
-      arr = strsplit(nn,split=";")[[1]][c(4,6)]
-      score1 = length(detected_cis_per_edge[[nn]]$variants)
-      score2 = score1/detected_cis_per_edge[[nn]][[1]]
-      score3 = score1/detected_cis_per_edge[[nn]][[2]]
-      new_edge = c(arr,score1,score2,score3)
-      print(new_edge)
-      edge_orientation_res = rbind(edge_orientation_res,new_edge)
-    }
-    rownames(edge_orientation_res) = NULL
-    colnames(edge_orientation_res) = c("X->","Y","NumSepIVs","Percentage_vs_tr1","Percentage_vs_tr1_tr2")
-    write.table(edge_orientation_res,file=paste(out_path,"edge_orientation_res_",p1,"_",p2,".txt",sep=""),
-                quote=F,row.names = F,col.names = T,sep="\t")
-    edge_orientation_res2 = edge_orientation_res[as.numeric(edge_orientation_res[,3])>4,]
-    write.table(edge_orientation_res2,file=paste(out_path,"edge_orientation_res__atleast_5_ivs_",
-                                                 p1,"_",p2,".txt",sep=""),
-                quote=F,row.names = F,col.names = T,sep="\t")
-    
-    
-    # Run MR analysis
     # Get the iv sets for each MR analysis
+    iv_sets_thm21 = list()
+    iv_sets_thm22 = list()
+    for(tr1 in colnames(GWAS_Ps)){
+      iv_sets_thm21[[tr1]] = list()
+      iv_sets_thm22[[tr1]] = list()
+      for(tr2 in colnames(GWAS_Ps)){
+        if(tr1==tr2){next}
+        iv_sets_thm21[[tr1]][[tr2]] = rownames(GWAS_Ps)[!is.na(GWAS_Ps[,tr1]) & GWAS_Ps[,tr1]<p1]
+        currseps = unique(unlist(mseps[[tr1]][[tr2]]))
+        currseps = setdiff(currseps,c("sex","age"))
+        # remove IVs into separating variables
+        for(sep in currseps){
+          curr_sep_ivs = rownames(G_vt)[G_vt[,sep]]
+          iv_sets_thm21[[tr1]][[tr2]] = setdiff(iv_sets_thm21[[tr1]][[tr2]],curr_sep_ivs)
+        }
+        
+        iv_sets_thm22[[tr1]][[tr2]] = rownames(GWAS_Ps)[!is.na(GWAS_Ps[,tr1]) & GWAS_Ps[,tr1]<p1]
+        iv_sets_thm22[[tr1]][[tr2]] = intersect(iv_sets_thm22[[tr1]][[tr2]],
+                                          uniquely_mapped_ivs)
+        
+        print(paste("before:",sum(GWAS_Ps[,tr1] < p1,na.rm=T),
+                    "after:",length(iv_sets_thm21[[tr1]][[tr2]]),
+                    "sepNodes:",length(currseps),
+                    "thm22: ", length(iv_sets_thm22[[tr1]][[tr2]])))
+      }
+    }
     
     # Analysis 5.1: simple meta-analysis on all pairs
     meta_anal_res = run_pairwise_pval_combination_analysis_from_iv_sets(iv_sets,GWAS_Ps,maxp=0.001)

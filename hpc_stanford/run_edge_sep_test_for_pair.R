@@ -1,7 +1,5 @@
 # Set the session
-required_libs = c("igraph","bnlearn","MRPRESSO",
-                  "optparse","limma","MendelianRandomization",
-                  "mixtools")
+required_libs = c("igraph","optparse","mixtools")
 lib_loc = "~/R/packages3.5"
 lib_loc = c(lib_loc,.libPaths())
 for (lib_name in required_libs){
@@ -50,6 +48,6 @@ if(testName == "em"){
 if(testName == "lfdr"){
   res = simple_lfdr_test(p1,p2)
 }
-save(res,out_file)
+save(res,file = out_file)
 
 
