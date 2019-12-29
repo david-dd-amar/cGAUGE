@@ -187,23 +187,6 @@ for(p1 in P1s){
       if(is.null(dim(m))|| nrow(m)<2){next}
       l = lapply(m[,1], function(x)strsplit(x,split=",")[[1]])
       l1 = remove_non_minimal_sepsets(l)
-      
-      # # QC - minimal sepset extraction
-      # l2 = remove_non_minimal_sepsets_naive(l)
-      # print(length(l1)==length(l2))
-      # for(set1 in l1){
-      #   testres = F
-      #   for(set2 in l2){
-      #     if(length(set1)==length(set2) && all(set1 %in% set2)){
-      #       testres = T
-      #       break
-      #     }
-      #   }
-      #   if(!testres){
-      #     print(paste("error"))
-      #   }
-      # }
-      
       p1_sepsets[[nn1]][[nn2]] = l1
     }
   }
@@ -215,7 +198,13 @@ for(p1 in P1s){
 
 save(p12G_t,file = paste(out_path,"p12G_t.RData",sep=""))
 
-#### Run the EdgeSep tests for the maximum p1 (contains the results for lower p1 values) ####
+#### Run the EdgeSep tests for the maximum p1 (contains the results for lower p1 values) #####
+# The code below is commented out because it is rather slow for real data
+# A parallel version of this code was run on Stanford's HPC, see the scripts in hpc_stanford:
+# run_edge_sep_test_for_pair.R - wrapper for a single job per pair
+# run_all_edge_sep_pair_tests.R - a script that loads the data and runs the EM test for all pairs
+# Below the commented code we load the results of these scripts and use them subsequently.
+# We leave this code for the readers interetsed in replication.
 p1 = max(P1s)
 G_t = p12G_t[[as.character((p1))]]$G_t
 
@@ -234,22 +223,8 @@ for(n1 in names(trait_pair_pvals)){
 
 edge_sep_results_statTest2 = EdgeSepTest(NonNA_GWAS_Ps,G_t,trait_pair_pvals,
                                          text_col_name="test3",test = simple_lfdr_test)
-edge_sep_results_statTest2[grepl("cancer",edge_sep_results_statTest2[,2]),]
-
-save(
-  edge_sep_results_statTest2,
-  file = paste(out_path,"cgauge_res_",p1,"_",p2,".RData",sep="")
-)
-
 edge_sep_results_statTest1 = EdgeSepTest(NonNA_GWAS_Ps,G_t,trait_pair_pvals,
                                          text_col_name="test3",test = univar_mixtools_em)
-
-save(
-  edge_sep_results_statTest1,
-  edge_sep_results_statTest2,
-  file = paste(out_path,"cgauge_res_",p1,"_",p2,".RData",sep="")
-)
-
 
 # For MR: check different combinations of the input parameters p1 and p2
 for(p1 in P1s){
