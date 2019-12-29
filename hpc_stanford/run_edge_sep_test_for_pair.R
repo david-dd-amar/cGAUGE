@@ -48,6 +48,7 @@ if(testName == "em"){
 if(testName == "lfdr"){
   res = simple_lfdr_test(p1,p2)
 }
+print(res)
 save(res,file = out_file)
 
 
