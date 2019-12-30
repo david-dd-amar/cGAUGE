@@ -167,28 +167,37 @@ normalmixEM_wrapper<-function(zz,reps=100,k,...){
 #' become lower in p2. We therefore use the Kolmogorov-Smirnov test on the pairwise fdr values: 
 #' ks.test(fdr1,fdr2,alternative = "g").
 simple_lfdr_test<-function(p1,p2,zthr = 10){
+  
+  inds = !is.na(p1) & p1!=0.5 & p1!=1 & !is.na(p2) & p2!=0.5 & p2!=1
+  p1 = p1[inds];p2 = p2[inds]
+  
   z1 = c(-qnorm(p1))
   z1 = fix_inf_z(z1)
   z1[z1 > zthr] = zthr
   z1[z1 < -zthr] = -zthr
   z2 = c(-qnorm(p2))
   z2 = fix_inf_z(z2)
-  z2[z2>zthr]  = zthr
-  z2[z2<-zthr]  = -zthr
-  z1_m = modified_znormix(p1,theoretical_null = T,min_mean_z1 = 1,min_sd1 = 0.5)
-  z2_m = modified_znormix(p2,theoretical_null = T,min_mean_z1 = 1,min_sd1 = 0.5)
+  z2[z2 > zthr]  = zthr
+  z2[z2 < -zthr]  = -zthr
+  
+  z1_m = znormix_wrapper(p=NULL,z=z1,theoretical_null = T,
+                         min_mean_z1 = 2,min_sd1 = 0.25,reps = 5)
+  z2_m = znormix_wrapper(p=NULL,z=z2,theoretical_null = T,
+                         min_mean_z1 = 2,min_sd1 = 0.25,reps = 5)
+  # z1_m = modified_znormix(p1,theoretical_null = T,min_mean_z1 = 1,min_sd1 = 0.5)
+  # z2_m = modified_znormix(p2,theoretical_null = T,min_mean_z1 = 1,min_sd1 = 0.5)
+  
   # print(cbind(z1_m[1:5],z2_m[1:5]))
   fdr1 = attr(z1_m,"fdr")
   fdr2 = attr(z2_m,"fdr")
+  tdr1 = 1-fdr1
+  tdr2 = 1-fdr2
   
-  # Null hypothesis: CDF of fdr1 lies below that of fdr2 - thus, values
-  # in fdr1 are greater than those in fdr2. 
-  # Alternative - we have non-null p1 cases that become null in p2: low fdrs in
-  # p1 with high fdr in p2.
-  pv = ks.test(fdr1,fdr2,alternative = "g",paired=T)$p.value
+  # Null hypothesis: under the null, z2 cannot have less discoveries
+  # thus, its tdr CDF is equal or greater than that of z1
+  pv = ks.test(tdr2,tdr1,alternative = "g",paired=T)$p.value
   return(pv)
 }
-
 
 # library(EnvStats)
 # simple_z1_variance_test<-function(p1,p2,ltdr_val = 0.4){
@@ -242,18 +251,23 @@ simple_lfdr_test<-function(p1,p2,zthr = 10){
 # # library(mixtools)
 # # library(mixtools)
 univar_mixtools_em<-function(p1,p2,zthr = 10,...){
+  
+  inds = !is.na(p1) & p1!=0.5 & p1!=1 & !is.na(p2) & p2!=0.5 & p2!=1
+  p1 = p1[inds];p2 = p2[inds]
+  
   z1 = c(-qnorm(p1))
   z1 = fix_inf_z(z1)
   z1[z1 > zthr] = zthr
   z1[z1 < -zthr] = -zthr
   z2 = c(-qnorm(p2))
   z2 = fix_inf_z(z2)
-  z2[z2>zthr]  = zthr
-  z2[z2<-zthr]  = -zthr
-  z1_m = znormix_wrapper(p1,theoretical_null = T,
-                          min_mean_z1 = 1,min_sd1 = 0.25)[1:5]
-  z2_m = znormix_wrapper(p2,theoretical_null = T,
-                          min_mean_z1 = 1,min_sd1 = 0.25)[1:5]
+  z2[z2 > zthr]  = zthr
+  z2[z2 < -zthr]  = -zthr
+  
+  z1_m = znormix_wrapper(p=NULL,z=z1,theoretical_null = T,
+                         min_mean_z1 = 2,min_sd1 = 0.25,reps = 5)
+  z2_m = znormix_wrapper(p=NULL,z=z2,theoretical_null = T,
+                         min_mean_z1 = 2,min_sd1 = 0.25,reps = 5)
 
   # define the differences
   zz = z1-z2

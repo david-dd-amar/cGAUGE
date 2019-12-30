@@ -256,20 +256,22 @@ for(p1 in P1s){
         }
         
         iv_sets_thm22[[tr1]][[tr2]] = rownames(GWAS_Ps)[!is.na(GWAS_Ps[,tr1]) & GWAS_Ps[,tr1]<p1]
-        iv_sets_thm22[[tr1]][[tr2]] = intersect(iv_sets_thm22[[tr1]][[tr2]],
-                                          uniquely_mapped_ivs)
+        iv_sets_thm22[[tr1]][[tr2]] = intersect(iv_sets_thm22[[tr1]][[tr2]],uniquely_mapped_ivs)
         
-        print(paste("before:",sum(GWAS_Ps[,tr1] < p1,na.rm=T),
-                    "after:",length(iv_sets_thm21[[tr1]][[tr2]]),
-                    "sepNodes:",length(currseps),
-                    "thm22: ", length(iv_sets_thm22[[tr1]][[tr2]])))
+        # print(paste("before:",sum(GWAS_Ps[,tr1] < p1,na.rm=T),
+        #             "after:",length(iv_sets_thm21[[tr1]][[tr2]]),
+        #             "sepNodes:",length(currseps),
+        #             "thm22: ", length(iv_sets_thm22[[tr1]][[tr2]])))
       }
     }
     
     # Analysis 5.1: simple meta-analysis on all pairs
-    meta_anal_res = run_pairwise_pval_combination_analysis_from_iv_sets(iv_sets,GWAS_Ps,maxp=0.001)
-    iv2_res = run_pairwise_mr_analyses_with_iv_sets(sum_stat_matrix,sum_stat_se_matrix,iv_sets,
-                                                    func=mr_ivw,robust=T)
+    meta_anal_res_thm21 = run_pairwise_pval_combination_analysis_from_iv_sets(iv_sets_thm22,GWAS_Ps,maxp=0.001)
+    meta_anal_res_thm22 = run_pairwise_pval_combination_analysis_from_iv_sets(iv_sets_thm22,GWAS_Ps,maxp=0.001)
+    ivw_res_thm21 = run_pairwise_mr_analyses_with_iv_sets(
+      sum_stat_matrix,sum_stat_se_matrix,iv_sets_thm21,func=mr_ivw,robust=T)
+    ivw_res_thm22 = run_pairwise_mr_analyses_with_iv_sets(
+      sum_stat_matrix,sum_stat_se_matrix,iv_sets_thm22,func=mr_ivw,robust=T)
     print("Done updating the MR results")
     
     cleaned_Egger_res = combine_mm_mr_analyses(meta_anal_res,mr_anal_res[["Egger"]],

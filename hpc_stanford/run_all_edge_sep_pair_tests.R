@@ -124,4 +124,31 @@ for(tr1 in colnames(GWAS_Ps)){
   }
 }
 
+# Run all pairs
+edge_sep_em_res = c()
+for(tr1 in colnames(GWAS_Ps)){
+  for(tr2 in colnames(GWAS_Ps)){
+    if(tr1==tr2){next}
+    if(is.na(G_t[tr1,tr2]) || G_t[tr1,tr2]==0){next}
+    out_name = paste(tr1,"_",tr2,"_edgesep_em_output.RData",sep="")
+    out_name = paste(out_path,out_name,sep="")
+    currp = NA
+    try({currp = get(load(out_name))})
+    edge_sep_em_res = rbind(edge_sep_em_res,
+                            c(tr1,tr2,currp))
+  }
+}
+edge_sep_em_res = data.frame(edge_sep_em_res,stringsAsFactors = F)
+edge_sep_em_res[[3]] = as.numeric(as.character(edge_sep_em_res[[3]]))
+
+##############################################################
+# A few local tests
+setwd("~/Desktop/causal_inference_projects/ms3/edge_sep_em/")
+setwd("/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/ukbb_res/em_edge_sep_jobs/")
+pval = get(load("Alanine_aminotransferase_statins_edgesep_em_output.RData"))
+ps = get(load("Alanine_aminotransferase_statins_input.RData"))
+p1 = ps[,1]
+p2 = ps[,2]
+univar_mixtools_em(p1,p2,reps=3)
+simple_lfdr_test(p1,p2)
 
