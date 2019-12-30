@@ -168,7 +168,7 @@ normalmixEM_wrapper<-function(zz,reps=100,k,...){
 #' ks.test(fdr1,fdr2,alternative = "g").
 simple_lfdr_test<-function(p1,p2,zthr = 10){
   
-  inds = !is.na(p1) & p1!=0.5 & p1!=1 & !is.na(p2) & p2!=0.5 & p2!=1
+  inds = !is.na(p1) & !is.na(p2)
   p1 = p1[inds];p2 = p2[inds]
   
   z1 = c(-qnorm(p1))
@@ -252,7 +252,7 @@ simple_lfdr_test<-function(p1,p2,zthr = 10){
 # # library(mixtools)
 univar_mixtools_em<-function(p1,p2,zthr = 10,...){
   
-  inds = !is.na(p1) & p1!=0.5 & p1!=1 & !is.na(p2) & p2!=0.5 & p2!=1
+  inds = !is.na(p1) & !is.na(p2)
   p1 = p1[inds];p2 = p2[inds]
   
   z1 = c(-qnorm(p1))
