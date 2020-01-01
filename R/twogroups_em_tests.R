@@ -95,13 +95,14 @@ modified_znormix <- function (p, z = NULL,start.pi0=0.85, eps = 1e-04,
   new.par
 }
 
-znormix_wrapper<-function(p, z = NULL,
+znormix_wrapper<-function(p, z = NULL, Nsamp = 1000,
           start.pi0s = seq(0.85,0.88,0.01),reps=10,...){
   znormix_vals = c()
+  Nsamp = min(Nsamp,max(length(p),length(z)))
   for(start.pi0 in start.pi0s){
     for(i in 1:reps){
-      currz = sample(z,replace = T)
-      currp = sample(p,replace = T)
+      currz = sample(z,replace = T)[1:Nsamp]
+      currp = sample(p,replace = T)[1:Nsamp]
       m = modified_znormix(p=currp,z=currz,start.pi0 = start.pi0,...)
       znormix_vals = rbind(znormix_vals,m[1:5])
     }
@@ -181,15 +182,13 @@ simple_lfdr_test<-function(p1,p2,zthr = 10){
   z2[z2 < -zthr]  = -zthr
   
   z1_m = znormix_wrapper(p=NULL,z=z1,theoretical_null = T,
-                         min_mean_z1 = 2,min_sd1 = 0.25,reps = 5)
+                         min_mean_z1 = 1,min_sd1 = 0.25,reps = 5)
   z2_m = znormix_wrapper(p=NULL,z=z2,theoretical_null = T,
-                         min_mean_z1 = 2,min_sd1 = 0.25,reps = 5)
-  # z1_m = modified_znormix(p1,theoretical_null = T,min_mean_z1 = 1,min_sd1 = 0.5)
-  # z2_m = modified_znormix(p2,theoretical_null = T,min_mean_z1 = 1,min_sd1 = 0.5)
-  
+                         min_mean_z1 = 1,min_sd1 = 0.25,reps = 5)
   # print(cbind(z1_m[1:5],z2_m[1:5]))
-  fdr1 = attr(z1_m,"fdr")
-  fdr2 = attr(z2_m,"fdr")
+  fdr1 = attr(z1_m,"lfdr")
+  fdr2 = attr(z2_m,"lfdr")
+  
   tdr1 = 1-fdr1
   tdr2 = 1-fdr2
   
@@ -264,10 +263,10 @@ univar_mixtools_em<-function(p1,p2,zthr = 10,...){
   z2[z2 > zthr]  = zthr
   z2[z2 < -zthr]  = -zthr
   
-  z1_m = znormix_wrapper(p=NULL,z=z1,theoretical_null = T,
-                         min_mean_z1 = 2,min_sd1 = 0.25,reps = 5)
-  z2_m = znormix_wrapper(p=NULL,z=z2,theoretical_null = T,
-                         min_mean_z1 = 2,min_sd1 = 0.25,reps = 5)
+  z1_m = znormix_wrapper(p=NULL,z=z1,theoretical_null = F,
+                         min_mean_z1 = 1,min_sd1 = 0.25,reps = 50)
+  z2_m = znormix_wrapper(p=NULL,z=z2,theoretical_null = F,
+                         min_mean_z1 = 1,min_sd1 = 0.25,reps = 50)
 
   # define the differences
   zz = z1-z2
@@ -304,23 +303,23 @@ univar_mixtools_em<-function(p1,p2,zthr = 10,...){
 #'   correl = (sd1^2 + sd2^2 - var_diff)/(2*sd1*sd2)
 #'   return(correl)
 #' }
-#' 
-#' #' Parametric bootstrap test for the existance of edge sep points.
 #' #' 
-#' #' This test transforms the input p-value vectors to z-scores (-qnorm(p)). 
-#' #' For each z-score vector we fit a two groups model as a mixture of two gaussians: 
+#' #' Parametric bootstrap test for the existance of edge sep points.
+#' #'
+#' #' This test transforms the input p-value vectors to z-scores (-qnorm(p)).
+#' #' For each z-score vector we fit a two groups model as a mixture of two gaussians:
 #' #' standard normal and a distribution of significant non-null z-scores.
 #' #' We assume that this estimation is correct and take the two groups models as fixed.
 #' #' Thus, each vector has three parameters: \pi (probability of null), \mu mean of discoveries
-#' #' and \sigma - standard deviation of discoveries (assumed to be > 0.25). 
-#' #' 
+#' #' and \sigma - standard deviation of discoveries (assumed to be > 0.25).
+#' #'
 #' #' As we are interested in cases with "high" z1 and "insignificant" z2, we use the following test
-#' #' statistic: \sum_i{tdr^1({z^1}_i)fdr^2({z^2}_i)}. Note that this statistic is not equivalent 
+#' #' statistic: \sum_i{tdr^1({z^1}_i)fdr^2({z^2}_i)}. Note that this statistic is not equivalent
 #' #' to summing over Pr(non-null|{z^1}_i)Pr(null|{z^2}_i) due to the dependence structure of z1 and z2.
 #' #' However, as we explain below, we can simulate data points from the null distribution and compute
 #' #' the significance of our statistic.
-#' #' 
-#' #' Assuming that z1 and z2 each follows a two groups model, 
+#' #'
+#' #' Assuming that z1 and z2 each follows a two groups model,
 #' #' their the joint distribution is a mixture of up to four Guassians:
 #' #' 1. (null,null) - a mixture around (0,0) with known marginal variance and unknown covariance.
 #' #' 2. (non-null,non-null) - a mixture around (\mu_1,\mu_2) with known marginal variance and unknown covariance.
@@ -330,130 +329,144 @@ univar_mixtools_em<-function(p1,p2,zthr = 10,...){
 #' #' is zero (because Pr(non-null) for low zscores is zero) then simulating without this component
 #' #' can only increase the statistic under the null. We thus simulate from a mixture of 1 and 2 only.
 #' #' We have two unknown parameters: the covariances within these mixtures. We estimate these using a four
-#' #' mixture model for the difference zz = z1-z2. 
+#' #' mixture model for the difference zz = z1-z2.
 #' #' We fit three possible models: all with the component for cluster 4 and:
-#' #' with cluster 1 only, with 1 and 2 and with 1-3. 
+#' #' with cluster 1 only, with 1 and 2 and with 1-3.
 #' #' Model selection for the null is based on BIC.
 #' #' Given the selected model, we simulate data from the joint distribution with
-#' #' clusters 1 and 2 only. 
+#' #' clusters 1 and 2 only.
 #' #' We then compute empirical p-values using the normal approximation (requires assuming
 #' #' that z-scores are independent.)
-#' param_bootstrap_test<-function(p1,p2,reps=20,zthr = 10,BICdiff = 10){
+#' param_bootstrap_test<-function(p1,p2,reps=500,zthr = 10){
+#'   inds = !is.na(p1) & !is.na(p2)
+#'   p1 = p1[inds];p2 = p2[inds]
+#'   
 #'   z1 = c(-qnorm(p1))
 #'   z1 = fix_inf_z(z1)
 #'   z1[z1 > zthr] = zthr
+#'   z1[z1 < -zthr] = -zthr
 #'   z2 = c(-qnorm(p2))
 #'   z2 = fix_inf_z(z2)
-#'   z2[z2>zthr]  = zthr
-#'   z1_m = znormix_wrapper(p1,theoretical_null = T,
-#'                          min_mean_z1 = 1,min_sd1 = 0.25,reps=2)
-#'   z2_m = znormix_wrapper(p2,theoretical_null = T,
-#'                          min_mean_z1 = 1,min_sd1 = 0.25,reps=2)
+#'   z2[z2 > zthr]  = zthr
+#'   z2[z2 < -zthr]  = -zthr
+#'   
+#'   z1_m = znormix_wrapper(p=NULL,z=z1,theoretical_null = T,
+#'                          min_mean_z1 = 1,min_sd1 = 0.25,reps = 5)
+#'   z2_m = znormix_wrapper(p=NULL,z=z2,theoretical_null = T,
+#'                          min_mean_z1 = 1,min_sd1 = 0.25,reps = 5)
+#'   # compute our statistics
+#'   fdr1 = attr(z1_m,"lfdr")
+#'   fdr2 = attr(z2_m,"lfdr")
+#'   
+#'   stat = sum((1-fdr1)*fdr2)
+#' 
+#'   try({
+#'     # create the null distribution
+#'     zz = z1-z2
+#'     # define the differences
+#'     possible_means = c(0,-z2_m[4],z1_m[4]-z2_m[4],z1_m[4])
+#'     null_prior = c(0.8,rep(0.2/3,3))
+#'     null_m = normalmixEM_wrapper(zz,lambda = null_prior,
+#'                                mean.constr = possible_means,k=4,reps=5)
+#'     zcor = get_correl_from_diff_sd(null_m$sigma[1],1,1)
+#'     zcor1 = get_correl_from_diff_sd(null_m$sigma[3],z1_m[5],z2_m[5])
+#'     zcor2 = get_correl_from_diff_sd(null_m$sigma[2],1,z2_m[5])
+#'     zcor1 = min(zcor1,1);zcor = min(zcor,1);zcor2 = min(zcor2,1)
+#'     zcor1 = max(zcor1,0);zcor = max(zcor,0);zcor2 = max(zcor2,0)
+#'     zcov1 = zcor1*z1_m[5]*z2_m[5]
+#'     zcov2 = zcor2*z2_m[5]
+#'     corrmat0 = matrix(c(1,zcor,zcor,1),2,2)
+#'     corrmat1 = matrix(c(z1_m[5]^2,zcov1,zcov1,z2_m[5]^2),2,2)
+#'     corrmat2 = matrix(c(1,zcov2,zcov2,z2_m[5]^2),2,2)
+#'     sigma = list(corrmat0,corrmat2,corrmat1)
+#'     lambda = null_m$lambda[1:3]
+#'     lambda = lambda/sum(lambda)
+#'     mu = list(c(0,0),c(0,z2_m[4]),c(z1_m[4],z2_m[4]))
+#'     
+#'     # pi0 = (z1_m[1] + z2_m[1])*0.5
+#'     # pi0 = (m1$fp0[3,3] + m2$fp0[3,3])*0.5
+#'     # lambda = c(pi0,1-pi0)
+#'     # corrmat0 = matrix(c(1,0,0,1),2,2)
+#'     # corrmat1 = matrix(c(z1_m[5]^2,0,0,z2_m[5]^2),2,2)
+#'     # sigma = list(corrmat0,corrmat1)
+#'     # mu = list(c(0,0),c(z1_m[4],z2_m[4]))
+#'     # parametric bootstrap
+#'     b_scores = c();sum_b_greater = 0
+#'     for(j in 1:reps){
+#'       if(j %% 20 == 0){print(j)}
+#'       zzsamp = rmvn_mix(length(z1),lambda,mu,sigma)
+#'       currz1 = zzsamp[,1]
+#'       currz2 = zzsamp[,2]
+#'       # plot(currz1,currz2,xlim=c(-5,15),ylim=c(-5,15),
+#'       #    main=paste(format(zcor1,digits = 3),
+#'       #               format(zcor,digits = 3),sep=","));abline(0,1)
+#'       # plot(z1,z2,xlim=c(-5,15),ylim=c(-5,15));abline(0,1)
+#'       currz1_m = znormix_compute_fdrs(currz1,z1_m[1:5])
+#'       currz2_m = znormix_compute_fdrs(currz2,z2_m[1:5])
+#'       currfdr1 = attr(currz1_m,"lfdr")
+#'       currfdr2 = attr(currz2_m,"lfdr")
+#'       
+#'       currstat = sum((1-currfdr1)*currfdr2)
+#'       b_scores = c(b_scores,currstat)
+#'       sum_b_greater = sum_b_greater + as.numeric(currstat > stat)
+#'       emp_p = (1+sum_b_greater)/(1+length(b_scores))
+#'       if(j > 20 && emp_p > 0.1){break}
+#'     }
+#'     return(emp_p)
+#'   })
+#'   return(1)
+#' }
+#' 
+#' 
+#' permutation_fdr_test<-function(p1,p2,reps=500,zthr = 10){
+#'   inds = !is.na(p1) & !is.na(p2)
+#'   p1 = p1[inds];p2 = p2[inds]
+#'   
+#'   z1 = c(-qnorm(p1))
+#'   z1 = fix_inf_z(z1)
+#'   z1[z1 > zthr] = zthr
+#'   z1[z1 < -zthr] = -zthr
+#'   z2 = c(-qnorm(p2))
+#'   z2 = fix_inf_z(z2)
+#'   z2[z2 > zthr]  = zthr
+#'   z2[z2 < -zthr]  = -zthr
+#'   
+#'   z1_m = znormix_wrapper(p=NULL,z=z1,theoretical_null = T,
+#'                          min_mean_z1 = 5,min_sd1 = 0.25,reps = 5)
+#'   z2_m = znormix_wrapper(p=NULL,z=z2,theoretical_null = T,
+#'                          min_mean_z1 = 1,min_sd1 = 0.25,reps = 5)
 #'   # compute our statistics
 #'   fdr1 = attr(z1_m,"lfdr")
 #'   fdr2 = attr(z2_m,"lfdr")
 #'   stat = sum((1-fdr1)*fdr2)
 #'   
-#'   # create the null distribution
-#'   minp = min(z1_m[1],z2_m[1])
-#'   lambda = c(minp,1-minp)
-#'   mu = list(
-#'     c(0,0),
-#'     c(z1_m[4],z2_m[4])
-#'   )
-#'   
-#'   # Look at the diff distribution
-#'   zz = z1-z2
-#'   possible_means = c(0,-z2_m[4],z1_m[4]-z2_m[4],z1_m[4])
-#'   newk = 4
-#'   new_prior = c(0.8,rep(0.2/newk,newk))
-#'   
-#'   # Fit the EM models for the mixtures
-#'   # curr_EM2 = list(lambda=1,mu=0,sd=sd(zz,na.rm = T),
-#'   #       loglik=sum(dnorm(zz,0,sd(zz,na.rm = T),log = T)))
-#'   # curr_EM3 = normalmixEM_wrapper(zz,lambda = new_prior,
-#'   #       mean.constr = possible_means[c(1,2)],k=2)
-#'   # curr_EM4 = normalmixEM_wrapper(zz,lambda = new_prior,
-#'   #       mean.constr = possible_means[c(1,3)],k=2)
-#'   curr_EM5 = normalmixEM_wrapper(zz,lambda = new_prior,
-#'                                  mean.constr = possible_means[1:3],k=3)
-#'   # curr_EM2$BIC = log(length(zz))*1-2*curr_EM2$loglik
-#'   # curr_EM3$BIC = log(length(zz))*3-2*curr_EM3$loglik
-#'   # curr_EM4$BIC = log(length(zz))*3-2*curr_EM4$loglik
-#'   # curr_EM5$BIC = log(length(zz))*5-2*curr_EM5$loglik
-#'   curr_EM = curr_EM5
-#'   selected_model = 5
-#'   # if(curr_EM4$BIC < curr_EM$BIC+BICdiff){
-#'   #   curr_EM = curr_EM4
-#'   #   selected_model = 4
-#'   # }
-#'   # if(curr_EM3$BIC < curr_EM$BIC+BICdiff){
-#'   #   curr_EM = curr_EM3
-#'   #   selected_model = 3
-#'   # }
-#'   # if(curr_EM2$BIC < curr_EM$BIC+BICdiff){
-#'   #   curr_EM = curr_EM5
-#'   #   selected_model = 2
-#'   # }
-#'   
-#'   if(selected_model == 5){
-#'     zcor = get_correl_from_diff_sd(curr_EM$sigma[1],1,1)
-#'     zcor1 = get_correl_from_diff_sd(curr_EM$sigma[3],z1_m[5],z2_m[5])
-#'     zcor1 = min(zcor1,1)
-#'     zcor = min(zcor,1)
-#'     zcor1 = max(zcor1,0)
-#'     zcor = max(zcor,0)
-#'   }
-#'   if(selected_model == 4){
-#'     zcor = get_correl_from_diff_sd(curr_EM$sigma[1],1,1)
-#'     zcor1 = get_correl_from_diff_sd(curr_EM$sigma[2],z1_m[5],z2_m[5])
-#'     zcor1 = min(zcor1,1)
-#'     zcor = min(zcor,1)
-#'   }
-#'   if(selected_model == 3 || selected_model == 2){
-#'     zcor = get_correl_from_diff_sd(curr_EM$sigma[1],1,1)
-#'     zcor = min(zcor,1)
-#'     zcor1 = zcor
-#'   }
-#'   
-#'   zcov1 = zcor1*z1_m[5]*z2_m[5]
-#'   corrmat0 = matrix(c(1,zcor,zcor,1),2,2)
-#'   corrmat1 = matrix(c(z1_m[5]^2,zcov1,zcov1,z2_m[5]^2),2,2)
-#'   sigma = list(corrmat0,corrmat1)
-#'   print(sigma)
-#'   # # check the sigmas
-#'   # for(i in 1:length(sigma)){
-#'   #   print(sigma[[i]])
-#'   #   print(det(sigma[[i]]))
-#'   # }
-#'   
-#'   # parametric bootstrap
-#'   b_scores = c()
-#'   for(j in 1:reps){
-#'     print(j)
-#'     zzsamp = rmvn_mix(length(z1),lambda,mu,sigma)
-#'     currz1 = zzsamp[,1]
-#'     currz2 = zzsamp[,2]
-#'     plot(currz1,currz2,xlim=c(-5,15),ylim=c(-5,15),
-#'          main=paste(format(zcor1,digits = 3),
-#'                     format(zcor,digits = 3),sep=","));abline(0,1)
-#'     plot(z1,z2,xlim=c(-5,15),ylim=c(-5,15));abline(0,1)
-#'     currz1_m = znormix_compute_fdrs(currz1,z1_m[1:5])
-#'     currz2_m = znormix_compute_fdrs(currz2,z2_m[1:5])
-#'     
-#'     currfdr1 = attr(currz1_m,"lfdr")
-#'     currfdr2 = attr(currz2_m,"lfdr")
-#'     currstat = sum((1-currfdr1)*currfdr2)
-#'     b_scores = c(b_scores,currstat)
-#'     # if(currstat>stat){break}
-#'   }
-#'   
-#'   # use normal approximation for p
-#'   pval = min((1+sum(b_scores>=stat))/length(b_scores),
-#'              pnorm(stat,mean(b_scores),sd(b_scores),lower.tail = F))
-#'   return(pval)
+#'   try({
+#'     # create the null distribution
+#'     zz = cbind(z1,z2)
+#'     perm_scores = c();sum_perm_greater = 0
+#'     for(j in 1:reps){
+#'       if(j %% 20 == 0){print(j)}
+#'       inds = rep(F,nrow(zz))
+#'       inds[sample(1:nrow(zz),replace = F)[1:(nrow(zz)/2)]] = T
+#'       currz1 = c(zz[inds,1],zz[!inds,2])
+#'       currz2 = c(zz[inds,2],zz[!inds,1])
+#'       currz1_m = znormix_wrapper(p=NULL,z=z1,theoretical_null = T,
+#'                              min_mean_z1 = 1,min_sd1 = 0.25,reps = 5)
+#'       currz2_m = znormix_wrapper(p=NULL,z=z2,theoretical_null = T,
+#'                              min_mean_z1 = 1,min_sd1 = 0.25,reps = 5)
+#'       currfdr1 = attr(currz1_m,"lfdr")
+#'       currfdr2 = attr(currz2_m,"lfdr")
+#'       currstat = sum((1-currfdr1)*currfdr2)
+#'       perm_scores = c(perm_scores,currstat)
+#'       sum_perm_greater = sum_perm_greater + as.numeric(currstat > stat)
+#'       emp_p = (1+sum_perm_greater)/(1+length(perm_scores))
+#'       if(j > 20 && emp_p > 0.1){break}
+#'     }
+#'     return(emp_p)
+#'   })
+#'   return(1)
 #' }
-#
+
 # get_univar_diff_null_model<-function(zz,z1_m,z2_m,...){
 #   # infer the correct null model
 #   null_k1_likelihoods = dnorm(zz,mean(zz,na.rm = T),
@@ -462,7 +475,7 @@ univar_mixtools_em<-function(p1,p2,zthr = 10,...){
 #                  sigma = sd(zz,na.rm=T),lambda=1,
 #                  loglik = sum(null_k1_likelihoods)
 #   )
-#   
+# 
 #   # try adding a the negative component
 #   try({
 #     curr_EM = normalmixEM_wrapper(zz,lambda = c(0.9,0.1),
@@ -474,7 +487,7 @@ univar_mixtools_em<-function(p1,p2,zthr = 10,...){
 #       null_m = curr_EM
 #     }
 #   })
-#   
+# 
 #   # try adding a the z1 z2 non-null shift component
 #   try({
 #     newk = length(null_m$lambda)+1
@@ -495,89 +508,89 @@ univar_mixtools_em<-function(p1,p2,zthr = 10,...){
 #   return(null_m)
 # }
 
-# # Too slow:
-# bivar_mixtools_em<-function(p1,p2,...){
-#   z1 = c(-qnorm(p1))
-#   z1 = fix_inf_z(z1)
-#   z2 = c(-qnorm(p2))
-#   z2 = fix_inf_z(z2)
-#   z1_m = znormix_wrapper(p1,theoretical_null = T,
-#                          min_mean_z1 = 1,min_sd1 = 0.25)[1:5]
-#   z2_m = znormix_wrapper(p2,theoretical_null = T,
-#                          min_mean_z1 = 1,min_sd1 = 0.25)[1:5]
-#   
-#   # define the differences
-#   zz = cbind(z1,z2)
-#   
-#   # infer the correct null model
-#   # no mixture
-#   null_k1_likelihoods = log(dmvnorm(zz,colMeans(zz),cov(zz)))
-#   null_m =  list(mu = mean(zz,na.rm=T),
-#                  sigma = sd(zz,na.rm=T),lambda=1,
-#                  loglik = sum(null_k1_likelihoods))
-#   
-#   # Two components - additional one for non-nulls
-#   try({
-#     curr_EM = mvnormalmixEM(zz,lambda = c(0.9,0.1),
-#                  mu = list(c(0,0),c(z1_m[4],z2_m[4])),k=2,verb=T,epsilon = 1e-02)
-#     l_diff = curr_EM$loglik - null_m$loglik
-#     l_diff_p = pchisq(2*l_diff,4,lower.tail = F)
-#     if(l_diff_p < 0.001){
-#       null_m = curr_EM
-#     }
-#   })
-#   
-#   # try adding a the z1 z2 non-null shift component
-#   try({
-#     newk = length(null_m$lambda)+1
-#     new_prior = c(0.8,rep(0.2/(newk-1),newk-1))
-#     new_means = list(
-#       c(0,0),
-#       c(z1_m[4],z2_m[4]),
-#       c(0,z2_m[4])
-#     )
-#     if(newk == 2){
-#       new_means = list(
-#         c(0,0),
-#         c(0,z2_m[4])
-#       )
-#     }
-#     curr_EM = mvnormalmixEM(zz,lambda = new_prior, mu = new_means,
-#                                   k=newk,epsilon = 1e-02)
-#     l_diff = curr_EM$loglik - null_m$loglik
-#     l_diff_p = pchisq(2*l_diff,2,lower.tail = F)
-#     if(l_diff_p < 1e-05){
-#       null_m = curr_EM
-#     }
-#   })
-#   
-#   # At this point we have the null model, now we try adding the new component
-#   try({
-#     newk = length(null_m$lambda)+1
-#     new_prior = c(0.8,rep(0.2/(newk-1),newk-1))
-#     new_means = list(
-#       c(0,0),
-#       c(z1_m[4],z2_m[4]),
-#       c(0,z2_m[4]),
-#       c(z1_m[4],0)
-#     )
-#     if(newk == 2){
-#       new_means = list(
-#         c(0,0),
-#         c(0,z2_m[4]),
-#         c(z1_m[4],0)
-#       )
-#     }
-#     curr_EM = mvnormalmixEM(zz,lambda = new_prior, mu = new_means,
-#                             k=newk,epsilon = 1e-02,verb = T)
-#     l_diff = curr_EM$loglik - null_m$loglik
-#     l_diff_p = pchisq(2*l_diff,4,lower.tail = F)
-#     return(l_diff_p)
-#   })
-#   return(1)
-# }
-# 
-# 
+# Too slow:
+bivar_mixtools_em<-function(p1,p2,...){
+  z1 = c(-qnorm(p1))
+  z1 = fix_inf_z(z1)
+  z2 = c(-qnorm(p2))
+  z2 = fix_inf_z(z2)
+  z1_m = znormix_wrapper(p1,theoretical_null = T,
+                         min_mean_z1 = 1,min_sd1 = 0.25)[1:5]
+  z2_m = znormix_wrapper(p2,theoretical_null = T,
+                         min_mean_z1 = 1,min_sd1 = 0.25)[1:5]
+
+  # define the differences
+  zz = cbind(z1,z2)
+
+  # infer the correct null model
+  # no mixture
+  null_k1_likelihoods = log(dmvnorm(zz,colMeans(zz),cov(zz)))
+  null_m =  list(mu = mean(zz,na.rm=T),
+                 sigma = sd(zz,na.rm=T),lambda=1,
+                 loglik = sum(null_k1_likelihoods))
+
+  # Two components - additional one for non-nulls
+  try({
+    curr_EM = mvnormalmixEM(zz,lambda = c(0.9,0.1),
+                 mu = list(c(0,0),c(z1_m[4],z2_m[4])),k=2,verb=T,epsilon = 1e-02)
+    l_diff = curr_EM$loglik - null_m$loglik
+    l_diff_p = pchisq(2*l_diff,4,lower.tail = F)
+    if(l_diff_p < 0.001){
+      null_m = curr_EM
+    }
+  })
+
+  # try adding a the z1 z2 non-null shift component
+  try({
+    newk = length(null_m$lambda)+1
+    new_prior = c(0.8,rep(0.2/(newk-1),newk-1))
+    new_means = list(
+      c(0,0),
+      c(z1_m[4],z2_m[4]),
+      c(0,z2_m[4])
+    )
+    if(newk == 2){
+      new_means = list(
+        c(0,0),
+        c(0,z2_m[4])
+      )
+    }
+    curr_EM = mvnormalmixEM(zz,lambda = new_prior, mu = new_means,
+                                  k=newk,epsilon = 1e-02)
+    l_diff = curr_EM$loglik - null_m$loglik
+    l_diff_p = pchisq(2*l_diff,2,lower.tail = F)
+    if(l_diff_p < 1e-05){
+      null_m = curr_EM
+    }
+  })
+
+  # At this point we have the null model, now we try adding the new component
+  try({
+    newk = length(null_m$lambda)+1
+    new_prior = c(0.8,rep(0.2/(newk-1),newk-1))
+    new_means = list(
+      c(0,0),
+      c(z1_m[4],z2_m[4]),
+      c(0,z2_m[4]),
+      c(z1_m[4],0)
+    )
+    if(newk == 2){
+      new_means = list(
+        c(0,0),
+        c(0,z2_m[4]),
+        c(z1_m[4],0)
+      )
+    }
+    curr_EM = mvnormalmixEM(zz,lambda = new_prior, mu = new_means,
+                            k=newk,epsilon = 1e-02,verb = T)
+    l_diff = curr_EM$loglik - null_m$loglik
+    l_diff_p = pchisq(2*l_diff,4,lower.tail = F)
+    return(l_diff_p)
+  })
+  return(1)
+}
+
+
 # univar_mixtools_em(
 #   c(runif(10000),runif(1000)/1000000000),
 #   c(runif(10000),runif(1000)/1000000)
@@ -589,7 +602,7 @@ univar_mixtools_em<-function(p1,p2,zthr = 10,...){
 # z2 = c(-qnorm(p2))
 # plot(z1,z2)
 # univar_mixtools_em(p1,p2)
-
+# 
 # # Use rstan for a mixture model
 # # code based on
 # # http://rpubs.com/kaz_yos/fmm2

@@ -76,32 +76,19 @@ GWAS_Ps = iv2trait_p[pruned_snp_list,]
 G_t = skeleton_pmax < p1
 diag(G_t) = F;mode(G_t)="numeric"
 
-# Avoid NAs, make the data over the same snp names
-NonNA_GWAS_Ps = GWAS_Ps
-NonNA_GWAS_Ps[is.na(NonNA_GWAS_Ps)] = 0.5
-for(n1 in names(trait_pair_pvals)){
-  for(n2 in names(trait_pair_pvals[[n1]])){
-    m = trait_pair_pvals[[n1]][[n2]]
-    m = m[rownames(GWAS_Ps),]
-    m[is.na(m)] = 0.5
-    trait_pair_pvals[[n1]][[n2]] = m
-  }
-  gc()
-}
-
 # Run all pairs
 for(tr1 in colnames(GWAS_Ps)){
   for(tr2 in colnames(GWAS_Ps)){
     if(tr1==tr2){next}
     if(is.na(G_t[tr1,tr2]) || G_t[tr1,tr2]==0){next}
-    ps1 = NonNA_GWAS_Ps[,tr2]
+    ps1 = GWAS_Ps[,tr2]
     ps_with_tr2_cond_tr1 = trait_pair_pvals[[tr2]][[tr1]][rownames(GWAS_Ps),"test3"]
     
     ps = cbind(ps1,ps_with_tr2_cond_tr1)
     rdata_name = paste(tr1,"_",tr2,"_input.RData",sep="")
     out_name = paste(tr1,"_",tr2,"_edgesep_em_output.RData",sep="")
     
-    if(out_name %in% list.files(out_path)){next}
+    # if(out_name %in% list.files(out_path)){next}
     rdata_name = paste(out_path,rdata_name,sep="")
     out_name = paste(out_path,out_name,sep="")
     
@@ -124,7 +111,7 @@ for(tr1 in colnames(GWAS_Ps)){
   }
 }
 
-# Run all pairs
+# Read the results
 edge_sep_em_res = c()
 for(tr1 in colnames(GWAS_Ps)){
   for(tr2 in colnames(GWAS_Ps)){
@@ -140,15 +127,25 @@ for(tr1 in colnames(GWAS_Ps)){
 }
 edge_sep_em_res = data.frame(edge_sep_em_res,stringsAsFactors = F)
 edge_sep_em_res[[3]] = as.numeric(as.character(edge_sep_em_res[[3]]))
+save(edge_sep_em_res,paste(out_path,"edge_sep_em_res.RData",sep=""))
 
 ##############################################################
 # A few local tests
 setwd("~/Desktop/causal_inference_projects/ms3/edge_sep_em/")
 setwd("/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/ukbb_res/em_edge_sep_jobs/")
-pval = get(load("Alanine_aminotransferase_statins_edgesep_em_output.RData"))
-ps = get(load("Alanine_aminotransferase_statins_input.RData"))
+pval = get(load("Vitamin_D_time_aggregated_depression_edgesep_em_output.RData"))
+ps = get(load("Vitamin_D_time_aggregated_depression_input.RData"))
 p1 = ps[,1]
 p2 = ps[,2]
 univar_mixtools_em(p1,p2,reps=3)
 simple_lfdr_test(p1,p2)
+param_bootstrap_test(p1,p2)
+
+tr1 = "Alanine_aminotransferase"
+tr2 = "statins"
+p1 = GWAS_Ps[,tr2]
+p2 = trait_pair_pvals[[tr2]][[tr1]][rownames(GWAS_Ps),"test3"]
+univar_mixtools_em(p1,p2,reps=3)
+simple_lfdr_test(p1,p2)
+
 

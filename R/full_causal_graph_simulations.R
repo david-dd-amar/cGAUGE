@@ -51,7 +51,7 @@ option_list <- list(
               help="When applying pleiotropy, this is the min number of IV-trait links to add (at random)"),
   make_option(c( "--maxPleio"), action="store", default=10,type="integer",
               help="When applying pleiotropy, this is the max number of IV-trait links to add (at random)"),
-  make_option(c( "--probPleio"), action="store", default=0.1,type="double",
+  make_option(c( "--probPleio"), action="store", default=0.4,type="double",
               help="Probability that a variant is pleiotropic"),
   make_option(c( "--minMAF"), action="store", default=0.05,type="double",
               help="Minimal MAF - these are sampled with U(minMAF,maxMAF)"),
@@ -500,14 +500,14 @@ if(edgeSepRun=="1"){
   )
   
   edge_sep_results_statTest1 = edge_sep_results_statTest1[
-    p.adjust(edge_sep_results_statTest1$`pval:trait1->trait2`)<0.01,]
+    p.adjust(edge_sep_results_statTest1$`pval:trait1->trait2`)<0.1,]
   print("EdgeSepTest1, Bonf correction (0.1), FDR and num discoveries:")
   print(paste(
     sum(edge_sep_results_statTest1$KnownDistance==-1)/nrow(edge_sep_results_statTest1),
     nrow(edge_sep_results_statTest1)))
 
   edge_sep_results_statTest2 = edge_sep_results_statTest2[
-    p.adjust(edge_sep_results_statTest2$`pval:trait1->trait2`)<0.01,]
+    p.adjust(edge_sep_results_statTest2$`pval:trait1->trait2`)<0.1,]
   print("EdgeSepTest1, Bonf correction (0.1), FDR and num discoveries:")
   print(paste(
     sum(edge_sep_results_statTest2$KnownDistance==-1)/nrow(edge_sep_results_statTest2),

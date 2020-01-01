@@ -216,8 +216,8 @@ remove_non_minimal_sepsets<-function(l){
   return(l)
 }
 
-# tr1 = "T13"
-# tr2 = "T9"
+# tr1 = "T3"
+# tr2 = "T13"
 # p1 = GWAS_Ps[,tr2]
 # p2 = trait_pair_pvals[[tr2]][[tr1]][,1]
 # z1 = -qnorm(p1)
