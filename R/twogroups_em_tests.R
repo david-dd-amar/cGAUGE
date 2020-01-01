@@ -95,7 +95,7 @@ modified_znormix <- function (p, z = NULL,start.pi0=0.85, eps = 1e-04,
   new.par
 }
 
-znormix_wrapper<-function(p, z = NULL, Nsamp = 1000,
+znormix_wrapper<-function(p, z = NULL, Nsamp = 5000,
           start.pi0s = seq(0.85,0.88,0.01),reps=10,...){
   znormix_vals = c()
   Nsamp = min(Nsamp,max(length(p),length(z)))
