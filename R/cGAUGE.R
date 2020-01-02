@@ -7,8 +7,17 @@
 # skeleton_pmax
 
 # Try loading required packages
-try({library(limma)})
-try({library(MendelianRandomization)})
+required_libs = c("igraph","bnlearn","MRPRESSO",
+                  "optparse","limma","MendelianRandomization",
+                  "mixtools","locfdr")
+lib_loc = "~/R/packages3.5"
+lib_loc = c(lib_loc,.libPaths())
+for (lib_name in required_libs){
+  tryCatch({library(lib_name,character.only = T,lib.loc = lib_loc)},
+           error = function(e) {
+             print(paste("Cannot load",lib_name,", please install"))
+           })
+}
 
 #' Use conditional independencies to infer the variants-traits skeleton.
 #' 
@@ -232,54 +241,53 @@ remove_non_minimal_sepsets<-function(l){
 #      cex.lab = 1.4)
 # abline(0,1,xpd=F,lwd=2,lty=2,col="red")
 
-#' Go over all trait pairs and run MR
-#' 
-#' @param G_VT A binary matrix. The instruments-trait skeleton from which genetic variants are chosen. 
-#' @param sum_stats A numeric matrix. Rows are instruments, columns are phenotypes. Values are effect sizes.
-#' @param sum_stats_se A numeric matrix. Rows are instruments, columns are phenotypes. Values are effect size standard errors.
-#' @param pleio_size A number. The maximal number of phenotypes added per variant 
-#' @param pruned_lists A named list. Contains a set of pruned or clumped variants per phenotype. The variant names should fit the rownames in the matrices above.
-#' @param ... Additional parameters to run_single_mr_analysis.
-#' @return A matrix. A row for each analyzed pair. First elements are phenotype 1 (cause), phenotype 2. Then the MR results (depend on the MR method used). Last element is the number of variants of phenotype 1 that were used in the analysis.
-run_pairwise_mr_analyses<-function(G_VT,sum_stats,sum_stats_se,
-                                   pleio_size=1, minIVs = 5,pruned_lists=NULL,...){
-  trait_pairs_analysis = c()
-  traits = colnames(G_VT)
-  num_tests = 0
-  iv2num_traits = rowSums(G_VT)
-  for(tr1 in traits){
-    iv2num_traits = rowSums(G_VT,na.rm=T)
-    ivs = G_VT[,tr1]==1 & iv2num_traits <= pleio_size
-    ivs[is.na(ivs)]=F
-    ivs = rownames(G_VT)[ivs]
-    if(!is.null(pruned_lists)){ivs = intersect(ivs,pruned_lists[[tr1]])}
-    if(length(ivs)<minIVs){next}
-    for(tr2 in traits){
-      if(tr1==tr2){next}
-      try({ # required as some MR methods may fail
-        curr_mr_res = run_single_mr_analysis(ivs,tr1,tr2,sum_stats,sum_stats_se,...);
-        trait_pairs_analysis = rbind(trait_pairs_analysis,c(tr1,tr2,curr_mr_res,length(ivs)))        
-      })
-    }
-  }
-  if(!is.null(dim(trait_pairs_analysis))){
-    colnames(trait_pairs_analysis) = c("Exposure","Outcome","p","p_het","est","Q","NumIVs")
-    trait_pairs_analysis = as.data.frame(trait_pairs_analysis)
-    for(j in 3:ncol(trait_pairs_analysis)){
-      trait_pairs_analysis[[j]] = as.numeric(as.character(trait_pairs_analysis[[j]]))
-    }
-  }
-  return(trait_pairs_analysis)
-}
+#' #' Go over all trait pairs and run MR
+#' #' 
+#' #' @param G_VT A binary matrix. The instruments-trait skeleton from which genetic variants are chosen. 
+#' #' @param sum_stats A numeric matrix. Rows are instruments, columns are phenotypes. Values are effect sizes.
+#' #' @param sum_stats_se A numeric matrix. Rows are instruments, columns are phenotypes. Values are effect size standard errors.
+#' #' @param pleio_size A number. The maximal number of phenotypes added per variant 
+#' #' @param pruned_lists A named list. Contains a set of pruned or clumped variants per phenotype. The variant names should fit the rownames in the matrices above.
+#' #' @param ... Additional parameters to run_single_mr_analysis.
+#' #' @return A matrix. A row for each analyzed pair. First elements are phenotype 1 (cause), phenotype 2. Then the MR results (depend on the MR method used). Last element is the number of variants of phenotype 1 that were used in the analysis.
+#' run_pairwise_mr_analyses<-function(G_VT,sum_stats,sum_stats_se,
+#'                                    pleio_size=1, minIVs = 5,pruned_lists=NULL,...){
+#'   trait_pairs_analysis = c()
+#'   traits = colnames(G_VT)
+#'   num_tests = 0
+#'   iv2num_traits = rowSums(G_VT)
+#'   for(tr1 in traits){
+#'     iv2num_traits = rowSums(G_VT,na.rm=T)
+#'     ivs = G_VT[,tr1]==1 & iv2num_traits <= pleio_size
+#'     ivs[is.na(ivs)]=F
+#'     ivs = rownames(G_VT)[ivs]
+#'     if(!is.null(pruned_lists)){ivs = intersect(ivs,pruned_lists[[tr1]])}
+#'     if(length(ivs)<minIVs){next}
+#'     for(tr2 in traits){
+#'       if(tr1==tr2){next}
+#'       try({ # required as some MR methods may fail
+#'         curr_mr_res = run_single_mr_analysis(ivs,tr1,tr2,sum_stats,sum_stats_se,...);
+#'         trait_pairs_analysis = rbind(trait_pairs_analysis,c(tr1,tr2,curr_mr_res,length(ivs)))        
+#'       })
+#'     }
+#'   }
+#'   if(!is.null(dim(trait_pairs_analysis))){
+#'     colnames(trait_pairs_analysis) = c("Exposure","Outcome","p","p_het","est","Q","NumIVs")
+#'     trait_pairs_analysis = as.data.frame(trait_pairs_analysis)
+#'     for(j in 3:ncol(trait_pairs_analysis)){
+#'       trait_pairs_analysis[[j]] = as.numeric(as.character(trait_pairs_analysis[[j]]))
+#'     }
+#'   }
+#'   return(trait_pairs_analysis)
+#' }
 
 
 #' Go over all trait pairs and run MR using cGAUGE's instrument sets
 #' 
-#' @param G_VT A binary matrix. The instruments-trait skeleton from which genetic variants are chosen. 
 #' @param sum_stats A numeric matrix. Rows are instruments, columns are phenotypes. Values are effect sizes.
 #' @param sum_stats_se A numeric matrix. Rows are instruments, columns are phenotypes. Values are effect size standard errors.
-#' @param pleio_size A number. The maximal number of phenotypes added per variant 
-#' @param pruned_lists A named list. Contains a set of pruned or clumped variants per phenotype. The variant names should fit the rownames in the matrices above.
+#' @param iv_sets a list of lists, entry [[a]][[b]] is the snp ids or indices for the MR of a->b 
+#' @param minIVs a number, ignore iv sets with less than minIVs snps
 #' @param ... Additional parameters to run_single_mr_analysis.
 #' @return A matrix. A row for each analyzed pair. First elements are phenotype 1 (cause), phenotype 2. Then the MR results (depend on the MR method used). Last element is the number of variants of phenotype 1 that were used in the analysis.
 run_pairwise_mr_analyses_with_iv_sets<-function(sum_stats,sum_stats_se,iv_sets,
@@ -310,42 +318,11 @@ run_pairwise_mr_analyses_with_iv_sets<-function(sum_stats,sum_stats_se,iv_sets,
 
 #' Go over all trait pairs compute the proportion of non-null p-values.
 #'  
-#' @param G_VT A binary matrix. The instruments-trait skeleton from which genetic variants are chosen. 
+#' @param iv_sets a list of lists, entry [[a]][[b]] is the snp ids or indices for the MR of a->b 
 #' @param GWAS_Ps A matrix. Rows are variants and columns are phenotypes. Cells are P-values.
-#' @param pleio_size A number. The maximal number of phenotypes added per variant 
 #' @param pruned_lists A named list. Contains a set of pruned or clumped variants per phenotype. The variant names should fit the rownames in the matrices above.
-#' @return A matrix. A row for each analyzed pair. First elements are phenotype 1 (cause), phenotype 2. Then the estimated proportion and the number of variants of phenotype 1 that were used in the analysis.
-run_pairwise_pval_combination_analyses<-function(G_VT,GWAS_Ps,pleio_size=1,pruned_lists=NULL,maxp=0.001){
-  trait_pairs_analysis = c()
-  traits = colnames(G_VT)
-  num_tests = 0
-  iv2num_traits = rowSums(G_VT)
-  for(tr1 in traits){
-    ivs = G_VT[,tr1]==1 & iv2num_traits <= pleio_size
-    ivs = rownames(G_VT)[ivs]
-    if(!is.null(pruned_lists)){ivs = intersect(ivs,pruned_lists[[tr1]])}
-    if(length(ivs)<1){next}
-    for(tr2 in traits){
-      if(tr1==tr2){next}
-      curr_ps = GWAS_Ps[ivs,tr2]
-      curr_ps = pmax(curr_ps,maxp)
-      curr_ps = curr_ps[!is.na(curr_ps)]
-      if(length(curr_ps)==0){next}
-      curr_prop = 1-propTrueNull(curr_ps)
-      trait_pairs_analysis = rbind(trait_pairs_analysis,c(tr1,tr2,curr_prop,length(ivs)))
-    }
-  }
-  return(trait_pairs_analysis)
-}
-
-#' Go over all trait pairs compute the proportion of non-null p-values.
-#'  
-#' @param G_VT A binary matrix. The instruments-trait skeleton from which genetic variants are chosen. 
-#' @param GWAS_Ps A matrix. Rows are variants and columns are phenotypes. Cells are P-values.
-#' @param pleio_size A number. The maximal number of phenotypes added per variant 
-#' @param pruned_lists A named list. Contains a set of pruned or clumped variants per phenotype. The variant names should fit the rownames in the matrices above.
-#' @return A matrix. A row for each analyzed pair. First elements are phenotype 1 (cause), phenotype 2. Then the estimated proportion and the number of variants of phenotype 1 that were used in the analysis.
-run_pairwise_pval_combination_analysis_from_iv_sets<-function(iv_sets,GWAS_Ps,maxp=0.001){
+#' @return A matrix. A row for each analyzed trait pair with the estimates of the outcome non-null exposure instruments. We use limma for estimation using the theoretical null.
+run_pairwise_pval_combination_analysis_from_iv_sets<-function(iv_sets,GWAS_Ps){
   trait_pairs_analysis = c()
   traits = colnames(GWAS_Ps)
   num_tests = 0
@@ -355,46 +332,66 @@ run_pairwise_pval_combination_analysis_from_iv_sets<-function(iv_sets,GWAS_Ps,ma
       ivs = iv_sets[[tr1]][[tr2]]
       if(length(ivs)<2){next}
       curr_ps = GWAS_Ps[ivs,tr2]
-      curr_ps = pmax(curr_ps,maxp)
       curr_ps = curr_ps[!is.na(curr_ps)]
       if(length(curr_ps)==0){next}
-      curr_prop = 1-propTrueNull(curr_ps)
-      trait_pairs_analysis = rbind(trait_pairs_analysis,c(tr1,tr2,curr_prop,length(ivs)))
+      limma_lfdr_prop = 1-propTrueNull(curr_ps)
+      limma_hist_prop = 1-propTrueNull(curr_ps,method = "hist")
+      trait_pairs_analysis = 
+        rbind(trait_pairs_analysis,c(tr1,tr2,limma_lfdr_prop,limma_hist_prop,length(ivs)))
     }
   }
+  colnames(trait_pairs_analysis) = c("tr1->","tr2","lfdr_pi_1","convest_pi_1","numIVs")
   return(trait_pairs_analysis)
 }
 
-# For NonPleioMR we need two types of filters: one using analysis thresholds and one using skeleton Edges
-combine_mm_mr_analyses<-function(mm,mr,p_thr=0.1,p_h_thr=0,pi1_thr=0.5,minIVs=5){
+#' Combine and filter the pairwise MR and meta-analysis results
+#' @param mm a matrix with the meta-analysis results, each row represents a pair
+#' @param mr a matrix with the MR results, each row represents a pair
+#' @param p_thr numeric, a threshold for the MR adjusted p-values
+#' @param adj_method character, the name of the p-value adjustment method, default is BY, see p.adjust for details
+#' @param p_h_thr numeric, trait pairs with heterogeneity p-value < p_h_thr are removed, default is 1 - avoids using this filter
+#' @param minIVs numeric, trait pairs whose analysis is based on less than this number are excluded
+#' @return a matrix with the combined meta-analysis and Mendelian randomization results
+combine_mm_mr_analyses<-function(mm,mr,p_thr=0.01,adj_method="BY",
+                                 p_h_thr=1,minIVs=5){
   names1 = paste(mm[,1],mm[,2],sep="->")
   names2 = paste(mr[,1],mr[,2],sep="->")
   rownames(mm) = names1;rownames(mr)=names2
   inds =intersect(names1,names2)
   mm=mm[inds,];mr=mr[inds,]
   # filters of the results
-  corrected_ps = p.adjust(as.numeric(as.character(mr[,3])),method="fdr")
+  corrected_ps = p.adjust(as.numeric(as.character(mr[,3])),method=adj_method)
   filter1 = corrected_ps <= p_thr
-  pi1s = as.numeric(as.character(mm[,4]))
-  filter2 = pi1s >= pi1_thr
   p_hs = p.adjust(as.numeric(as.character(mr[,4])))
-  filter3 = p_hs >= p_h_thr
-  filter4 = as.numeric(as.character(mr[,ncol(mr)])) >= minIVs
-  res_inds = (filter2 & filter4) | (filter1 & filter4 & filter3)
+  filter2 = p_hs >= p_h_thr
+  filter3 = as.numeric(as.character(mr[,ncol(mr)])) >= minIVs
+  res_inds = filter1 & filter2 & filter3
   res_inds[is.na(res_inds)]=F
-  res = cbind(mr[res_inds,c(1:3,5)],mm[res_inds,3:4])
-  colnames(res) = c("Cause","Effect","P","Est","Pi1","NumIVs")
+  res = cbind(mr[res_inds,c(1:3,5)],mm[res_inds,c("lfdr_pi_1","numIVs")])
+  colnames(res) = c("tr1->","tr2","p_MR","Est","pi1","numIVs")
+  # add a binary column for edge direction
+  effect_direction = rep("Up",nrow(res))
+  effect_direction[as.numeric(res[,"Est"])<0] = "Down"
+  res = cbind(res,effect_direction)
+  log10p = -log10(as.numeric(res[,"p_MR"]))
+  res = cbind(res,log10p)
+  colnames(res) = c("tr1->","tr2","p_MR","Est","pi1","numIVs","EdgeDirection","-log10p_MR")
   return(res)
 }
 
-clean_non_pleio_pairs<-function(res,G_t){
-  to_keep = rep(T,nrow(res))
+#' Add a column that indicates for each pair if it is a skeleton edge or not
+#' 
+#' @param res a matrix, the first two columns are the exposure (tr1->) and the outcome
+#' @param G_t a binary matrix that represents the skeleton of the traits
+#' @return res with a new column, is_skeleton_edge
+add_is_non_edge_column<-function(res,G_t){
+  is_skeleton_edge = rep(F,nrow(res))
   for(i in 1:nrow(res)){
     tr1 = res[i,1];tr2=res[i,2]
-    if(is.na(G_t[tr1,tr2]) || G_t[tr1,tr2]>0){to_keep[i]=F}
+    if(is.na(G_t[tr1,tr2]) || G_t[tr1,tr2]>0){is_skeleton_edge=T}
   }
-  non_pleio_res = res[to_keep,]
-  return(non_pleio_res)
+  res = cbind(res,is_skeleton_edge)
+  return(res)
 }
 
 ##############################################################

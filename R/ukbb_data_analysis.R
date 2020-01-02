@@ -2,7 +2,7 @@
 # Set the session
 required_libs = c("igraph","bnlearn","MRPRESSO",
                   "optparse","limma","MendelianRandomization",
-                  "mixtools")
+                  "mixtools","locfdr")
 lib_loc = "~/R/packages3.5"
 lib_loc = c(lib_loc,.libPaths())
 for (lib_name in required_libs){
@@ -69,7 +69,6 @@ system(paste("mkdir",out_path))
 # this loads the list of pairwise CI tests
 load(genetic_ci_tests_plink_path)
 # this loads the standard GWAS results
-load(gwas_res_data)
 # load the skeleton: get a matrix of the maximal association p-values
 # and an object of the separating sets for non-edges
 load(skeleton_file)
@@ -229,10 +228,9 @@ save(p12G_t,file = paste(out_path,"p12G_t.RData",sep=""))
 
 # Load the EdgeSep results, create output files and networks
 load(paste(out_path,"p12G_t.RData",sep=""))
-load()
+load("/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/ukbb_res/em_edge_sep_jobs/edge_sep_em_res.RData")
 
 # For MR: check different combinations of the input parameters p1 and p2
-load(paste(out_path,"p12G_t.RData",sep=""))
 for(p1 in P1s){
   G_t = p12G_t[[as.character((p1))]]$G_t
   mseps = p12G_t[[as.character((p1))]]$mseps
@@ -260,60 +258,52 @@ for(p1 in P1s){
         
         iv_sets_thm22[[tr1]][[tr2]] = rownames(GWAS_Ps)[!is.na(GWAS_Ps[,tr1]) & GWAS_Ps[,tr1]<p1]
         iv_sets_thm22[[tr1]][[tr2]] = intersect(iv_sets_thm22[[tr1]][[tr2]],uniquely_mapped_ivs)
-        
-        # print(paste("before:",sum(GWAS_Ps[,tr1] < p1,na.rm=T),
-        #             "after:",length(iv_sets_thm21[[tr1]][[tr2]]),
-        #             "sepNodes:",length(currseps),
-        #             "thm22: ", length(iv_sets_thm22[[tr1]][[tr2]])))
       }
     }
     
     # Analysis 5.1: simple meta-analysis on all pairs
-    meta_anal_res_thm21 = run_pairwise_pval_combination_analysis_from_iv_sets(iv_sets_thm22,GWAS_Ps,maxp=0.001)
+    meta_anal_res_thm21 = run_pairwise_pval_combination_analysis_from_iv_sets(iv_sets_thm21,GWAS_Ps,maxp=0.001)
     meta_anal_res_thm22 = run_pairwise_pval_combination_analysis_from_iv_sets(iv_sets_thm22,GWAS_Ps,maxp=0.001)
     ivw_res_thm21 = run_pairwise_mr_analyses_with_iv_sets(
       sum_stat_matrix,sum_stat_se_matrix,iv_sets_thm21,func=mr_ivw,robust=T)
     ivw_res_thm22 = run_pairwise_mr_analyses_with_iv_sets(
       sum_stat_matrix,sum_stat_se_matrix,iv_sets_thm22,func=mr_ivw,robust=T)
     print("Done updating the MR results")
-    
-    cleaned_Egger_res = combine_mm_mr_analyses(meta_anal_res,mr_anal_res[["Egger"]],
-                                               pi1_thr=2,p_h_thr = -1,minIVs = 3)
-    colnames(cleaned_Egger_res) = c("tr1->","tr2","p_MR","Est","pi1","numIVs")
-    cleaned_Egger_res_non_pleio = clean_non_pleio_pairs(cleaned_Egger_res,G_t)
-    is_non_pleio = is.element(rownames(cleaned_Egger_res),set=rownames(cleaned_Egger_res_non_pleio))
-    cleaned_Egger_res = cbind(cleaned_Egger_res,is_non_pleio)
-    effect_direction = rep("Up",nrow(cleaned_Egger_res))
-    effect_direction[as.numeric(cleaned_Egger_res[,"Est"])<0] = "Down"
-    cleaned_Egger_res = cbind(cleaned_Egger_res,effect_direction)
+    thm21_res = combine_mm_mr_analyses(meta_anal_res_thm21,ivw_res_thm21,
+                                        p_h_thr = -1,minIVs = 3)
+    thm22_res = combine_mm_mr_analyses(meta_anal_res_thm22,ivw_res_thm22,
+                                       p_h_thr = -1,minIVs = 3)
+    thm21_res = add_is_non_edge_column(thm21_res,G_t)
+    thm22_res = add_is_non_edge_column(thm22_res,G_t)
     
     # Represent the selected edges nicely
-    mr_edges = cleaned_Egger_res
-    rownames(mr_edges) = NULL
-    mr_edges[,1] = pheno_names[mr_edges[,1]]
-    mr_edges[,2] = pheno_names[mr_edges[,2]]
-    mr_edges[,3] = -log(as.numeric(as.character(mr_edges[,3]))+1e-100,10)
-    write.table(mr_edges,file=paste(out_path,"mr_Egger_non_pleio_",p1,"_",p2,".txt",sep=""),
+    thm21_res[,1] = pheno_names[thm21_res[,1]]
+    thm21_res[,2] = pheno_names[thm21_res[,2]]
+    thm22_res[,1] = pheno_names[thm22_res[,1]]
+    thm22_res[,2] = pheno_names[thm22_res[,2]]
+    
+    write.table(thm21_res,file=paste(out_path,
+                "mr_thm21_res_",p1,"_",p2,".txt",sep=""),
                 quote=F,row.names = F,col.names = T,sep="\t")
-    mr_edges2 = mr_edges[as.numeric(mr_edges[,6])>9,]
-    write.table(mr_edges2,file=paste(out_path,"mr_Egger_non_pleio_atleast_10_ivs_",p1,"_",p2,".txt",sep=""),
+    thm21_res2 = thm21_res[as.numeric(thm21_res[,"numIVs"])>9,]
+    write.table(thm21_res2,file=paste(out_path,
+                "mr_thm21_res_atleast_10_ivs_",p1,"_",p2,".txt",sep=""),
+                quote=F,row.names = F,col.names = T,sep="\t")
+    
+    write.table(thm22_res,file=paste(out_path,
+                "mr_thm22_res_",p1,"_",p2,".txt",sep=""),
+                quote=F,row.names = F,col.names = T,sep="\t")
+    thm22_res2 = thm22_res[as.numeric(thm22_res[,"numIVs"])>9,]
+    write.table(thm22_res2,file=paste(out_path,
+                  "mr_thm22_res_atleast_10_ivs_",p1,"_",p2,".txt",sep=""),
                 quote=F,row.names = F,col.names = T,sep="\t")
     
     ####################################################################################################
     # save the results of the analysis for further examination
     save(
-      G_it_0, # The original associations of the GWAS without conditional independence filtering
-      G_t,G_it, # the skeleton of the traits
-      G_t_edges, # nice representation of skeleton edges
-      detected_cis_per_edge, # Edges that cause separation
-      edge_orientation_res, # Summary of the disappearing assoc analysis
-      updated_skel, # loci-trait skeleton
-      newly_formed_sigs, # Emerging associations
-      partial_ev_res, # summary of the emerging assoc analysis
-      cleaned_Egger_res, # MR+Meta-analysis results after filters
-      mr_edges, # MR+MM discovered edges - same as cleaned_Egger_res but formatted nicely
-      mr_anal_res, # All MR results
-      meta_anal_res, # All meta-analysis results with Stouffers method and maxp=0.001
+      GWAS_Ps, # The original associations of the GWAS without conditional independence filtering
+      G_t,G_vt, # the skeletons
+      thm21_res,thm22_res, # MR+Meta-analysis results after filters
       file = paste(out_path,"cgauge_res_",p1,"_",p2,".RData",sep="")
     )
   }
