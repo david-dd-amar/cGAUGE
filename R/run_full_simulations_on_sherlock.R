@@ -40,9 +40,9 @@ exec_cmd_on_sherlock<-function(cmd,jobname,out_path){
 
 ###################################################################################
 reps = 40
-WD = "/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/simulations_uniqueivs/"
+WD = "/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/simulations_edgesep/"
 try(system(paste("mkdir",WD)))
-MAX_JOBS = 250
+MAX_JOBS = 400
 
 tested_p1 = c(1e-02,1e-03,1e-04,1e-05)
 tested_p2_factors = c(1,10,100)
@@ -66,13 +66,12 @@ for(p1 in tested_p1){
         system(paste("mkdir",curr_folder))
         
         # check current jobs and wait if there are too much
-        # job_state = system2("squeue",args = list("-u davidama | wc"),stdout=TRUE)
-        job_state = system2("sacct",args = list("| grep PEND | wc"),stdout=TRUE)
-        num_curr_waiting_jobs = as.numeric(strsplit(job_state,split="\\s+",perl = T)[[1]][2])
-        while(num_curr_waiting_jobs > MAX_JOBS){
+        job_state = system2("squeue",args = list("-u davidama | wc"),stdout=TRUE)
+        num_active_jobs = as.numeric(strsplit(job_state,split="\\s+",perl = T)[[1]][2])
+        while(num_active_jobs > MAX_JOBS){
           Sys.sleep(5)
-          job_state = system2("sacct",args = list("| grep PEND | wc"),stdout=TRUE)
-          num_curr_waiting_jobs = as.numeric(strsplit(job_state,split="\\s+",perl = T)[[1]][2])
+          job_state = system2("squeue",args = list("-u davidama | wc"),stdout=TRUE)
+          num_active_jobs = as.numeric(strsplit(job_state,split="\\s+",perl = T)[[1]][2])
         }
         
         for(i in 1:reps){
@@ -84,6 +83,7 @@ for(p1 in tested_p1){
             "--deg",deg,
             "--probPleio",pleio_p,
             "--cgaugeMode 1",
+            "--edgeSepRun 1",
             "--p1",p1,
             "--p2",p2,
             "--out",curr_out_file
@@ -128,8 +128,8 @@ for(p1 in tested_p1){
 #   }
 # }
 
-
-# Read the simulation results
+###############################################################
+# Read and save the simulation results - all methods
 FDR = 0.1
 FDR_method = "BY"
 is_causal<-function(dists){
@@ -248,34 +248,121 @@ for(p1 in tested_p1){
     }
   }
 }
-mean_errs = aggregate(all_sim_results_errs[,1:10],
-          by=list(p1=all_sim_results_errs$p1,p2=all_sim_results_errs$p2,
-          deg = all_sim_results_errs$deg,prob_pleio = all_sim_results_errs$prob_pleio),
-          FUN=mean)
 
-sd_errs = aggregate(all_sim_results_errs[,1:10],
-           by=list(p1=all_sim_results_errs$p1,p2=all_sim_results_errs$p2,
-              deg = all_sim_results_errs$deg,prob_pleio = all_sim_results_errs$prob_pleio),
-                 FUN=sd)
-mean_num_discoveries = aggregate(all_sim_results_preds[,1:10],
-            by=list(p1=all_sim_results_errs$p1,p2=all_sim_results_errs$p2,
-             deg = all_sim_results_errs$deg,prob_pleio = all_sim_results_errs$prob_pleio),
-                  FUN=mean)
+###############################################################
+# Read and save the simulation results - 
+# when running EdgeSep statistical tests only
+FDR = 0.1
+FDR_method = "BY"
+is_causal<-function(dists){
+  return(dists>0 )
+}
+
+all_sim_results_errs = c()
+all_sim_results_preds = c()
+for(p1 in tested_p1){
+  print(paste("p1",p1))
+  for(p2_f in tested_p2_factors){
+    p2 = p1*p2_f
+    print(paste("p2",p2))
+    if(p2 >0.1){next}
+    if(p2<p1){next}
+    print(paste("p2",p2))
+    for(pleio_p in tested_pleio_levels){
+      print(paste("pleio_p",pleio_p))
+      for(deg in tested_degrees){
+        print(paste("deg",deg))
+        curr_folder = paste(WD,"deg",deg,"_pleio",pleio_p,"_p1",p1,"_p2",p2,"/",sep="")
+        curr_files = list.files(curr_folder)
+        curr_files = curr_files[grepl("RData$",curr_files)]
+        print(length(curr_files))
+        if(length(curr_files)<reps){
+          print("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$")
+          print(curr_folder)
+          print("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$")
+          if(length(curr_files)==0){next}
+        }
+        
+        # Measure how many of the "-1"'s are marked as TRUE - obvious errors
+        method2false_discoveries = c()
+        method2num_discoveries = c()
+        for(curr_out_file in curr_files){
+          curr_out_file = paste(curr_folder,curr_out_file,sep="")
+          load(curr_out_file)
+          
+          errs = c();preds = c();edgesep_res = c()
+          
+          # EdgeSepTest 1
+          edge_sep_results_statTest1 = 
+            edge_sep_results_statTest1[
+              p.adjust(edge_sep_results_statTest1$`pval:trait1->trait2`,method=FDR_method)<FDR,]
+          errs["edge_sep_test1"] = sum(!is_causal(edge_sep_results_statTest1$KnownDistance))
+          preds["edge_sep_test1"] = nrow(edge_sep_results_statTest1)
+          
+          # EdgeSepTest 2
+          edge_sep_results_statTest2 = 
+            edge_sep_results_statTest2[
+              p.adjust(edge_sep_results_statTest2$`pval:trait1->trait2`,method=FDR_method)<FDR,]
+          errs["edge_sep_test2"] = sum(!is_causal(edge_sep_results_statTest2$KnownDistance))
+          preds["edge_sep_test2"] = nrow(edge_sep_results_statTest2)
+          
+          method2num_discoveries = rbind(method2num_discoveries,preds)
+          method2false_discoveries = rbind(method2false_discoveries,errs)
+          
+        }
+        method2num_discoveries = as.data.frame(method2num_discoveries)
+        method2false_discoveries = as.data.frame(method2false_discoveries)
+        
+        method2false_discoveries$p1 = p1
+        method2false_discoveries$p2 = p2
+        method2false_discoveries$prob_pleio = pleio_p
+        method2false_discoveries$deg = deg
+        
+        method2num_discoveries$p1 = p1
+        method2num_discoveries$p2 = p2
+        method2num_discoveries$prob_pleio = pleio_p
+        method2num_discoveries$deg = deg
+        
+        all_sim_results_errs = rbind(all_sim_results_errs,method2false_discoveries)
+        all_sim_results_preds = rbind(all_sim_results_preds,method2num_discoveries)
+      }
+    }
+  }
+}
+
+###############################################################
+# Summarize and save
+colinds = 1:10 # when testing all methods
+colinds = 1:2 # when testing the edgesep tests only
+
+mean_errs = aggregate(all_sim_results_errs[,colinds],
+                      by=list(p1=all_sim_results_errs$p1,p2=all_sim_results_errs$p2,
+                              deg = all_sim_results_errs$deg,prob_pleio = all_sim_results_errs$prob_pleio),
+                      FUN=mean)
+
+sd_errs = aggregate(all_sim_results_errs[,colinds],
+                    by=list(p1=all_sim_results_errs$p1,p2=all_sim_results_errs$p2,
+                            deg = all_sim_results_errs$deg,prob_pleio = all_sim_results_errs$prob_pleio),
+                    FUN=sd)
+mean_num_discoveries = aggregate(all_sim_results_preds[,colinds],
+                                 by=list(p1=all_sim_results_errs$p1,p2=all_sim_results_errs$p2,
+                                         deg = all_sim_results_errs$deg,prob_pleio = all_sim_results_errs$prob_pleio),
+                                 FUN=mean)
 
 
-all_sim_results_fdrs = (all_sim_results_errs/all_sim_results_preds)[,1:10]
+all_sim_results_fdrs = (all_sim_results_errs/all_sim_results_preds)[,colinds]
 all_sim_results_fdrs[is.nan(as.matrix(all_sim_results_fdrs))] = 0
 all_sim_results_fdrs = 
   cbind(all_sim_results_fdrs,all_sim_results_errs[,c("p1","p2","deg","prob_pleio")])
 mean_fdrs = aggregate(all_sim_results_fdrs,
-              by=list(p1=all_sim_results_errs$p1,p2=all_sim_results_errs$p2,
-                deg = all_sim_results_errs$deg,prob_pleio = all_sim_results_errs$prob_pleio),
-                FUN=mean,na.rm=T)
+                      by=list(p1=all_sim_results_errs$p1,p2=all_sim_results_errs$p2,
+                              deg = all_sim_results_errs$deg,prob_pleio = all_sim_results_errs$prob_pleio),
+                      FUN=mean,na.rm=T)
 
 sd_fdrs = aggregate(all_sim_results_fdrs,
-            by=list(p1=all_sim_results_errs$p1,p2=all_sim_results_errs$p2,
-              deg = all_sim_results_errs$deg,prob_pleio = all_sim_results_errs$prob_pleio),
-              FUN=sd,na.rm=T)
+                    by=list(p1=all_sim_results_errs$p1,p2=all_sim_results_errs$p2,
+                            deg = all_sim_results_errs$deg,prob_pleio = all_sim_results_errs$prob_pleio),
+                    FUN=sd,na.rm=T)
 
 save(
   all_sim_results_errs,all_sim_results_preds,

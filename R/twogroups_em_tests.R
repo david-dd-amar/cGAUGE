@@ -271,7 +271,7 @@ univar_mixtools_em<-function(p1,p2,zthr = 10,...){
   # define the differences
   zz = z1-z2
   try({
-    possible_means = c(0,-z2_m[4],z1_m[4]-z2_m[4],z1_m[4])
+    possible_means = c(z1_m[2]-z2_m[2],z1_m[2]-z2_m[4],z1_m[4]-z2_m[4],z1_m[4]-z2_m[2])
     null_prior = c(0.8,rep(0.2/2,2))
     null_m = normalmixEM_wrapper(zz,lambda = null_prior,
                                  mean.constr = possible_means[1:3],k=3,...)
