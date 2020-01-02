@@ -50,11 +50,12 @@ genetic_ci_tests_plink_path = "/oak/stanford/groups/mrivas/users/davidama/april2
 #' maximal p-values for each pair (overl all tests)
 #' a matrix with all potential separating sets (p>1e-10) for each pair
 skeleton_file = "/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/Gs_skeleton.RData"
-
+#' This is a prefix of the frq and bim files that contain the MAFs and SNP ids and locations
+#' These are used to filter out low MAF SNPs and the MHC region
 geno_data_path = "/oak/stanford/groups/mrivas/users/davidama/april2019_traits_genotypes/all_genotypes"
+#' This RData file contains the standard (marginal) GWAS results,
+#' adjusted for sex, age, and PCs
 gwas_res_data = "/oak/stanford/groups/mrivas/users/davidama/april2019_causal_analysis_flow_input.RData"
-gwas_res_path = "/oak/stanford/groups/mrivas/users/davidama/gwas_res/"
-
 #' Set a path for the output files
 out_path = "/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/ukbb_res/"
 
@@ -227,6 +228,8 @@ save(p12G_t,file = paste(out_path,"p12G_t.RData",sep=""))
 #                                          text_col_name="test3",test = univar_mixtools_em)
 
 # Load the EdgeSep results, create output files and networks
+load(paste(out_path,"p12G_t.RData",sep=""))
+load()
 
 # For MR: check different combinations of the input parameters p1 and p2
 load(paste(out_path,"p12G_t.RData",sep=""))
