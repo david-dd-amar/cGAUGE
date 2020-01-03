@@ -318,36 +318,67 @@ for(p1 in P1s){
 }
 
 # Add MR-PRESSO estimates
-cgauge_mrpresso_res = c()
-mrpresso_wrapper <-function(ivs,GWAS_effects,GWAS_ses,minIVs=5){
+#' A helper function for running MRPRESSO in parallel
+#' tr1 - exposure
+#' tr2 - outcome
+#' iv_sets - a list with tr1's instruments for every tr2
+mrpresso_wrapper <-function(tr2,iv_sets,GWAS_effects,GWAS_ses,minIVs=5,tr1){
+  ivs = iv_sets[[tr2]]
   if(length(ivs) < minIVs){return(NULL)}
-  X = data.frame(E1b=GWAS_effects[currivs,tr1],O1b=GWAS_effects[currivs,tr2],
-                 E1sd=GWAS_ses[currivs,tr1],O1sd=GWAS_ses[currivs,tr2])
-  res = NULL;resv = NULL
+  X = data.frame(E1b=GWAS_effects[ivs,tr1],O1b=GWAS_effects[ivs,tr2],
+                 E1sd=GWAS_ses[ivs,tr1],O1sd=GWAS_ses[ivs,tr2])
   try({
     res = mr_presso(BetaOutcome = "O1b", BetaExposure = "E1b", 
                     SdOutcome = "O1sd", SdExposure = "E1sd",data=X,
                     OUTLIERtest=T,
                     DISTORTIONtest = T,
-                    NbDistribution = 100,SignifThreshold = 0.1)
-    if(is.na(res$`Main MR results`[2,"P-value"])){
-      resv = unlist(res$`Main MR results`[1,])
-    }
-    else{
-      resv = unlist(res$`Main MR results`[2,])
-    }
+                    NbDistribution = 1000,SignifThreshold = 0.1)
+    res$tr1 = tr1
+    res$tr2 = tr2
+    return(res)
   })
-  return(resv)
+  return(NULL)
 }
+
 library(parallel)
-
-
-for(tr1 in phenos){
-  l = iv_sets[[tr1]]
-  l_presso_res = mclapply(l,mrpresso_wrapper,
-       GWAS_effects =sum_stat_matrix ,GWAS_ses = sum_stat_se_matrix,minIVs=5)
-  names(l_presso_res) = names(l)
+for(p1 in P1s){
+  G_t = p12G_t[[as.character((p1))]]$G_t
+  for (p2 in P2s){
+    load(paste(out_path,"cgauge_res_",p1,"_",p2,".RData",sep=""))
+    cgauge_mrpresso_res_thm22 = list()
+    for(tr1 in names(iv_sets_thm22)){
+      l = iv_sets_thm22[[tr1]]
+      print(tr1)
+      l_presso_res = mclapply(names(l),mrpresso_wrapper,iv_sets=l,
+          GWAS_effects =sum_stat_matrix ,GWAS_ses = sum_stat_se_matrix,minIVs=5,
+          tr1 = tr1,mc.cores = 6)
+      cgauge_mrpresso_res_thm22 = c(cgauge_mrpresso_res_thm22,l_presso_res)
+    }
+    # Get the results in a similar format to the other MR analyses
+    
+    cgauge_mrpresso_thm22 = c()
+    for(l in cgauge_mrpresso_res_thm22){
+      if(is.null(l)){next}
+      causalp = l[[1]][2,"P-value"]
+      causalest = l[[1]][2,"Causal Estimate"]
+      if(is.na(causalp)){
+        causalp = l[[1]][1,"P-value"]
+        causalest = l[[1]][1,"Causal Estimate"]
+      }
+      p_het = l[["MR-PRESSO results"]][["Global Test"]]$Pvalue
+      v = c(l$tr1,l$tr2,causalp,p_het,causalest,NA,
+            length(iv_sets_thm22[[l$tr1]][[l$tr2]]))
+      names(v) = c("Exposure","Outcome","p","p_het","est","Q","NumIVs")
+      cgauge_mrpresso_thm22 = rbind(cgauge_mrpresso_thm22,v)
+    }
+    cgauge_mrpresso_thm22 = as.data.frame(cgauge_mrpresso_thm22)
+    for(j in 3:ncol(cgauge_mrpresso_thm22)){
+      cgauge_mrpresso_thm22[[j]] = as.numeric(as.character(cgauge_mrpresso_thm22[[j]]))
+    }
+  }
 }
+
+
 if(!is.null(dim(cgauge_mrpresso_res))){
   cgauge_mrpresso_res = as.data.frame(cgauge_mrpresso_res)
   for(j in 3:ncol(cgauge_mrpresso_res)){
