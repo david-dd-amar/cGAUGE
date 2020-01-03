@@ -69,6 +69,7 @@ system(paste("mkdir",out_path))
 # this loads the list of pairwise CI tests
 load(genetic_ci_tests_plink_path)
 # this loads the standard GWAS results
+load(gwas_res_data)
 # load the skeleton: get a matrix of the maximal association p-values
 # and an object of the separating sets for non-edges
 load(skeleton_file)
@@ -117,7 +118,6 @@ missing_names = setdiff(colnames(snp_matrix),names(pheno_names))
 pheno_names[missing_names] = missing_names
 missing_names2 = setdiff(colnames(snp_matrix),names(icd2name))
 icd2name[missing_names2] = missing_names2
-
 save(pheno_names,icd2name,rivaslab_codes,file=
        paste(out_path,"all_pheno_name_metadata.RData",sep=""))
 
@@ -275,6 +275,8 @@ for(p1 in P1s){
                                        p_h_thr = -1,minIVs = 3)
     thm21_res = add_is_non_edge_column(thm21_res,G_t)
     thm22_res = add_is_non_edge_column(thm22_res,G_t)
+    thm21_res = add_edgesep_res_column(thm21_res,edge_sep_em_res,G_t)
+    thm22_res = add_edgesep_res_column(thm22_res,edge_sep_em_res,G_t)
     
     # Represent the selected edges nicely
     thm21_res[,1] = pheno_names[thm21_res[,1]]
@@ -298,16 +300,58 @@ for(p1 in P1s){
                   "mr_thm22_res_atleast_10_ivs_",p1,"_",p2,".txt",sep=""),
                 quote=F,row.names = F,col.names = T,sep="\t")
     
+    write.table(thm22_res[grepl("cancer",thm22_res[,2]),c(1:4,9)],quote=F,sep="\t")
+    write.table(thm22_res[grepl("LDL",thm22_res[,1]),c(1:4,9:10)],quote=F,sep="\t")
+    write.table(thm22_res[grepl("HDL",thm22_res[,1]),c(1:4,9:10)],quote=F,sep="\t")
+    
     ####################################################################################################
     # save the results of the analysis for further examination
     save(
       GWAS_Ps, # The original associations of the GWAS without conditional independence filtering
       G_t,G_vt, # the skeletons
+      iv_sets_thm21,iv_sets_thm22, # selected instruments per pair
+      ivw_res_thm21,ivw_res_thm22, # raw MR results 
       thm21_res,thm22_res, # MR+Meta-analysis results after filters
       file = paste(out_path,"cgauge_res_",p1,"_",p2,".RData",sep="")
     )
   }
 }
 
+# Add MR-PRESSO estimates
+cgauge_mrpresso_res = c()
+mrpresso_wrapper <-function(ivs,GWAS_effects,GWAS_ses,minIVs=5){
+  if(length(ivs) < minIVs){return(NULL)}
+  X = data.frame(E1b=GWAS_effects[currivs,tr1],O1b=GWAS_effects[currivs,tr2],
+                 E1sd=GWAS_ses[currivs,tr1],O1sd=GWAS_ses[currivs,tr2])
+  res = NULL;resv = NULL
+  try({
+    res = mr_presso(BetaOutcome = "O1b", BetaExposure = "E1b", 
+                    SdOutcome = "O1sd", SdExposure = "E1sd",data=X,
+                    OUTLIERtest=T,
+                    DISTORTIONtest = T,
+                    NbDistribution = 100,SignifThreshold = 0.1)
+    if(is.na(res$`Main MR results`[2,"P-value"])){
+      resv = unlist(res$`Main MR results`[1,])
+    }
+    else{
+      resv = unlist(res$`Main MR results`[2,])
+    }
+  })
+  return(resv)
+}
+library(parallel)
 
 
+for(tr1 in phenos){
+  l = iv_sets[[tr1]]
+  l_presso_res = mclapply(l,mrpresso_wrapper,
+       GWAS_effects =sum_stat_matrix ,GWAS_ses = sum_stat_se_matrix,minIVs=5)
+  names(l_presso_res) = names(l)
+}
+if(!is.null(dim(cgauge_mrpresso_res))){
+  cgauge_mrpresso_res = as.data.frame(cgauge_mrpresso_res)
+  for(j in 3:ncol(cgauge_mrpresso_res)){
+    cgauge_mrpresso_res[[j]] = as.numeric(as.character(cgauge_mrpresso_res[[j]]))
+  }
+}
+  

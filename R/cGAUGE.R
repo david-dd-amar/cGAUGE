@@ -376,6 +376,12 @@ combine_mm_mr_analyses<-function(mm,mr,p_thr=0.01,adj_method="BY",
   log10p = -log10(as.numeric(res[,"p_MR"]))
   res = cbind(res,log10p)
   colnames(res) = c("tr1->","tr2","p_MR","Est","pi1","numIVs","EdgeDirection","-log10p_MR")
+  for(j in c(1,2)){
+    res[[j]] = as.character(res[[j]])
+  }
+  for(j in c(3,4,5,6,8)){
+    res[[j]] = as.numeric(as.character(res[[j]]))
+  }
   return(res)
 }
 
@@ -388,10 +394,36 @@ add_is_non_edge_column<-function(res,G_t){
   is_skeleton_edge = rep(F,nrow(res))
   for(i in 1:nrow(res)){
     tr1 = res[i,1];tr2=res[i,2]
-    if(is.na(G_t[tr1,tr2]) || G_t[tr1,tr2]>0){is_skeleton_edge=T}
+    if(!is.na(G_t[tr1,tr2]) && G_t[tr1,tr2]>0){
+      is_skeleton_edge[i]=T
+    }
   }
   res = cbind(res,is_skeleton_edge)
   return(res)
+}
+
+add_edgesep_res_column<-function(mr_res,edgesep_res,G_t){
+  # filter out rows that are not edges in G_t
+  to_rem = rep(F,nrow(edgesep_res))
+  for(i in 1:nrow(edgesep_res)){
+    curre = G_t[edgesep_res[i,1],edgesep_res[i,2]]
+    if(is.na(curre) || curre == 0){
+      to_rem[i] = T
+    }
+  }
+  edgesep_res = edgesep_res[!to_rem,]
+  
+  names1 = paste(edgesep_res[,1],edgesep_res[,2],sep="->")
+  names2 = paste(mr_res[,1],mr_res[,2],sep="->")
+  rownames(edgesep_res) = names1
+  rownames(mr_res)=names2
+  inds =intersect(names1,names2)
+  edge_sep_col = rep(NA,length(names2))
+  names(edge_sep_col) = names2
+  edge_sep_col[inds] = edgesep_res[inds,3]
+  mr_res = cbind(mr_res,edge_sep_col)
+  mr_res[[ncol(mr_res)]] = as.numeric(as.character(mr_res[[ncol(mr_res)]]))
+  return(mr_res)
 }
 
 ##############################################################
