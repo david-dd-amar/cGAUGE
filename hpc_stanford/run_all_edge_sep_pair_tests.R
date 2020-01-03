@@ -81,19 +81,22 @@ for(tr1 in colnames(GWAS_Ps)){
   for(tr2 in colnames(GWAS_Ps)){
     if(tr1==tr2){next}
     if(is.na(G_t[tr1,tr2]) || G_t[tr1,tr2]==0){next}
-    ps1 = GWAS_Ps[,tr2]
-    ps_with_tr2_cond_tr1 = trait_pair_pvals[[tr2]][[tr1]][rownames(GWAS_Ps),"test3"]
-    
-    ps = cbind(ps1,ps_with_tr2_cond_tr1)
+
+    job_name = paste(tr1,"_vs_",tr2,sep="")
     rdata_name = paste(tr1,"_",tr2,"_input.RData",sep="")
     out_name = paste(tr1,"_",tr2,"_edgesep_em_output.RData",sep="")
     
-    # if(out_name %in% list.files(out_path)){next}
+    # Skip if results file exists
+    if(out_name %in% list.files(out_path)){next}
+    # add the full path to the file names
     rdata_name = paste(out_path,rdata_name,sep="")
     out_name = paste(out_path,out_name,sep="")
     
-    job_name = paste(tr1,"_vs_",tr2,sep="")
-    save(ps,file=rdata_name)
+    # save the data of the current pair
+    # ps1 = GWAS_Ps[,tr2]
+    # ps_with_tr2_cond_tr1 = trait_pair_pvals[[tr2]][[tr1]][rownames(GWAS_Ps),"test3"]
+    # ps = cbind(ps1,ps_with_tr2_cond_tr1)
+    # save(ps,file=rdata_name)
     cmd = paste(
       "~/repos/cGAUGE/hpc_stanford/run_edge_sep_test_for_pair.R",
       "--file",rdata_name,
@@ -121,25 +124,26 @@ for(tr1 in colnames(GWAS_Ps)){
     out_name = paste(out_path,out_name,sep="")
     currp = NA
     try({currp = get(load(out_name))})
-    edge_sep_em_res = rbind(edge_sep_em_res,
-                            c(tr1,tr2,currp))
+    edge_sep_em_res = rbind(edge_sep_em_res,c(tr1,tr2,currp))
   }
 }
 edge_sep_em_res = data.frame(edge_sep_em_res,stringsAsFactors = F)
 edge_sep_em_res[[3]] = as.numeric(as.character(edge_sep_em_res[[3]]))
-save(edge_sep_em_res,paste(out_path,"edge_sep_em_res.RData",sep=""))
+save(edge_sep_em_res,file=paste(out_path,"edge_sep_em_res.RData",sep=""))
+quantile(p.adjust(edge_sep_em_res[[3]]),na.rm=T)
 
 ##############################################################
 # A few local tests
 setwd("~/Desktop/causal_inference_projects/ms3/edge_sep_em/")
 setwd("/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/ukbb_res/em_edge_sep_jobs/")
-pval = get(load("Vitamin_D_time_aggregated_depression_edgesep_em_output.RData"))
-ps = get(load("Vitamin_D_time_aggregated_depression_input.RData"))
+
+load("./edge_sep_em_res.RData")
+
+pval = get(load("Glycated_haemoglobin_HbA1c_HC221_edgesep_em_output.RData"))
+ps = get(load("Glycated_haemoglobin_HbA1c_HC221_input.RData"))
 p1 = ps[,1]
 p2 = ps[,2]
-univar_mixtools_em(p1,p2,reps=3)
-simple_lfdr_test(p1,p2)
-param_bootstrap_test(p1,p2)
+univar_mixtools_em(p1,p2,reps=10)
 
 tr1 = "Alanine_aminotransferase"
 tr2 = "statins"

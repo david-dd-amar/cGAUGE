@@ -262,8 +262,8 @@ for(p1 in P1s){
     }
     
     # Analysis 5.1: simple meta-analysis on all pairs
-    meta_anal_res_thm21 = run_pairwise_pval_combination_analysis_from_iv_sets(iv_sets_thm21,GWAS_Ps,maxp=0.001)
-    meta_anal_res_thm22 = run_pairwise_pval_combination_analysis_from_iv_sets(iv_sets_thm22,GWAS_Ps,maxp=0.001)
+    meta_anal_res_thm21 = run_pairwise_pval_combination_analysis_from_iv_sets(iv_sets_thm21,GWAS_Ps)
+    meta_anal_res_thm22 = run_pairwise_pval_combination_analysis_from_iv_sets(iv_sets_thm22,GWAS_Ps)
     ivw_res_thm21 = run_pairwise_mr_analyses_with_iv_sets(
       sum_stat_matrix,sum_stat_se_matrix,iv_sets_thm21,func=mr_ivw,robust=T)
     ivw_res_thm22 = run_pairwise_mr_analyses_with_iv_sets(
@@ -355,7 +355,6 @@ for(p1 in P1s){
       cgauge_mrpresso_res_thm22 = c(cgauge_mrpresso_res_thm22,l_presso_res)
     }
     # Get the results in a similar format to the other MR analyses
-    
     cgauge_mrpresso_thm22 = c()
     for(l in cgauge_mrpresso_res_thm22){
       if(is.null(l)){next}
@@ -375,6 +374,46 @@ for(p1 in P1s){
     for(j in 3:ncol(cgauge_mrpresso_thm22)){
       cgauge_mrpresso_thm22[[j]] = as.numeric(as.character(cgauge_mrpresso_thm22[[j]]))
     }
+    # combine with the other analyses and save the results
+    
+    presso_thm22_res = combine_mm_mr_analyses(meta_anal_res_thm22,cgauge_mrpresso_thm22,
+                                       p_h_thr = -1,minIVs = 3)
+    presso_thm22_res = add_is_non_edge_column(presso_thm22_res,G_t)
+    presso_thm22_res = add_edgesep_res_column(presso_thm22_res,edge_sep_em_res,G_t)
+    # Represent the selected edges nicely
+    presso_thm22_res[,1] = pheno_names[presso_thm22_res[,1]]
+    presso_thm22_res[,2] = pheno_names[presso_thm22_res[,2]]
+    
+    write.table(thm21_res,file=paste(out_path,
+                                     "mr_thm21_res_",p1,"_",p2,".txt",sep=""),
+                quote=F,row.names = F,col.names = T,sep="\t")
+    thm21_res2 = thm21_res[as.numeric(thm21_res[,"numIVs"])>9,]
+    write.table(thm21_res2,file=paste(out_path,
+                                      "mr_thm21_res_atleast_10_ivs_",p1,"_",p2,".txt",sep=""),
+                quote=F,row.names = F,col.names = T,sep="\t")
+    
+    write.table(thm22_res,file=paste(out_path,
+                                     "mr_thm22_res_",p1,"_",p2,".txt",sep=""),
+                quote=F,row.names = F,col.names = T,sep="\t")
+    thm22_res2 = thm22_res[as.numeric(thm22_res[,"numIVs"])>9,]
+    write.table(thm22_res2,file=paste(out_path,
+                                      "mr_thm22_res_atleast_10_ivs_",p1,"_",p2,".txt",sep=""),
+                quote=F,row.names = F,col.names = T,sep="\t")
+    
+    write.table(thm22_res[grepl("cancer",thm22_res[,2]),c(1:4,9)],quote=F,sep="\t")
+    write.table(thm22_res[grepl("LDL",thm22_res[,1]),c(1:4,9:10)],quote=F,sep="\t")
+    write.table(thm22_res[grepl("HDL",thm22_res[,1]),c(1:4,9:10)],quote=F,sep="\t")
+    
+    ####################################################################################################
+    # save the results of the analysis for further examination
+    save(
+      GWAS_Ps, # The original associations of the GWAS without conditional independence filtering
+      G_t,G_vt, # the skeletons
+      iv_sets_thm21,iv_sets_thm22, # selected instruments per pair
+      ivw_res_thm21,ivw_res_thm22, # raw MR results 
+      thm21_res,thm22_res, # MR+Meta-analysis results after filters
+      file = paste(out_path,"cgauge_res_",p1,"_",p2,".RData",sep="")
+    )
   }
 }
 
