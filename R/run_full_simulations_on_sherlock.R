@@ -526,6 +526,23 @@ for(p1 in tested_p1){
     }
   }
 }
+save(all_pi1_estimates,file="all_pi1_estimates.RData")
+
+p1 = 1e-05
+p2 = 0.001
+deg = 1.5
+pleio_p = 0.3
+rows = all_pi1_estimates$p1 == p1 & all_pi1_estimates$p2 == p2 & all_pi1_estimates$deg == deg & all_pi1_estimates&pleio_p == pleio_p
+
+inds1 = rows & all_pi1_estimates[,3] == -1
+inds2 = rows & all_pi1_estimates[,3] != -1
+x1 = all_pi1_estimates[inds,1]
+x2 = all_pi1_estimates[inds,2]
+mean(x1-x2,na.rm = T)
+t.test(x1,x2,paired=T)
+lm(raw_ivs~real_dist,data=all_pi1_estimates[rows,])
+lm(our_ivs~real_dist,data=all_pi1_estimates[rows,])
+
 
 ##############################################################
 ##############################################################
@@ -585,18 +602,19 @@ axslabs = round(seq(min(df1),max(df1),length.out = 6),digits = ndigits)
 cols = method2col[rownames(df1)[-c(1:2)]]
 radarchart(df1,axistype=1,seg=5,plwd=2,caxislabels=axslabs,pcol=cols,plty=5,vlcex = 1.5,calcex=1.2)
 # legend(x=-1,y=1.8,rownames(df1)[-c(1:2)],fill = cols,ncol = 2,border = F)
-text(0,0,"FDR",cex = 1.2 )
+text(0,0,"FDR",cex = 1.2,font = 2)
 
 # plot the legend separately
 dev.off()
+par(mar = c(5,5,5,5))
 plot(c(2,2))
-legend(x="top",rownames(df1)[-c(1:2)],fill = cols,ncol = 4,border = F)
+legend(x="top",rownames(df1)[-c(1:2)],fill = cols,ncol = 1,border = F,cex=2)
 
 #######
 # Simulations using Thm 21 - lower WC performance
 #######
 
-method2col = c(hcl.colors(5)[c(1,5)],heat.colors(5)[c(1,5)],
+method2col = c(hcl.colors(5)[c(1,4)],heat.colors(5)[c(1,4)],
                rainbow(5)[1:2],"black","gray","blue")
 names(method2col) = c(
   "mrpresso","c-mrpresso","ivw","c-ivw","egger","c-egger",
@@ -620,8 +638,7 @@ axslabs = round(seq(min(df1),max(df1),length.out = 6),digits = ndigits)
 cols = method2col[rownames(df1)[-c(1:2)]]
 radarchart(df1,axistype=1,seg=5,plwd=2,caxislabels=axslabs,pcol=cols,plty=5,vlcex = 1.5,calcex=1.2)
 # legend(x=-1,y=1.8,rownames(df1)[-c(1:2)],fill = cols,ncol = 2,border = F)
-text(0,0,"N",cex = 1.5)
-
+text(0,0,"N",cex = 1.5,font = 2)
 
 # (B) IVW, MR-PRESSO: FDRs
 resultsdf = mean_fdrs
@@ -638,12 +655,13 @@ axslabs = round(seq(min(df1),max(df1),length.out = 6),digits = ndigits)
 cols = method2col[rownames(df1)[-c(1:2)]]
 radarchart(df1,axistype=1,seg=5,plwd=2,caxislabels=axslabs,pcol=cols,plty=5,vlcex = 1.5,calcex=1.2)
 # legend(x=-1,y=1.8,rownames(df1)[-c(1:2)],fill = cols,ncol = 2,border = F)
-text(0,0,"FDR",cex = 1.2)
+text(0,0,"FDR",cex = 1.2,font=2)
 
 # plot the legend separately
 dev.off()
+par(mar = c(5,5,5,5))
 plot(c(2,2))
-legend(x="top",rownames(df1)[-c(1:2)],fill = cols,ncol = 4,border = F)
+legend(x="top",rownames(df1)[-c(1:2)],fill = cols,ncol = 1,border = F,cex=2)
 
 #######
 # Edge sep results: 
@@ -677,7 +695,7 @@ axslabs = round(seq(min(df1),max(df1),length.out = 6),digits = ndigits)
 cols = method2col[rownames(df1)[-c(1:2)]]
 radarchart(df1,axistype=1,seg=5,plwd=2,caxislabels=axslabs,pcol=cols,plty=5,vlcex = 1.5,calcex=1.2)
 # legend(x=-1,y=1.8,c("Naive count","EM test","TDR test"),fill = cols,ncol = 2,border=F)
-text(0,0,"N",cex = 1.5)
+text(0,0,"N",cex = 1.5,font = 2)
 
 # (D) IVW, MR-PRESSO: FDRs
 ndigits = 2
@@ -700,12 +718,13 @@ axslabs = round(seq(min(df1),max(df1),length.out = 6),digits = ndigits)
 cols = method2col[rownames(df1)[-c(1:2)]]
 radarchart(df1,axistype=1,seg=5,plwd=2,caxislabels=axslabs,pcol=cols,plty=5,vlcex = 1.5,calcex=1.2)
 # legend(x=-1,y=1.8,c("Naive count","EM test","TDR test"),fill = cols,ncol = 2,border=F
-text(0,0,"FDR",cex = 1.2)
+text(0,0,"FDR",cex = 1.2,font = 2)
 
 # plot the legends separately
 dev.off()
+par(mar = c(5,5,5,5))
 plot(c(2,2))
-legend(x="top",c("Naive count","MS test","TDR test"),fill = cols,ncol = 3,border=F)
+legend(x="top",c("Naive count","MS test","TDR test"),fill = cols,ncol = 1,border=F,cex=2)
 
 
 # library(reshape2);library(ggplot2)
