@@ -363,7 +363,7 @@ combine_mm_mr_analyses<-function(mm,mr,p_thr=0.01,adj_method="BY",
   corrected_ps = p.adjust(as.numeric(as.character(mr[,3])),method=adj_method)
   filter1 = corrected_ps <= p_thr
   p_hs = p.adjust(as.numeric(as.character(mr[,4])))
-  filter2 = p_hs >= p_h_thr
+  filter2 = (p_hs >= p_h_thr) | is.na(p_hs)
   filter3 = as.numeric(as.character(mr[,ncol(mr)])) >= minIVs
   res_inds = filter1 & filter2 & filter3
   res_inds[is.na(res_inds)]=F

@@ -384,34 +384,30 @@ for(p1 in P1s){
     presso_thm22_res[,1] = pheno_names[presso_thm22_res[,1]]
     presso_thm22_res[,2] = pheno_names[presso_thm22_res[,2]]
     
-    write.table(thm21_res,file=paste(out_path,
-                                     "mr_thm21_res_",p1,"_",p2,".txt",sep=""),
+    write.table(presso_thm22_res,file=paste(out_path,
+                                     "mr_thm22_res_mrpresso_",p1,"_",p2,".txt",sep=""),
                 quote=F,row.names = F,col.names = T,sep="\t")
-    thm21_res2 = thm21_res[as.numeric(thm21_res[,"numIVs"])>9,]
-    write.table(thm21_res2,file=paste(out_path,
-                                      "mr_thm21_res_atleast_10_ivs_",p1,"_",p2,".txt",sep=""),
-                quote=F,row.names = F,col.names = T,sep="\t")
-    
-    write.table(thm22_res,file=paste(out_path,
-                                     "mr_thm22_res_",p1,"_",p2,".txt",sep=""),
-                quote=F,row.names = F,col.names = T,sep="\t")
-    thm22_res2 = thm22_res[as.numeric(thm22_res[,"numIVs"])>9,]
-    write.table(thm22_res2,file=paste(out_path,
-                                      "mr_thm22_res_atleast_10_ivs_",p1,"_",p2,".txt",sep=""),
+    presso_thm22_res2 = presso_thm22_res[as.numeric(presso_thm22_res[,"numIVs"])>9,]
+    write.table(presso_thm22_res2,file=paste(out_path,
+                                      "mr_thm22_res_mrpresso_atleast_10_ivs_",p1,"_",p2,".txt",sep=""),
                 quote=F,row.names = F,col.names = T,sep="\t")
     
-    write.table(thm22_res[grepl("cancer",thm22_res[,2]),c(1:4,9)],quote=F,sep="\t")
-    write.table(thm22_res[grepl("LDL",thm22_res[,1]),c(1:4,9:10)],quote=F,sep="\t")
-    write.table(thm22_res[grepl("HDL",thm22_res[,1]),c(1:4,9:10)],quote=F,sep="\t")
+    write.table(presso_thm22_res[grepl("cancer",presso_thm22_res[,2]),c(1:4,9)],quote=F,sep="\t")
+    write.table(presso_thm22_res[grepl("LDL",presso_thm22_res[,1]),c(1:4,9:10)],quote=F,sep="\t")
+    write.table(presso_thm22_res[grepl("HDL",presso_thm22_res[,1]),c(1:4,9:10)],quote=F,sep="\t")
     
     ####################################################################################################
     # save the results of the analysis for further examination
+    mrpresso_thm22_res_raw = cgauge_mrpresso_res_thm22
+    mrpresso_thm22_res = presso_thm22_res
     save(
       GWAS_Ps, # The original associations of the GWAS without conditional independence filtering
       G_t,G_vt, # the skeletons
       iv_sets_thm21,iv_sets_thm22, # selected instruments per pair
       ivw_res_thm21,ivw_res_thm22, # raw MR results 
       thm21_res,thm22_res, # MR+Meta-analysis results after filters
+      mrpresso_thm22_res_raw, # MRPRESSO raw results
+      mrpresso_thm22_res, # MRPRESSO filtered results
       file = paste(out_path,"cgauge_res_",p1,"_",p2,".RData",sep="")
     )
   }
