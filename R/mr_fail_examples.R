@@ -10,7 +10,7 @@ p=3
 p1 = 1e-4
 
 all_mr_res = list()
-for(j in 1:50){
+for(rep in 1:50){
   # We simulate from a mixture of real instruments and confounder instruments
   # traits graph: U->X and U->Y
   # instruments of X: G->X
@@ -190,18 +190,57 @@ for(j in 1:50){
   })
   
   # Add the current results to our data matrix
-  mr_anal_res$Egger$rep = j
-  mr_anal_res$IVW$rep = j
-  mrpresso_res$rep = j
-  cgauge_mr_anal_res$Egger$rep = j
-  cgauge_mr_anal_res$IVW$rep = j
-  cgauge_mrpresso_res$rep = j
+  mr_anal_res$Egger$rep = rep
+  mr_anal_res$IVW$rep = rep
+  mrpresso_res$rep = rep
+  cgauge_mr_anal_res$Egger$rep = rep
+  cgauge_mr_anal_res$IVW$rep = rep
+  cgauge_mrpresso_res$rep = rep
   all_mr_res[["egger"]] = rbind(all_mr_res[["egger"]],mr_anal_res$Egger)
-  all_mr_res[["ivw"]] = rbind(all_mr_res[["ivwXY"]],mr_anal_res$IVW)
+  all_mr_res[["ivw"]] = rbind(all_mr_res[["ivw"]],mr_anal_res$IVW)
   all_mr_res[["mrpresso"]] = rbind(all_mr_res[["mrpresso"]],mrpresso_res)
   all_mr_res[["c_egger"]] = rbind(all_mr_res[["c_egger"]],cgauge_mr_anal_res$Egger)
   all_mr_res[["c_ivw"]] = rbind(all_mr_res[["c_ivw"]],cgauge_mr_anal_res$IVW)
   all_mr_res[["c_mrpresso"]] = rbind(all_mr_res[["c_mrpresso"]],cgauge_mrpresso_res)
 }
 
+# Put the -log10 p-value results in a single data frame
+eggerXY = all_mr_res[["egger"]][all_mr_res[["egger"]][,1]=="X" &
+                                  all_mr_res[["egger"]][,2] == "Y",]
+eggerXY$name = "Egger X->Y"
+eggerYX = all_mr_res[["egger"]][all_mr_res[["egger"]][,1]=="Y" &
+                                  all_mr_res[["egger"]][,2] == "X",]
+eggerYX$name = "Egger Y->X"
+
+ivwXY = all_mr_res[["ivw"]][all_mr_res[["ivw"]][,1]=="X" &
+                                  all_mr_res[["ivw"]][,2] == "Y",]
+ivwXY$name = "IVW X->Y"
+ivwYX = all_mr_res[["ivw"]][all_mr_res[["ivw"]][,1]=="Y" &
+                                  all_mr_res[["ivw"]][,2] == "X",]
+ivwYX$name = "IVW Y->X"
+
+pressoXY = all_mr_res[["mrpresso"]][all_mr_res[["mrpresso"]][,1]=="X" &
+                              all_mr_res[["mrpresso"]][,2] == "Y",]
+pressoXY$name = "MRPRESSO X->Y"
+pressoYX = all_mr_res[["mrpresso"]][all_mr_res[["mrpresso"]][,1]=="Y" &
+                              all_mr_res[["mrpresso"]][,2] == "X",]
+pressoYX$name = "MRPRESSO Y->X"
+names(pressoYX)[grepl("P-value",names(pressoYX))] = "p"
+names(pressoXY)[grepl("P-value",names(pressoXY))] = "p"
+
+mr_res_p_df = rbind(
+  eggerXY[,c("name","p")],eggerYX[,c("name","p")],
+  ivwXY[,c("name","p")],ivwYX[,c("name","p")],
+  pressoXY[,c("name","p")],pressoYX[,c("name","p")]
+)
+mr_res_p_df$log10p = -log10(mr_res_p_df$p)
+mr_res_p_df$log10p = pmin(mr_res_p_df$log10p,10,na.rm=T)
+
+library(ggplot2)
+ggplot(mr_res_p_df, aes(x=name, y=log10p)) + 
+  geom_boxplot(notch=TRUE)+ coord_flip() + 
+  ylab("-log10 P-value") + xlab("") + 
+  geom_hline(yintercept = 2, linetype="dotted",color = "red", size=1.5) +
+  theme_grey(base_size = 16)
+boxplot(log10p ~ name, data = mr_res_p_df,ylim = c(0,20))
 
