@@ -10,7 +10,7 @@ p=3
 p1 = 1e-4
 
 all_mr_res = list()
-for(rep in 1:50){
+for(rep in 1:100){
   # We simulate from a mixture of real instruments and confounder instruments
   # traits graph: U->X and U->Y
   # instruments of X: G->X
@@ -98,15 +98,15 @@ for(rep in 1:50){
                           SdOutcome = "O1sd", SdExposure = "E1sd",data=X,
                           OUTLIERtest=T,
                           DISTORTIONtest = T,
-                          NbDistribution = 100,SignifThreshold = 0.1)
+                          NbDistribution = 1000,SignifThreshold = 0.1)
           if(is.na(res$`Main MR results`[2,"P-value"])){
-            mrpresso_res = rbind(mrpresso_res,
-                                 c(tr1,tr2,unlist(res$`Main MR results`[1,])))
+            v = c(tr1,tr2,unlist(res$`Main MR results`[1,]))
           }
           else{
-            mrpresso_res = rbind(mrpresso_res,
-                                 c(tr1,tr2,unlist(res$`Main MR results`[2,])))
+            v = c(tr1,tr2,unlist(res$`Main MR results`[2,]))
           }
+          v["GlobalTestP"] = res$`MR-PRESSO results`$`Global Test`$Pvalue
+          mrpresso_res = rbind(mrpresso_res,v)
         })
       }
     }

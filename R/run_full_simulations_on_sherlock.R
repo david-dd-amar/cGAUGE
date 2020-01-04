@@ -535,6 +535,15 @@ for(p1 in tested_p1){
 # install.packages("fmsb")
 setwd("~/Desktop/causal_inference_projects/ms3/")
 library(fmsb)
+
+deg = 1.5
+p1 = 1e-05
+p2 = 0.001
+
+#######
+# Simulations using Thm 22 - better WC
+#######
+
 method2col = c(hcl.colors(5)[1:2],heat.colors(5)[1:2],
                rainbow(5)[1:2],"black","gray","blue")
 names(method2col) = c(
@@ -542,13 +551,6 @@ names(method2col) = c(
   "edge_sep","edge_sep_test1","edge_sep_test2"
 )
 
-deg = 1.5
-p1 = 1e-03
-p2 = 0.001
-
-#######
-# Simulations using Thm 22 - better WC
-#######
 load("simulations_strict/simulation_summ_stats.RData")
 par(mfrow=c(1,2),mar=c(0,1,4,1),xpd=TRUE)
 # (A) IVW, MR-PRESSO: Num discoveries
@@ -564,9 +566,9 @@ df1 = rbind(min(0.1,min(df1)),df1)
 df1 = rbind(max(df1),df1)
 axslabs = round(seq(min(df1),max(df1),length.out = 6),digits = ndigits)
 cols = method2col[rownames(df1)[-c(1:2)]]
-radarchart(df1,axistype=1,seg=5,plwd=2,caxislabels=axslabs,pcol=cols,plty=5)
-legend(x=-1,y=1.8,rownames(df1)[-c(1:2)],fill = cols,ncol = 2,border = F)
-text(0,0,"N",cex = 1.5)
+radarchart(df1,axistype=1,seg=5,plwd=2,caxislabels=axslabs,pcol=cols,plty=5,vlcex = 1.5,calcex=1.2)
+# legend(x=-1,y=1.8,rownames(df1)[-c(1:2)],fill = cols,ncol = 2,border = F)
+text(0,0,"N",cex = 1.5,font = 2)
 
 # (B) IVW, MR-PRESSO: FDRs
 resultsdf = mean_fdrs
@@ -581,13 +583,26 @@ df1 = rbind(min(0.1,min(df1)),df1)
 df1 = rbind(max(df1),df1)
 axslabs = round(seq(min(df1),max(df1),length.out = 6),digits = ndigits)
 cols = method2col[rownames(df1)[-c(1:2)]]
-radarchart(df1,axistype=1,seg=5,plwd=2,caxislabels=axslabs,pcol=cols,plty=5)
-legend(x=-1,y=1.8,rownames(df1)[-c(1:2)],fill = cols,ncol = 2,border = F)
-text(0,0,"FDR",cex = 1.2)
+radarchart(df1,axistype=1,seg=5,plwd=2,caxislabels=axslabs,pcol=cols,plty=5,vlcex = 1.5,calcex=1.2)
+# legend(x=-1,y=1.8,rownames(df1)[-c(1:2)],fill = cols,ncol = 2,border = F)
+text(0,0,"FDR",cex = 1.2 )
+
+# plot the legend separately
+dev.off()
+plot(c(2,2))
+legend(x="top",rownames(df1)[-c(1:2)],fill = cols,ncol = 4,border = F)
 
 #######
 # Simulations using Thm 21 - lower WC performance
 #######
+
+method2col = c(hcl.colors(5)[c(1,5)],heat.colors(5)[c(1,5)],
+               rainbow(5)[1:2],"black","gray","blue")
+names(method2col) = c(
+  "mrpresso","c-mrpresso","ivw","c-ivw","egger","c-egger",
+  "edge_sep","edge_sep_test1","edge_sep_test2"
+)
+
 load("simulations_def/simulation_summ_stats.RData")
 par(mfrow=c(1,2),mar=c(0,1,4,1),xpd=TRUE)
 # (A) IVW, MR-PRESSO: Num discoveries
@@ -603,8 +618,8 @@ df1 = rbind(min(0.1,min(df1)),df1)
 df1 = rbind(max(df1),df1)
 axslabs = round(seq(min(df1),max(df1),length.out = 6),digits = ndigits)
 cols = method2col[rownames(df1)[-c(1:2)]]
-radarchart(df1,axistype=1,seg=5,plwd=2,caxislabels=axslabs,pcol=cols,plty=5)
-legend(x=-1,y=1.8,rownames(df1)[-c(1:2)],fill = cols,ncol = 2,border = F)
+radarchart(df1,axistype=1,seg=5,plwd=2,caxislabels=axslabs,pcol=cols,plty=5,vlcex = 1.5,calcex=1.2)
+# legend(x=-1,y=1.8,rownames(df1)[-c(1:2)],fill = cols,ncol = 2,border = F)
 text(0,0,"N",cex = 1.5)
 
 
@@ -621,10 +636,14 @@ df1 = rbind(min(0.1,min(df1)),df1)
 df1 = rbind(max(df1),df1)
 axslabs = round(seq(min(df1),max(df1),length.out = 6),digits = ndigits)
 cols = method2col[rownames(df1)[-c(1:2)]]
-radarchart(df1,axistype=1,seg=5,plwd=2,caxislabels=axslabs,pcol=cols,plty=5)
-legend(x=-1,y=1.8,rownames(df1)[-c(1:2)],fill = cols,ncol = 2,border = F)
+radarchart(df1,axistype=1,seg=5,plwd=2,caxislabels=axslabs,pcol=cols,plty=5,vlcex = 1.5,calcex=1.2)
+# legend(x=-1,y=1.8,rownames(df1)[-c(1:2)],fill = cols,ncol = 2,border = F)
 text(0,0,"FDR",cex = 1.2)
 
+# plot the legend separately
+dev.off()
+plot(c(2,2))
+legend(x="top",rownames(df1)[-c(1:2)],fill = cols,ncol = 4,border = F)
 
 #######
 # Edge sep results: 
@@ -656,8 +675,8 @@ df1 = rbind(min(0.1,min(df1)),df1)
 df1 = rbind(max(df1),df1)
 axslabs = round(seq(min(df1),max(df1),length.out = 6),digits = ndigits)
 cols = method2col[rownames(df1)[-c(1:2)]]
-radarchart(df1,axistype=1,seg=5,plwd=2,caxislabels=axslabs,pcol=cols,plty=5)
-legend(x=-1,y=1.8,c("Naive count","EM test","lfdr test"),fill = cols,ncol = 2,border=F)
+radarchart(df1,axistype=1,seg=5,plwd=2,caxislabels=axslabs,pcol=cols,plty=5,vlcex = 1.5,calcex=1.2)
+# legend(x=-1,y=1.8,c("Naive count","EM test","TDR test"),fill = cols,ncol = 2,border=F)
 text(0,0,"N",cex = 1.5)
 
 # (D) IVW, MR-PRESSO: FDRs
@@ -679,9 +698,15 @@ df1 = rbind(min(0.1,min(df1)),df1)
 df1 = rbind(max(df1),df1)
 axslabs = round(seq(min(df1),max(df1),length.out = 6),digits = ndigits)
 cols = method2col[rownames(df1)[-c(1:2)]]
-radarchart(df1,axistype=1,seg=5,plwd=2,caxislabels=axslabs,pcol=cols,plty=5)
-legend(x=-1,y=1.8,c("Naive count","EM test","lfdr test"),fill = cols,ncol = 2,border=F)
+radarchart(df1,axistype=1,seg=5,plwd=2,caxislabels=axslabs,pcol=cols,plty=5,vlcex = 1.5,calcex=1.2)
+# legend(x=-1,y=1.8,c("Naive count","EM test","TDR test"),fill = cols,ncol = 2,border=F
 text(0,0,"FDR",cex = 1.2)
+
+# plot the legends separately
+dev.off()
+plot(c(2,2))
+legend(x="top",c("Naive count","MS test","TDR test"),fill = cols,ncol = 3,border=F)
+
 
 # library(reshape2);library(ggplot2)
 # deg = 1.5
