@@ -8,12 +8,6 @@ for (lib_name in required_libs){
              print(paste("Cannot load",lib_name,", please install"))
            })
 }
-# Add the cGAUGE functions and auxiliary functions for MR
-# From GitHub
-try({source("https://raw.githubusercontent.com/david-dd-amar/cGAUGE/master/R/cGAUGE.R")})
-# From local clone (GitHub server sometimes has issues)
-try({source("~/repos/cGAUGE/R/cGAUGE.R")})
-print("Completed loading libraries and code")
 
 option_list <- list( 
   make_option(c("--gwas_rdata_file"), action="store", 
@@ -40,8 +34,7 @@ tr2 = opt$tr2
 #' tr1 - exposure
 #' tr2 - outcome
 #' iv_sets - a list with tr1's instruments for every tr2
-mrpresso_wrapper <-function(ivs,GWAS_effects,GWAS_ses,minIVs=5,tr1,tr2){
-  if(length(ivs) < minIVs){return(NULL)}
+mrpresso_wrapper <-function(ivs,GWAS_effects,GWAS_ses,tr1,tr2){
   X = data.frame(E1b=GWAS_effects[ivs,tr1],O1b=GWAS_effects[ivs,tr2],
                  E1sd=GWAS_ses[ivs,tr1],O1sd=GWAS_ses[ivs,tr2])
   try({

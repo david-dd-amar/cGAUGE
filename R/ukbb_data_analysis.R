@@ -319,10 +319,19 @@ for(p1 in P1s){
   }
 }
 
+################################################################
+################################################################
+################################################################
+################################################################
 # Add MR-PRESSO estimates
+################################################################
+################################################################
+################################################################
+################################################################
+presso_runs_path = paste(out_path,"mrpresso_runs/",sep="")
+system(paste("mkdir",presso_runs_path))
 # Subset of the data - save some time
-library(parallel)
-P1s = c(1e-6,1e-7,1e-8)
+P1s = c(1e-05,1e-6,1e-7,1e-8)
 P2s = c(0.01,0.001)
 # Load the EdgeSep results, create output files and networks
 load(paste(out_path,"p12G_t.RData",sep=""))
@@ -366,24 +375,47 @@ exec_cmd_on_sherlock<-function(cmd,jobname,out_path){
 }
 #######
 
+# First, run all the jobs
 for(p1 in P1s){
-  G_t = p12G_t[[as.character((p1))]]$G_t
   for (p2 in P2s){
     load(paste(out_path,"cgauge_res_",p1,"_",p2,".RData",sep=""))
     if("mrpresso_thm22_res" %in% ls()){next}
-    cgauge_mrpresso_res_thm22 = list()
     for(tr1 in names(iv_sets_thm22)){
       for(tr2 in names(iv_sets_thm22)){
         if(tr1==tr2){next}
         ivs = iv_sets_thm22[[tr1]][[tr2]]
+        if(length(ivs)<5){next}
+        curr_job_name = paste(tr1,"_",tr2,"_",p1,"_",p2,sep="")
+        curr_out_file = paste(presso_runs_path,curr_job_name,".RData",sep="")
+        curr_ivs_file = paste(presso_runs_path,curr_job_name,"_ivs.RData",sep="")
+        save(ivs,file=curr_ivs_file)
+        if(file.exists(curr_out_file)){next}
+        cmd = paste(
+          "~/repos/cGAUGE/hpc_stanford/run_mrpresso_on_pair.R",
+          "--tr1",tr1,
+          "--tr2",tr2,
+          "--ivs_rdata",curr_ivs_file,
+          "--out",curr_out_file
+        )
+        exec_cmd_on_sherlock(cmd,jobname = curr_job_name,out_path = presso_runs_path)
+        
+        job_state = system2("squeue",args = list("-u davidama | wc"),stdout=TRUE)
+        num_active_jobs = as.numeric(strsplit(job_state,split="\\s+",perl = T)[[1]][2])
+        while(num_active_jobs > 400){
+          Sys.sleep(5)
+          job_state = system2("squeue",args = list("-u davidama | wc"),stdout=TRUE)
+          num_active_jobs = as.numeric(strsplit(job_state,split="\\s+",perl = T)[[1]][2])
+        }
       }
-      l = iv_sets_thm22[[tr1]]
-      print(tr1)
-      l_presso_res = mclapply(names(l),mrpresso_wrapper,iv_sets=l,
-          GWAS_effects =sum_stat_matrix ,GWAS_ses = sum_stat_se_matrix,minIVs=5,
-          tr1 = tr1,mc.cores = 32)
-      cgauge_mrpresso_res_thm22 = c(cgauge_mrpresso_res_thm22,l_presso_res)
     }
+  }
+}
+
+# Next, read and parse the results, save the new cgauge output objects
+for(p1 in P1s){
+  G_t = p12G_t[[as.character((p1))]]$G_t
+  for (p2 in P2s){
+    load(paste(out_path,"cgauge_res_",p1,"_",p2,".RData",sep=""))
     # Get the results in a similar format to the other MR analyses
     cgauge_mrpresso_thm22 = c()
     for(l in cgauge_mrpresso_res_thm22){
