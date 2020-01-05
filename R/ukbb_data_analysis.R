@@ -68,13 +68,15 @@ system(paste("mkdir",out_path))
 # load the plink analysis results
 # this loads the list of pairwise CI tests
 load(genetic_ci_tests_plink_path)
-# this loads the standard GWAS results
-load(gwas_res_data)
 # load the skeleton: get a matrix of the maximal association p-values
 # and an object of the separating sets for non-edges
 load(skeleton_file)
 skeleton_pmax = pmax_network
 all_sepsets = sepsets
+
+# this loads the standard GWAS results
+load(gwas_res_data)
+
 
 # set the phenotype names
 pheno_names = icd2name[colnames(skeleton_pmax)]
@@ -318,40 +320,68 @@ for(p1 in P1s){
 }
 
 # Add MR-PRESSO estimates
-#' A helper function for running MRPRESSO in parallel
-#' tr1 - exposure
-#' tr2 - outcome
-#' iv_sets - a list with tr1's instruments for every tr2
-mrpresso_wrapper <-function(tr2,iv_sets,GWAS_effects,GWAS_ses,minIVs=5,tr1){
-  ivs = iv_sets[[tr2]]
-  if(length(ivs) < minIVs){return(NULL)}
-  X = data.frame(E1b=GWAS_effects[ivs,tr1],O1b=GWAS_effects[ivs,tr2],
-                 E1sd=GWAS_ses[ivs,tr1],O1sd=GWAS_ses[ivs,tr2])
-  try({
-    res = mr_presso(BetaOutcome = "O1b", BetaExposure = "E1b", 
-                    SdOutcome = "O1sd", SdExposure = "E1sd",data=X,
-                    OUTLIERtest=T,
-                    DISTORTIONtest = T,
-                    NbDistribution = 1000,SignifThreshold = 0.1)
-    res$tr1 = tr1
-    res$tr2 = tr2
-    return(res)
-  })
-  return(NULL)
+# Subset of the data - save some time
+library(parallel)
+P1s = c(1e-6,1e-7,1e-8)
+P2s = c(0.01,0.001)
+# Load the EdgeSep results, create output files and networks
+load(paste(out_path,"p12G_t.RData",sep=""))
+load("/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/ukbb_res/em_edge_sep_jobs/edge_sep_em_res.RData")
+
+#####
+# Helper functions for running in Stanford's HPC
+get_sh_prefix<-function(err="",log="",time="5:00:00"){
+  return(
+    c(
+      "#!/bin/bash",
+      "#",
+      paste("#SBATCH --time=", time,sep=""),
+      "#SBATCH --partition=euan,mrivas,owners,normal",
+      "#SBATCH --nodes=1",
+      "#SBATCH --cpus-per-task=1",
+      "#SBATCH --mem=4000",
+      # "#SBATCH -x sh-113-15",
+      "#SBATCH --gpus-per-task=0",
+      paste("#SBATCH --error",err),
+      paste("#SBATCH --out",log),
+      "",
+      "module load R"
+    )
+  )
 }
 
-library(parallel)
+print_sh_file<-function(path,prefix,cmd){
+  cmd = c(prefix,cmd)
+  write.table(file=path,t(t(cmd)),row.names = F,col.names = F,quote = F)
+}
+
+exec_cmd_on_sherlock<-function(cmd,jobname,out_path){
+  err_path = paste(out_path,jobname,".err",sep="")
+  log_path = paste(out_path,jobname,".log",sep="")
+  curr_cmd = paste("Rscript",cmd)
+  curr_sh_file = paste(out_path,jobname,".sh",sep="")
+  sh_prefix = get_sh_prefix(err_path,log_path)
+  print_sh_file(curr_sh_file,sh_prefix,curr_cmd)
+  system(paste("sbatch",curr_sh_file,'&'))
+}
+#######
+
 for(p1 in P1s){
   G_t = p12G_t[[as.character((p1))]]$G_t
   for (p2 in P2s){
     load(paste(out_path,"cgauge_res_",p1,"_",p2,".RData",sep=""))
+    if("mrpresso_thm22_res" %in% ls()){next}
     cgauge_mrpresso_res_thm22 = list()
     for(tr1 in names(iv_sets_thm22)){
+      for(tr2 in names(iv_sets_thm22)){
+        if(tr1==tr2){next}
+        ivs = iv_sets_thm22[[tr1]][[tr2]]
+      }
       l = iv_sets_thm22[[tr1]]
       print(tr1)
       l_presso_res = mclapply(names(l),mrpresso_wrapper,iv_sets=l,
           GWAS_effects =sum_stat_matrix ,GWAS_ses = sum_stat_se_matrix,minIVs=5,
-          tr1 = tr1,mc.cores = 6)
+          tr1 = tr1,mc.cores = 32)
       cgauge_mrpresso_res_thm22 = c(cgauge_mrpresso_res_thm22,l_presso_res)
     }
     # Get the results in a similar format to the other MR analyses

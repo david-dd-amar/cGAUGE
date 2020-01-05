@@ -553,7 +553,7 @@ lm(our_ivs~real_dist,data=all_pi1_estimates[rows,])
 setwd("~/Desktop/causal_inference_projects/ms3/")
 library(fmsb)
 
-deg = 1.5
+deg = 1
 p1 = 1e-05
 p2 = 0.001
 
