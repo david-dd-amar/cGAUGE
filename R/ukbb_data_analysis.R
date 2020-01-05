@@ -339,7 +339,7 @@ load("/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/ukbb_res/em_edge_s
 
 #####
 # Helper functions for running in Stanford's HPC
-get_sh_prefix<-function(err="",log="",time="5:00:00"){
+get_sh_prefix<-function(err="",log="",time="3:00:00"){
   return(
     c(
       "#!/bin/bash",
@@ -401,7 +401,7 @@ for(p1 in P1s){
         
         job_state = system2("squeue",args = list("-u davidama | wc"),stdout=TRUE)
         num_active_jobs = as.numeric(strsplit(job_state,split="\\s+",perl = T)[[1]][2])
-        while(num_active_jobs > 400){
+        while(num_active_jobs > 500){
           Sys.sleep(5)
           job_state = system2("squeue",args = list("-u davidama | wc"),stdout=TRUE)
           num_active_jobs = as.numeric(strsplit(job_state,split="\\s+",perl = T)[[1]][2])
