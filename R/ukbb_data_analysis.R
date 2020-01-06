@@ -77,7 +77,6 @@ all_sepsets = sepsets
 # this loads the standard GWAS results
 load(gwas_res_data)
 
-
 # set the phenotype names
 pheno_names = icd2name[colnames(skeleton_pmax)]
 pheno_names[colnames(skeleton_pmax)=="sex"] = "sex"
@@ -310,6 +309,7 @@ for(p1 in P1s){
     # save the results of the analysis for further examination
     save(
       GWAS_Ps, # The original associations of the GWAS without conditional independence filtering
+      meta_anal_res_thm21,meta_anal_res_thm22,# meta-analysis results
       G_t,G_vt, # the skeletons
       iv_sets_thm21,iv_sets_thm22, # selected instruments per pair
       ivw_res_thm21,ivw_res_thm22, # raw MR results 
@@ -377,7 +377,9 @@ exec_cmd_on_sherlock<-function(cmd,jobname,out_path){
 
 # First, run all the jobs
 for(p1 in P1s){
+  print(paste("p1",p1))
   for (p2 in P2s){
+    print(paste("p2",p2))
     load(paste(out_path,"cgauge_res_",p1,"_",p2,".RData",sep=""))
     if("mrpresso_thm22_res" %in% ls()){next}
     for(tr1 in names(iv_sets_thm22)){
@@ -388,8 +390,8 @@ for(p1 in P1s){
         curr_job_name = paste(tr1,"_",tr2,"_",p1,"_",p2,sep="")
         curr_out_file = paste(presso_runs_path,curr_job_name,".RData",sep="")
         curr_ivs_file = paste(presso_runs_path,curr_job_name,"_ivs.RData",sep="")
-        save(ivs,file=curr_ivs_file)
         if(file.exists(curr_out_file)){next}
+        save(ivs,file=curr_ivs_file)
         cmd = paste(
           "~/repos/cGAUGE/hpc_stanford/run_mrpresso_on_pair.R",
           "--tr1",tr1,
@@ -397,6 +399,7 @@ for(p1 in P1s){
           "--ivs_rdata",curr_ivs_file,
           "--out",curr_out_file
         )
+        print(curr_job_name)
         exec_cmd_on_sherlock(cmd,jobname = curr_job_name,out_path = presso_runs_path)
         
         job_state = system2("squeue",args = list("-u davidama | wc"),stdout=TRUE)
@@ -412,32 +415,49 @@ for(p1 in P1s){
 }
 
 # Next, read and parse the results, save the new cgauge output objects
+load(paste(out_path,"all_pheno_name_metadata.RData",sep=""))
 for(p1 in P1s){
-  G_t = p12G_t[[as.character((p1))]]$G_t
   for (p2 in P2s){
     load(paste(out_path,"cgauge_res_",p1,"_",p2,".RData",sep=""))
     # Get the results in a similar format to the other MR analyses
+    if("mrpresso_thm22_res" %in% ls()){next}
     cgauge_mrpresso_thm22 = c()
-    for(l in cgauge_mrpresso_res_thm22){
-      if(is.null(l)){next}
-      causalp = l[[1]][2,"P-value"]
-      causalest = l[[1]][2,"Causal Estimate"]
-      if(is.na(causalp)){
-        causalp = l[[1]][1,"P-value"]
-        causalest = l[[1]][1,"Causal Estimate"]
+    for(tr1 in names(iv_sets_thm22)){
+      print(tr1)
+      for(tr2 in names(iv_sets_thm22)){
+        if(tr1==tr2){next}
+        ivs = iv_sets_thm22[[tr1]][[tr2]]
+        if(length(ivs)<5){next}
+        curr_job_name = paste(tr1,"_",tr2,"_",p1,"_",p2,sep="")
+        curr_out_file = paste(presso_runs_path,curr_job_name,".RData",sep="")
+        if(!file.exists(curr_out_file)){next}
+        mrpresso_res = NULL
+        load(curr_out_file)
+        if(is.null(mrpresso_res)){
+          print(paste("NULL mrpresso results",curr_job_name))
+          next
+        }
+        causalp = mrpresso_res[[1]][2,"P-value"]
+        causalest = mrpresso_res[[1]][2,"Causal Estimate"]
+        if(is.na(causalp)){
+          causalp = mrpresso_res[[1]][1,"P-value"]
+          causalest = mrpresso_res[[1]][1,"Causal Estimate"]
+        }
+        p_het = mrpresso_res[["MR-PRESSO results"]][["Global Test"]]$Pvalue
+        v = c(mrpresso_res$tr1,mrpresso_res$tr2,causalp,p_het,causalest,NA,
+            length(iv_sets_thm22[[mrpresso_res$tr1]][[mrpresso_res$tr2]]))
+        names(v) = c("Exposure","Outcome","p","p_het","est","Q","NumIVs")
+        cgauge_mrpresso_thm22 = rbind(cgauge_mrpresso_thm22,v)
       }
-      p_het = l[["MR-PRESSO results"]][["Global Test"]]$Pvalue
-      v = c(l$tr1,l$tr2,causalp,p_het,causalest,NA,
-            length(iv_sets_thm22[[l$tr1]][[l$tr2]]))
-      names(v) = c("Exposure","Outcome","p","p_het","est","Q","NumIVs")
-      cgauge_mrpresso_thm22 = rbind(cgauge_mrpresso_thm22,v)
     }
+    
     cgauge_mrpresso_thm22 = as.data.frame(cgauge_mrpresso_thm22)
     for(j in 3:ncol(cgauge_mrpresso_thm22)){
       cgauge_mrpresso_thm22[[j]] = as.numeric(as.character(cgauge_mrpresso_thm22[[j]]))
     }
     # combine with the other analyses and save the results
-    
+    meta_anal_res_thm21 = run_pairwise_pval_combination_analysis_from_iv_sets(iv_sets_thm21,GWAS_Ps)
+    meta_anal_res_thm22 = run_pairwise_pval_combination_analysis_from_iv_sets(iv_sets_thm22,GWAS_Ps)
     presso_thm22_res = combine_mm_mr_analyses(meta_anal_res_thm22,cgauge_mrpresso_thm22,
                                        p_h_thr = -1,minIVs = 3)
     presso_thm22_res = add_is_non_edge_column(presso_thm22_res,G_t)
@@ -460,11 +480,12 @@ for(p1 in P1s){
     
     ####################################################################################################
     # save the results of the analysis for further examination
-    mrpresso_thm22_res_raw = cgauge_mrpresso_res_thm22
+    mrpresso_thm22_res_raw = cgauge_mrpresso_thm22
     mrpresso_thm22_res = presso_thm22_res
     save(
       GWAS_Ps, # The original associations of the GWAS without conditional independence filtering
       G_t,G_vt, # the skeletons
+      meta_anal_res_thm21,meta_anal_res_thm22,
       iv_sets_thm21,iv_sets_thm22, # selected instruments per pair
       ivw_res_thm21,ivw_res_thm22, # raw MR results 
       thm21_res,thm22_res, # MR+Meta-analysis results after filters
@@ -472,6 +493,19 @@ for(p1 in P1s){
       mrpresso_thm22_res, # MRPRESSO filtered results
       file = paste(out_path,"cgauge_res_",p1,"_",p2,".RData",sep="")
     )
+    
+    # remove iv, err and log files
+    setwd(presso_runs_path)
+    before_del = length(list.files("."))
+    system(paste("rm ","*_",p1,"_",p2,"*.log",sep=""))
+    system(paste("rm ","*_",p1,"_",p2,"*.err",sep=""))
+    system(paste("rm ","*_",p1,"_",p2,"*_ivs.RData",sep=""))
+    after_del = length(list.files("."))
+    print(paste("deleted log, err, ivs files, number of deleted:",before_del-after_del))
+    
+    # rm objects
+    rm(mrpresso_thm22_res)
+    rm(mrpresso_thm22_res_raw)
   }
 }
 
