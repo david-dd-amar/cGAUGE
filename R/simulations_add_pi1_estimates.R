@@ -7,10 +7,6 @@ for (lib_name in required_libs){
              print(paste("Cannot load",lib_name,", please install"))
            })
 }
-try({
-  source("~/repos/cGAUGE/R/cGAUGE.R")
-  source("~/repos/cGAUGE/R/twogroups_em_tests.R")
-})
 
 # Helper functions
 run_lm<-function(x,y,z,df){
@@ -25,7 +21,7 @@ run_lm<-function(x,y,z,df){
   return(coefs[2,])
 }
 # Helper for running the pi1 analysis
-get_pi1_estimates<-function(curr_out_file){
+get_pi1_estimates<-function(curr_out_file,p1){
   load(curr_out_file)
   
   phenos = colnames(B)[grepl("^T",colnames(B))]
@@ -65,12 +61,15 @@ get_pi1_estimates<-function(curr_out_file){
 option_list <- list( 
   make_option(c("--rdata_file"), action="store",default="",type="character",
               help="RData file with the output of the full_causal_graph_simulations.R script, 
-              this script will add a new object called pi1_estimates to this RData")
+              this script will add a new object called pi1_estimates to this RData"),
+  make_option(c("--p1"), action="store", default=0.001,type="double",
+              help="p1 value for the naive way of taking instruments")
 )
 
 opt <- parse_args(OptionParser(option_list=option_list))
 rdata_file = opt$rdata_file
-pi1_estimates = get_pi1_estimates(rdata_file)
+p1 = opt$p1
+pi1_estimates = get_pi1_estimates(rdata_file,p1)
 load(rdata_file)
 success = F
 try({
@@ -87,22 +86,6 @@ try({
   )
   success = T
 })
-
-if(! success){
-  try({
-    save(
-      opt, # input parameters
-      B,Bg,simulated_data,B_distances, # simulated data
-      edge_sep_results_statTest1, # EdgeSepStatTest1
-      edge_sep_results_statTest2, # EdgeSepStatTest2
-      G_it,G_vt,G_t, # Skeletons
-      pi1_estimates, # pi1_estimates for each pair
-      file = outfile
-    )
-  })
-}
-
-
 
 
 

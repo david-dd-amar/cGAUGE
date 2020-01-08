@@ -441,9 +441,12 @@ for(folder in wd_folders){
   for(rdfile in folder_files){
     i = strsplit(rdfile,split = "sim_rep")[[1]][2]
     i = gsub(".RData","",i)
-    print(i)
+    p1 = strsplit(rdfile,split = "_p1")[[1]][2]
+    p1 = strsplit(p1,split = "_")[[1]][1]
+    print(paste(i,p1))
     cmd = paste(
       "~/repos/cGAUGE/R/simulations_add_pi1_estimates.R",
+      "--p1",p1,
       "--rdata_file",rdfile
     )
     exec_cmd_on_sherlock(cmd,jobname = paste("sim_rep",i,"_pi1",sep=""),out_path = folder)
