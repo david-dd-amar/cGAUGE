@@ -1,4 +1,4 @@
-required_libs = c("igraph","limma","locfdr")
+required_libs = c("igraph","limma","locfdr","optparse")
 lib_loc = "~/R/packages3.5"
 lib_loc = c(lib_loc,.libPaths())
 for (lib_name in required_libs){
