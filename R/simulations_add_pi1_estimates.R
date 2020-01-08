@@ -67,9 +67,9 @@ get_pi1_estimates<-function(curr_out_file){
 }
 
 option_list <- list( 
-  make_option(c("--rdata_file"), action="store", 
-              default="",type="character",
-              help="RData file with the output of the full_causal_graph_simulations.R script, this script will add a new object called pi1_estimates to this RData"),
+  make_option(c("--rdata_file"), action="store",default="",type="character",
+              help="RData file with the output of the full_causal_graph_simulations.R script, 
+              this script will add a new object called pi1_estimates to this RData")
 )
 
 opt <- parse_args(OptionParser(option_list=option_list))

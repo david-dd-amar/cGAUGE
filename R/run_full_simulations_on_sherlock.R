@@ -446,7 +446,7 @@ for(folder in wd_folders){
       "~/repos/cGAUGE/R/simulations_add_pi1_estimates.R",
       "--rdata_file",rdfile
     )
-    # exec_cmd_on_sherlock(cmd,jobname = paste("sim_rep",i,"_pi1",sep=""),out_path = folder)
+    exec_cmd_on_sherlock(cmd,jobname = paste("sim_rep",i,"_pi1",sep=""),out_path = folder)
   }
   
   # # check current jobs and wait if there are too much
