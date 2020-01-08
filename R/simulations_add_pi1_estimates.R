@@ -56,13 +56,9 @@ get_pi1_estimates<-function(curr_out_file){
   }
   colnames(pi1_estimates) = c("raw_ivs","our_ivs","real_dist")
   pi1_estimates = as.data.frame(pi1_estimates)
-  pi1_estimates$p1 = p1
-  pi1_estimates$p2 = p2
-  pi1_estimates$deg = deg
-  pi1_estimates$pleio_p = pleio_p
-  currrep = strsplit(curr_out_file,"_rep")[[1]][2]
-  currrep = as.numeric(gsub(".RData","",currrep))
-  pi1_estimates$rep = currrep
+  for(j in names(pi1_estimates)){
+    pi1_estimates[[j]] = as.numeric(as.character(pi1_estimates[[j]]))
+  }
   return(pi1_estimates)
 }
 
