@@ -474,9 +474,9 @@ for(p1 in P1s){
                                       "mr_thm22_res_mrpresso_atleast_10_ivs_",p1,"_",p2,".txt",sep=""),
                 quote=F,row.names = F,col.names = T,sep="\t")
     
-    write.table(presso_thm22_res[grepl("cancer",presso_thm22_res[,2]),c(1:4,9)],quote=F,sep="\t")
-    write.table(presso_thm22_res[grepl("LDL",presso_thm22_res[,1]),c(1:4,9:10)],quote=F,sep="\t")
-    write.table(presso_thm22_res[grepl("HDL",presso_thm22_res[,1]),c(1:4,9:10)],quote=F,sep="\t")
+    write.table(presso_thm22_res[grepl("cancer",presso_thm22_res[,2]),c(1:5)],quote=F,sep="\t")
+    write.table(presso_thm22_res[grepl("LDL",presso_thm22_res[,1]),c(2:5,9:10)],quote=F,sep="\t")
+    write.table(presso_thm22_res[grepl("HDL",presso_thm22_res[,1]),c(2:5,9:10)],quote=F,sep="\t")
     
     ####################################################################################################
     # save the results of the analysis for further examination
@@ -509,11 +509,22 @@ for(p1 in P1s){
   }
 }
 
+################################################################
+################################################################
+################################################################
+################################################################
+# Generate the Supplementary data and tables for the paper
+################################################################
+################################################################
+################################################################
+################################################################
+supp_path = paste(out_path,"supplementary_tables/",sep="")
 
-if(!is.null(dim(cgauge_mrpresso_res))){
-  cgauge_mrpresso_res = as.data.frame(cgauge_mrpresso_res)
-  for(j in 3:ncol(cgauge_mrpresso_res)){
-    cgauge_mrpresso_res[[j]] = as.numeric(as.character(cgauge_mrpresso_res[[j]]))
-  }
-}
-  
+P1s = c(1e-6,1e-7)
+P2s = c(0.01,0.001)
+
+
+
+
+
+
