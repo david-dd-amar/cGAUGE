@@ -425,20 +425,24 @@ save(
 
 ##############################################################
 ##############################################################
-# Test the pi1 estimates along edges and non-edges
+# Add the pi1 estimates for pairs
 ##############################################################
 ##############################################################
-library(parallel)
-WD = "/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/simulations_uniqueivs/"
+# WD = "/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/simulations_uniqueivs/"
+WD = "/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/simulations_default/"
 setwd(WD)
 # Go over all RData files in WD and add their pi1_estimates
 wd_folders = list.files(WD,full.names = T)
 for(folder in wd_folders){
   if(!dir.exists(folder)){next}
+  print(paste("***********",folder))
   folder_files = list.files(folder,full.names = T)
   folder_files = folder_files[grepl(".RData",folder_files)]
   folder_files = folder_files[grepl("sim_rep",folder_files)]
   for(rdfile in folder_files){
+    pi1_estimates = NULL
+    load(rdfile)
+    if("pi1_estimates" %in% ls() && !is.null(pi1_estimates) && !is.null(dim(pi1_estimates))){next}
     i = strsplit(rdfile,split = "sim_rep")[[1]][2]
     i = gsub(".RData","",i)
     p1 = strsplit(rdfile,split = "_p1")[[1]][2]
@@ -452,16 +456,21 @@ for(folder in wd_folders){
     exec_cmd_on_sherlock(cmd,jobname = paste("sim_rep",i,"_pi1",sep=""),out_path = folder)
   }
   
-  # # check current jobs and wait if there are too much
-  # job_state = system2("squeue",args = list("-u davidama | wc"),stdout=TRUE)
-  # num_active_jobs = as.numeric(strsplit(job_state,split="\\s+",perl = T)[[1]][2])
-  # while(num_active_jobs > MAX_JOBS){
-  #   Sys.sleep(5)
-  #   job_state = system2("squeue",args = list("-u davidama | wc"),stdout=TRUE)
-  #   num_active_jobs = as.numeric(strsplit(job_state,split="\\s+",perl = T)[[1]][2])
-  # }
+  # check current jobs and wait if there are too much
+  job_state = system2("squeue",args = list("-u davidama | wc"),stdout=TRUE)
+  num_active_jobs = as.numeric(strsplit(job_state,split="\\s+",perl = T)[[1]][2])
+  while(num_active_jobs > MAX_JOBS){
+    Sys.sleep(5)
+    job_state = system2("squeue",args = list("-u davidama | wc"),stdout=TRUE)
+    num_active_jobs = as.numeric(strsplit(job_state,split="\\s+",perl = T)[[1]][2])
+  }
 }
 
+# The commands above create the log and err files in the WD - delete them
+# (the reason is that we did not add a "/" after the folder name)
+system("rm *.err")
+system("rm *.log")
+system("rm *.sh")
 
 ##############################################################
 ##############################################################
