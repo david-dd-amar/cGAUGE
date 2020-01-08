@@ -428,120 +428,36 @@ save(
 # Test the pi1 estimates along edges and non-edges
 ##############################################################
 ##############################################################
-required_libs = c("igraph","limma","locfdr")
-lib_loc = "~/R/packages3.5"
-lib_loc = c(lib_loc,.libPaths())
-for (lib_name in required_libs){
-  tryCatch({library(lib_name,character.only = T,lib.loc = lib_loc)},
-           error = function(e) {
-             print(paste("Cannot load",lib_name,", please install"))
-  })
-}
-try({
-  source("~/repos/cGAUGE/R/cGAUGE.R")
-  source("~/repos/cGAUGE/R/twogroups_em_tests.R")
-})
-# Helper functions
-run_lm<-function(x,y,z,df){
-  if(is.null(z)){
-    df = data.frame(x=df[,x],y=df[,y])
-  }
-  else{
-    df = data.frame(x=df[,x],y=df[,y],df[,z])
-  }
-  model = lm(x~.,data=df)
-  coefs = summary(model)$coefficients
-  return(coefs[2,])
-}
-# Helper for running the pi1 analysis
-get_pi1_estimates<-function(curr_out_file){
-  load(curr_out_file)
-  
-  phenos = colnames(B)[grepl("^T",colnames(B))]
-  ivs = colnames(B)[grepl("^IV",colnames(B))]
-  df = data.frame(simulated_data)
-  
-  # Get all IV-phenotype associations
-  GWAS_Ps = matrix(1,length(ivs),length(phenos),
-                   dimnames = list(ivs,phenos))
-  for(pheno in phenos){
-    gwas_res = sapply(ivs,run_lm,x=pheno,z=NULL,df = df)
-    GWAS_Ps[,pheno] = gwas_res[4,]
-  }
-  # get the pi1 estimates
-  pi1_estimates = c()
-  for(tr1 in colnames(B_distances)){
-    for (tr2 in colnames(B_distances)){
-      if(tr1==tr2){next}
-      currdist = B_distances[tr2,tr1] # distance from tr1 to tr2
-      if(currdist!=-1 && currdist!=1){next}
-      raw_ivs = rownames(GWAS_Ps)[GWAS_Ps[,tr1]<p1]
-      our_ivs = iv_sets[[tr1]][[tr2]]
-      raw_ivs_pi1 = 1-propTrueNull(GWAS_Ps[raw_ivs,tr2])
-      our_ivs_pi1 = 1-propTrueNull(GWAS_Ps[our_ivs,tr2])
-      pi1_estimates = rbind(pi1_estimates,
-                            c(raw_ivs_pi1,our_ivs_pi1,currdist))
-    }
-  }
-  colnames(pi1_estimates) = c("raw_ivs","our_ivs","real_dist")
-  pi1_estimates = as.data.frame(pi1_estimates)
-  pi1_estimates$p1 = p1
-  pi1_estimates$p2 = p2
-  pi1_estimates$deg = deg
-  pi1_estimates$pleio_p = pleio_p
-  currrep = strsplit(curr_out_file,"_rep")[[1]][2]
-  currrep = as.numeric(gsub(".RData","",currrep))
-  pi1_estimates$rep = currrep
-  return(pi1_estimates)
-}
 library(parallel)
 WD = "/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/simulations_uniqueivs/"
 setwd(WD)
-tested_p1 = c(1e-02,1e-03,1e-04,1e-05)
-tested_p2_factors = c(1,10,100)
-tested_pleio_levels = c(0,0.1,0.2,0.3,0.4)
-tested_degrees = c(1,1.25,1.5,1.75,2)
-all_pi1_estimates = c()
-for(p1 in tested_p1){
-  print(paste("p1",p1))
-  for(p2_f in tested_p2_factors){
-    p2 = p1*p2_f
-    print(paste("p2",p2))
-    if(p2 >0.1){next}
-    if(p2<p1){next}
-    print(paste("p2",p2))
-    for(pleio_p in tested_pleio_levels){
-      print(paste("pleio_p",pleio_p))
-      for(deg in tested_degrees){
-        print(paste("deg",deg))
-        curr_folder = paste(WD,"deg",deg,"_pleio",pleio_p,"_p1",p1,"_p2",p2,"/",sep="")
-        curr_files = list.files(curr_folder)
-        curr_files = curr_files[grepl("RData$",curr_files)]
-        curr_files = paste(curr_folder,curr_files,sep="")
-        curr_pi_ests = mclapply(curr_files,get_pi1_estimates,mc.cores = 8)
-        for(m in curr_pi_ests){
-          all_pi1_estimates = rbind(all_pi1_estimates,m)
-        }
-      }
-    }
+# Go over all RData files in WD and add their pi1_estimates
+wd_folders = list.files(WD,full.names = T)
+for(folder in wd_folders){
+  if(!dir.exists(folder)){next}
+  folder_files = list.files(folder,full.names = T)
+  folder_files = folder_files[grepl(".RData",folder_files)]
+  folder_files = folder_files[grepl("sim_rep",folder_files)]
+  for(rdfile in folder_files){
+    i = strsplit(rdfile,split = "sim_rep")[[1]][2]
+    i = gsub(".RData","",i)
+    print(i)
+    cmd = paste(
+      "~/repos/cGAUGE/R/simulations_add_pi1_estimates.R",
+      "--rdata_file",rdfile
+    )
+    # exec_cmd_on_sherlock(cmd,jobname = paste("sim_rep",i,"_pi1",sep=""),out_path = folder)
   }
+  
+  # # check current jobs and wait if there are too much
+  # job_state = system2("squeue",args = list("-u davidama | wc"),stdout=TRUE)
+  # num_active_jobs = as.numeric(strsplit(job_state,split="\\s+",perl = T)[[1]][2])
+  # while(num_active_jobs > MAX_JOBS){
+  #   Sys.sleep(5)
+  #   job_state = system2("squeue",args = list("-u davidama | wc"),stdout=TRUE)
+  #   num_active_jobs = as.numeric(strsplit(job_state,split="\\s+",perl = T)[[1]][2])
+  # }
 }
-save(all_pi1_estimates,file="all_pi1_estimates.RData")
-
-p1 = 1e-05
-p2 = 0.001
-deg = 1.5
-pleio_p = 0.3
-rows = all_pi1_estimates$p1 == p1 & all_pi1_estimates$p2 == p2 & all_pi1_estimates$deg == deg & all_pi1_estimates&pleio_p == pleio_p
-
-inds1 = rows & all_pi1_estimates[,3] == -1
-inds2 = rows & all_pi1_estimates[,3] != -1
-x1 = all_pi1_estimates[inds,1]
-x2 = all_pi1_estimates[inds,2]
-mean(x1-x2,na.rm = T)
-t.test(x1,x2,paired=T)
-lm(raw_ivs~real_dist,data=all_pi1_estimates[rows,])
-lm(our_ivs~real_dist,data=all_pi1_estimates[rows,])
 
 
 ##############################################################
