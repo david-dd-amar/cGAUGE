@@ -472,6 +472,81 @@ system("rm *.err")
 system("rm *.log")
 system("rm *.sh")
 
+# Read and summarize the results
+analyze_pi1_estimates<-function(x,thrs = seq(0.1,0.9,by=0.1),pi1col=2){
+  nonedges = x[,3]==-1
+  fdrs = c()
+  num_discoveries = c()
+  fprs = c()
+  for(thr in thrs){
+    s_thr = as.character(thr)
+    discoveries = x[,pi1col] > thr
+    fdrs[s_thr] = sum(nonedges[discoveries],na.rm = T)/sum(discoveries,na.rm = T)
+    num_discoveries[s_thr] = sum(discoveries,na.rm = T)
+    fprs[s_thr] = sum(nonedges[!discoveries],na.rm = T)/sum(!discoveries,na.rm = T)
+  }
+  return(list(fdrs=fdrs,num_discoveries = num_discoveries,fprs=fprs))
+}
+
+format_rep_results<-function(x,l){
+  x = as.data.frame(x)
+  for(y in names(l)){
+    x[[y]] = l[[y]]
+  }
+  return(x)
+}
+  
+# Set the simulation parameters
+tested_p1 = c(1e-02,1e-03,1e-04,1e-05)
+tested_p2_factors = c(1,10,100)
+tested_pleio_levels = c(0,0.1,0.2,0.3,0.4)
+tested_degrees = c(1,1.25,1.5,1.75,2)
+
+# Read the results
+all_sim_results_fdrs = c()
+all_sim_results_preds  = c()
+all_sim_results_fprs = c()
+for(p1 in tested_p1){
+  print(paste("p1",p1))
+  for(p2_f in tested_p2_factors){
+    p2 = p1*p2_f
+    print(paste("p2",p2))
+    if(p2 < p1){next}
+    if(p2 > 0.1){next}
+    for(pleio_p in tested_pleio_levels){
+      print(paste("pleio_p",pleio_p))
+      for(deg in tested_degrees){
+        print(paste("deg",deg))
+        curr_folder = paste(WD,"deg",deg,"_pleio",pleio_p,"_p1",p1,"_p2",p2,"/",sep="")
+        currfdrs = c();currNs = c();currfprs = c()
+        for(i in 1:reps){
+          pi1_estimates = NULL
+          curr_out_file = paste(curr_folder,"sim_rep",i,".RData",sep="")
+          load(curr_out_file)
+          if(is.null(pi1_estimates)||length(pi1_estimates)==0){
+            print(paste("missing pi1 in:",curr_out_file))
+            next
+          }
+          pi1_res2 = analyze_pi1_estimates(pi1_estimates,pi1col=2)
+          pi1_res1 = analyze_pi1_estimates(pi1_estimates,pi1col=1)
+          pi1_res2 = lapply(pi1_res2,function(x){names(x)=paste("our",names(x));x})
+          pi1_res1 = lapply(pi1_res1,function(x){names(x)=paste("raw",names(x));x})
+          currfdrs = rbind(currfdrs,c(pi1_res1$fdrs,pi1_res2$fdrs))
+          currNs = rbind(currNs,c(pi1_res1$num_discoveries,pi1_res2$num_discoveries))
+          currfprs = rbind(currfprs,c(pi1_res1$fprs,pi1_res2$fprs))
+        }
+        curr_params = list(p1=p1,p2=p2,deg=deg,pleio_p=pleio_p)
+        currfdrs = format_rep_results(currfdrs,curr_params)
+        currNs = format_rep_results(currNs,curr_params)
+        currfprs = format_rep_results(currfprs,curr_params)
+        all_sim_results_fdrs = rbind(all_sim_results_fdrs,currfdrs)
+        all_sim_results_fprs = rbind(all_sim_results_fprs,currfprs)
+        all_sim_results_preds = rbind(all_sim_results_preds,currNs)
+      }
+    }
+  }
+}
+
 ##############################################################
 ##############################################################
 # Locally - figures and tables
