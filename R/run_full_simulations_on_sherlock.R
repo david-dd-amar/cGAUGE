@@ -428,8 +428,8 @@ save(
 # Add the pi1 estimates for pairs
 ##############################################################
 ##############################################################
-WD = "/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/simulations_uniqueivs/"
-# WD = "/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/simulations_default/"
+# WD = "/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/simulations_uniqueivs/"
+WD = "/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/simulations_default/"
 setwd(WD)
 # Go over all RData files in WD and add their pi1_estimates
 wd_folders = list.files(WD,full.names = T)
@@ -548,37 +548,37 @@ for(p1 in tested_p1){
 }
 
 mean_fdrs = aggregate(all_sim_results_fdrs,
-     by=list(p1=all_sim_results_fdrs$p1,
+     by=list(p1=all_sim_results_fdrs$p1,p2 = all_sim_results_fdrs$p2,
      deg = all_sim_results_fdrs$deg,prob_pleio = all_sim_results_fdrs$pleio_p),
      FUN=mean,na.rm=T)
 
 sd_fdrs = aggregate(all_sim_results_fdrs,
-      by=list(p1=all_sim_results_fdrs$p1,
+      by=list(p1=all_sim_results_fdrs$p1,p2 = all_sim_results_fdrs$p2,
       deg = all_sim_results_fdrs$deg,prob_pleio = all_sim_results_fdrs$pleio_p),
       FUN=sd,na.rm=T)
 
 mean_fprs = aggregate(all_sim_results_fprs,
-      by=list(p1=all_sim_results_fprs$p1,
+      by=list(p1=all_sim_results_fprs$p1,p2 = all_sim_results_fprs$p2,
       deg = all_sim_results_fprs$deg,prob_pleio = all_sim_results_fprs$pleio_p),
       FUN=mean,na.rm=T)
 
 sd_fprs = aggregate(all_sim_results_fprs,
-       by=list(p1=all_sim_results_fprs$p1,
+       by=list(p1=all_sim_results_fprs$p1,p2 = all_sim_results_fprs$p2,
        deg = all_sim_results_fprs$deg,prob_pleio = all_sim_results_fprs$pleio_p),
        FUN=sd,na.rm=T)
 
 mean_num_discoveries = aggregate(all_sim_results_preds,
-       by=list(p1=all_sim_results_preds$p1,
+       by=list(p1=all_sim_results_preds$p1,p2 = all_sim_results_preds$p2,
        deg = all_sim_results_preds$deg,prob_pleio = all_sim_results_preds$pleio_p),
        FUN=mean,na.rm=T)
 
 sd_num_discoveries = aggregate(all_sim_results_preds,
-       by=list(p1=all_sim_results_preds$p1,
+       by=list(p1=all_sim_results_preds$p1,p2 = all_sim_results_preds$p2,
        deg = all_sim_results_preds$deg,prob_pleio = all_sim_results_preds$pleio_p),
        FUN=sd,na.rm=T)
 
 save(
-  all_sim_results_fdrs,all_sim_results_fprs,
+  all_sim_results_fdrs,all_sim_results_fprs,all_sim_results_preds,
   mean_num_discoveries,sd_num_discoveries,
   mean_fdrs,sd_fdrs,
   mean_fprs,sd_fprs,
@@ -594,7 +594,7 @@ save(
 setwd("~/Desktop/causal_inference_projects/ms3/")
 library(fmsb)
 
-deg = 1
+deg = 1.5
 p1 = 1e-05
 p2 = 0.001
 
@@ -767,6 +767,91 @@ par(mar = c(5,5,5,5))
 plot(c(2,2))
 legend(x="top",c("Naive count","MS test","TDR test"),fill = cols,ncol = 1,border=F,cex=2)
 
+#######
+# Look at the Pi1 results
+#######
+load("./simulations_strict/simulation_pi1_summ_stats.RData")
+
+# Num discoveries
+ndigits = 0
+resultsdf = mean_num_discoveries
+inds = resultsdf$deg==deg & resultsdf$p1 == p1 & resultsdf$p2==p2
+df1 = resultsdf[inds,c("prob_pleio","our 0.9","raw 0.9")]
+resultsdf = mean_num_discoveries
+rownames(df1) = df1[,1]
+df1 = df1[,-1]
+df1 = t(df1)
+df1 = as.data.frame(df1)
+df1 = rbind(min(0.1,min(df1)),df1)
+df1 = rbind(max(df1),df1)
+axslabs = round(seq(min(df1),max(df1),length.out = 6),digits = ndigits)
+cols = method2col[rownames(df1)[-c(1:2)]]
+radarchart(df1,axistype=1,seg=5,plwd=2,caxislabels=axslabs,plty=5,vlcex = 1.5,calcex=1.2)
+# legend(x=-1,y=1.8,c("Naive count","EM test","TDR test"),fill = cols,ncol = 2,border=F)
+text(0,0,"N",cex = 1.5,font = 2)
+
+# (D) IVW, MR-PRESSO: FDRs
+ndigits = 2
+resultsdf = mean_fprs
+inds = resultsdf$deg==deg & resultsdf$p1 == p1 & resultsdf$p2==p2
+df1 = resultsdf[inds,c("prob_pleio","our 0.1","raw 0.1")]
+resultsdf = mean_num_discoveries
+rownames(df1) = df1[,1]
+df1 = df1[,-1]
+df1 = t(df1)
+df1 = as.data.frame(df1)
+df1 = rbind(min(0.1,min(df1)),df1)
+df1 = rbind(max(df1),df1)
+axslabs = round(seq(min(df1),max(df1),length.out = 6),digits = ndigits)
+cols = method2col[rownames(df1)[-c(1:2)]]
+radarchart(df1,axistype=1,seg=5,plwd=2,caxislabels=axslabs,plty=5,vlcex = 1.5,calcex=1.2)
+# legend(x=-1,y=1.8,c("Naive count","EM test","TDR test"),fill = cols,ncol = 2,border=F
+text(0,0,"FDR",cex = 1.2,font = 2)
+
+# Write down the supplementary tables
+load("simulations_def/simulation_summ_stats.RData")
+mean_fdrs_thm21 = mean_fdrs
+sd_fdrs_thm21 = sd_fdrs
+mean_num_discoveries_thm21 = mean_num_discoveries
+load("simulations_strict/simulation_summ_stats.RData")
+mean_fdrs_thm22 = mean_fdrs
+sd_fdrs_thm22 = sd_fdrs
+mean_num_discoveries_thm22 = mean_num_discoveries
+
+all(mean_fdrs_thm21[,1:4]==mean_fdrs_thm22[,1:4])
+mr_fdr_simulations_supp_table = mean_fdrs_thm21[,1:4]
+for(j in c(5,7,9)){
+  x1 = format(mean_fdrs_thm21[,j],digits=3)
+  x1 = paste(x1," (",format(sd_fdrs_thm21[,j],digits=3),")",sep="")
+  x21 = format(mean_fdrs_thm21[,j+1],digits=3)
+  x21 = paste(x21," (",format(sd_fdrs_thm21[,j+1],digits=3),")",sep="")
+  x22 = format(mean_fdrs_thm22[,j+1],digits=3)
+  x22 = paste(x22," (",format(sd_fdrs_thm22[,j+1],digits=3),")",sep="")
+  m = cbind(x1,x21,x22)
+  currname = colnames(mean_fdrs_thm21)[j]
+  colnames(m) = c(
+    currname,
+    paste(currname,"thm2.1",sep=","),
+    paste(currname,"thm2.2",sep=",")
+  )
+  mr_fdr_simulations_supp_table = cbind(mr_fdr_simulations_supp_table,m)
+}
+
+# Add the naive edge sep
+j=12
+x1 = format(mean_fdrs_thm21[,j],digits=3)
+x1 = paste(x1," (",format(sd_fdrs_thm21[,j],digits=3),")",sep="")
+x21 = format(mean_fdrs_thm21[,j+1],digits=3)
+x21 = paste(x21," (",format(sd_fdrs_thm21[,j+1],digits=3),")",sep="")
+x22 = format(mean_fdrs_thm22[,j+1],digits=3)
+x22 = paste(x22," (",format(sd_fdrs_thm22[,j+1],digits=3),")",sep="")
+m = cbind(x1,x21,x22)
+currname = "EdgeSep,naive_count"
+colnames(m) = c(
+  currname,
+  paste(currname,"thm2.1",sep=","),
+  paste(currname,"thm2.2",sep=",")
+)
 
 # library(reshape2);library(ggplot2)
 # deg = 1.5
