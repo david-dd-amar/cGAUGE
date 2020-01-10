@@ -428,8 +428,8 @@ save(
 # Add the pi1 estimates for pairs
 ##############################################################
 ##############################################################
-# WD = "/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/simulations_uniqueivs/"
-WD = "/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/simulations_default/"
+WD = "/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/simulations_uniqueivs/"
+# WD = "/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/simulations_default/"
 setwd(WD)
 # Go over all RData files in WD and add their pi1_estimates
 wd_folders = list.files(WD,full.names = T)
@@ -522,7 +522,7 @@ for(p1 in tested_p1){
         for(i in 1:reps){
           pi1_estimates = NULL
           curr_out_file = paste(curr_folder,"sim_rep",i,".RData",sep="")
-          load(curr_out_file)
+          try({load(curr_out_file)})
           if(is.null(pi1_estimates)||length(pi1_estimates)==0){
             print(paste("missing pi1 in:",curr_out_file))
             next
@@ -546,6 +546,44 @@ for(p1 in tested_p1){
     }
   }
 }
+
+mean_fdrs = aggregate(all_sim_results_fdrs,
+     by=list(p1=all_sim_results_fdrs$p1,
+     deg = all_sim_results_fdrs$deg,prob_pleio = all_sim_results_fdrs$pleio_p),
+     FUN=mean,na.rm=T)
+
+sd_fdrs = aggregate(all_sim_results_fdrs,
+      by=list(p1=all_sim_results_fdrs$p1,
+      deg = all_sim_results_fdrs$deg,prob_pleio = all_sim_results_fdrs$pleio_p),
+      FUN=sd,na.rm=T)
+
+mean_fprs = aggregate(all_sim_results_fprs,
+      by=list(p1=all_sim_results_fprs$p1,
+      deg = all_sim_results_fprs$deg,prob_pleio = all_sim_results_fprs$pleio_p),
+      FUN=mean,na.rm=T)
+
+sd_fprs = aggregate(all_sim_results_fprs,
+       by=list(p1=all_sim_results_fprs$p1,
+       deg = all_sim_results_fprs$deg,prob_pleio = all_sim_results_fprs$pleio_p),
+       FUN=sd,na.rm=T)
+
+mean_num_discoveries = aggregate(all_sim_results_preds,
+       by=list(p1=all_sim_results_preds$p1,
+       deg = all_sim_results_preds$deg,prob_pleio = all_sim_results_preds$pleio_p),
+       FUN=mean,na.rm=T)
+
+sd_num_discoveries = aggregate(all_sim_results_preds,
+       by=list(p1=all_sim_results_preds$p1,
+       deg = all_sim_results_preds$deg,prob_pleio = all_sim_results_preds$pleio_p),
+       FUN=sd,na.rm=T)
+
+save(
+  all_sim_results_fdrs,all_sim_results_fprs,
+  mean_num_discoveries,sd_num_discoveries,
+  mean_fdrs,sd_fdrs,
+  mean_fprs,sd_fprs,
+  file = paste(WD,"/simulation_pi1_summ_stats.RData",sep="")
+)
 
 ##############################################################
 ##############################################################
