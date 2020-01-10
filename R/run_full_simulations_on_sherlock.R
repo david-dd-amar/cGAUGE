@@ -587,7 +587,204 @@ save(
 
 ##############################################################
 ##############################################################
-# Locally - figures and tables
+# Write down the supplementary tables
+##############################################################
+##############################################################
+
+setwd("/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/")
+library("xlsx",lib.loc = "~/R/packages3.5")
+
+supp_readme = c()
+
+load("simulations_default/simulation_summ_stats.RData")
+mean_fdrs_thm21 = mean_fdrs
+sd_fdrs_thm21 = sd_fdrs
+mean_num_discoveries_thm21 = mean_num_discoveries
+load("simulations_uniqueivs/simulation_summ_stats.RData")
+mean_fdrs_thm22 = mean_fdrs
+sd_fdrs_thm22 = sd_fdrs
+mean_num_discoveries_thm22 = mean_num_discoveries
+
+all(mean_fdrs_thm21[,1:4]==mean_fdrs_thm22[,1:4])
+mr_fdr_simulations_supp_table = mean_fdrs_thm21[,1:4]
+for(j in c(5,7,9)){
+  x1 = format(mean_fdrs_thm21[,j],digits=3)
+  x1 = paste(x1," (",format(sd_fdrs_thm21[,j],digits=3),")",sep="")
+  x21 = format(mean_fdrs_thm21[,j+1],digits=3)
+  x21 = paste(x21," (",format(sd_fdrs_thm21[,j+1],digits=3),")",sep="")
+  x22 = format(mean_fdrs_thm22[,j+1],digits=3)
+  x22 = paste(x22," (",format(sd_fdrs_thm22[,j+1],digits=3),")",sep="")
+  m = cbind(x1,x21,x22)
+  currname = colnames(mean_fdrs_thm21)[j]
+  colnames(m) = c(
+    currname,
+    paste(currname,"ImpIV",sep=","),
+    paste(currname,"UniqueIV",sep=",")
+  )
+  mr_fdr_simulations_supp_table = cbind(mr_fdr_simulations_supp_table,m)
+}
+
+# Add the naive edge sep
+j=12
+exsep = format(mean_fdrs_thm21[,j],digits=3)
+exsep = paste(exsep," (",format(sd_fdrs_thm21[,j],digits=3),")",sep="")
+mr_fdr_simulations_supp_table = cbind(mr_fdr_simulations_supp_table,exsep)
+colnames(mr_fdr_simulations_supp_table)[ncol(mr_fdr_simulations_supp_table)] = "ExSep, Naive"
+write.xlsx2(mr_fdr_simulations_supp_table,file="./supp_tables/Supplementary_Tables.xlsx",
+            sheetName = "ST1",row.names=F)
+supp_readme = c(supp_readme,
+                "ST1: Empirical FDRs of the MR and the naive ExSep methods")
+
+
+mr_N_simulations_supp_table = mean_num_discoveries_thm21[,1:4]
+for(j in c(5,7,9)){
+  x1 = format(mean_num_discoveries_thm21[,j],digits=3)
+  x21 = format(mean_num_discoveries_thm21[,j+1],digits=3)
+  x22 = format(mean_num_discoveries_thm22[,j+1],digits=3)
+  m = cbind(x1,x21,x22)
+  currname = colnames(mean_num_discoveries_thm21)[j]
+  colnames(m) = c(
+    currname,
+    paste(currname,"ImpIV",sep=","),
+    paste(currname,"UniqueIV",sep=",")
+  )
+  mr_N_simulations_supp_table = cbind(mr_N_simulations_supp_table,m)
+}
+
+# Add the naive edge sep
+j=12
+exsep = format(mean_num_discoveries_thm21[,j],digits=3)
+mr_N_simulations_supp_table = cbind(mr_N_simulations_supp_table,exsep)
+colnames(mr_N_simulations_supp_table)[ncol(mr_N_simulations_supp_table)] = "ExSep, Naive"
+write.xlsx2(mr_N_simulations_supp_table,file="./supp_tables/Supplementary_Tables.xlsx",
+            sheetName = "ST2",row.names=F,append=T)
+supp_readme = c(supp_readme,
+                "ST2: Number of discoveries of the MR and the naive ExSep methods")
+
+load("./simulations_edgesep/simulation_summ_stats.RData")
+edesep_fdr_simulations_supp_table = mean_fdrs[,1:3]
+for(j in c(4,5)){
+  x1 = format(mean_fdrs[,j],digits=3)
+  x1 = paste(x1," (",format(sd_fdrs[,j],digits=3),")",sep="")
+  edesep_fdr_simulations_supp_table = cbind(edesep_fdr_simulations_supp_table,x1)
+}
+colnames(edesep_fdr_simulations_supp_table)[4:5] = c("MS test","TDR test")
+
+edgesep_N_simulations_supp_table = mean_num_discoveries[,1:3]
+for(j in c(4,5)){
+  x1 = format(mean_num_discoveries[,j],digits=3)
+  edgesep_N_simulations_supp_table = cbind(edgesep_N_simulations_supp_table,x1)
+}
+colnames(edgesep_N_simulations_supp_table)[4:5] = c("MS test","TDR test")
+
+write.xlsx2(edesep_fdr_simulations_supp_table,
+            file="./supp_tables/Supplementary_Tables.xlsx",
+            sheetName = "ST3",row.names=F,append=T)
+supp_readme = c(supp_readme,
+                "ST3: Empirical FDRs of the ExSep tests")
+
+write.xlsx2(edgesep_N_simulations_supp_table,
+            file="./supp_tables/Supplementary_Tables.xlsx",
+            sheetName = "ST4",row.names=F,append=T)
+supp_readme = c(supp_readme,
+                "ST4: Number of discoveries of the ExSep tests")
+
+# Pi1 results
+load("simulations_default/simulation_pi1_summ_stats.RData")
+mean_fdrs_thm21 = mean_fdrs
+sd_fdrs_thm21 = sd_fdrs
+mean_fprs_thm21 = mean_fprs
+sd_fprs_thm21 = sd_fprs
+mean_num_discoveries_thm21 = mean_num_discoveries
+load("simulations_uniqueivs/simulation_pi1_summ_stats.RData")
+mean_fdrs_thm22 = mean_fdrs
+sd_fdrs_thm22 = sd_fdrs
+mean_fprs_thm22 = mean_fprs
+sd_fprs_thm22 = sd_fprs
+mean_num_discoveries_thm22 = mean_num_discoveries
+colnames(mean_fdrs_thm21) = gsub(
+  "raw ",replacement = "FDR,raw,pi1>",colnames(mean_fdrs_thm21)
+)
+colnames(mean_fdrs_thm21) = gsub(
+  "our ",replacement = "FDR,ImpIV,pi1>",colnames(mean_fdrs_thm21)
+)
+colnames(mean_fprs_thm21) = gsub(
+  "raw ",replacement = "FPR,raw,pi1<",colnames(mean_fprs_thm21)
+)
+colnames(mean_fprs_thm21) = gsub(
+  "our ",replacement = "FPR,ImpIV,pi1<",colnames(mean_fprs_thm21)
+)
+colnames(mean_num_discoveries_thm21) = gsub(
+  "raw ",replacement = "N,raw,pi1>",colnames(mean_num_discoveries_thm21)
+)
+colnames(mean_num_discoveries_thm21) = gsub(
+  "our ",replacement = "N,ImpIV,pi1<",colnames(mean_num_discoveries_thm21)
+)
+colnames(mean_fdrs_thm22) = gsub(
+  "our ",replacement = "FDR,ImpIV,pi1>",colnames(mean_fdrs_thm22)
+)
+colnames(mean_fprs_thm22) = gsub(
+  "our ",replacement = "FPR,ImpIV,pi1<",colnames(mean_fprs_thm22)
+)
+colnames(mean_num_discoveries_thm22) = gsub(
+  "our ",replacement = "N,UniqueIV,pi1>",colnames(mean_num_discoveries_thm22)
+)
+
+pi1_fdr_fpr_supp_table = mean_fdrs_thm21[,1:4]
+for(j in c(5:22)){
+  x1 = format(mean_fdrs_thm21[,j],digits=3)
+  x1 = paste(x1," (",format(sd_fdrs_thm21[,j],digits=3),")",sep="")
+  x2 = format(mean_fprs_thm21[,j],digits=3)
+  x2 = paste(x2," (",format(sd_fprs_thm21[,j],digits=3),")",sep="")
+  m = cbind(x1,x2)
+  colnames(m) = c(
+    colnames(mean_fdrs_thm21)[j],
+    colnames(mean_fprs_thm21)[j]
+  )
+  pi1_fdr_fpr_supp_table = cbind(pi1_fdr_fpr_supp_table,m)
+}
+for(j in c(14:22)){
+  x1 = format(mean_fdrs_thm22[,j],digits=3)
+  x1 = paste(x1," (",format(sd_fdrs_thm22[,j],digits=3),")",sep="")
+  x2 = format(mean_fprs_thm22[,j],digits=3)
+  x2 = paste(x2," (",format(sd_fprs_thm22[,j],digits=3),")",sep="")
+  m = cbind(x1,x2)
+  colnames(m) = c(
+    colnames(mean_fdrs_thm22)[j],
+    colnames(mean_fprs_thm22)[j]
+  )
+  pi1_fdr_fpr_supp_table = cbind(pi1_fdr_fpr_supp_table,m)
+}
+
+# Add the naive edge sep
+write.xlsx2(pi1_fdr_fpr_supp_table,file="./supp_tables/Supplementary_Tables.xlsx",
+            sheetName = "ST5",row.names=F)
+supp_readme = c(supp_readme,
+                "ST5: Empirical FDRs and FPRs using the pi1 estimates")
+
+pi1_N_simulations_supp_table = mean_num_discoveries_thm21[,1:4]
+for(j in c(5:22)){
+  x1 = format(mean_num_discoveries_thm21[,j],digits=3)
+  pi1_N_simulations_supp_table = cbind(pi1_N_simulations_supp_table,x1)
+  colnames(pi1_N_simulations_supp_table)[ncol(pi1_N_simulations_supp_table)] = 
+    colnames(mean_num_discoveries_thm21)[j]
+}
+for(j in c(14:22)){
+  x1 = format(mean_num_discoveries_thm22[,j],digits=3)
+  pi1_N_simulations_supp_table = cbind(pi1_N_simulations_supp_table,x1)
+  colnames(pi1_N_simulations_supp_table)[ncol(pi1_N_simulations_supp_table)] = 
+    colnames(mean_num_discoveries_thm22)[j]
+}
+
+write.xlsx2(pi1_N_simulations_supp_table,
+            file="./supp_tables/Supplementary_Tables.xlsx",
+            sheetName = "ST6",row.names=F)
+supp_readme = c(supp_readme,
+                "ST6: Number of discoveries using the pi1 estimates (pi1>thr)")
+
+##############################################################
+##############################################################
+# Locally - figures
 ##############################################################
 ##############################################################
 # install.packages("fmsb")
@@ -649,7 +846,8 @@ text(0,0,"FDR",cex = 1.2,font = 2)
 dev.off()
 par(mar = c(5,5,5,5))
 plot(c(2,2))
-legend(x="top",rownames(df1)[-c(1:2)],fill = cols,ncol = 1,border = F,cex=2)
+legend(x="top",c("MRPRESSO","UnIV+MRPRESSO","IVW","UnIV+IVW"),
+       fill = method2col[1:4],ncol = 1,border = F,cex=2)
 
 #######
 # Simulations using Thm 21 - lower WC performance
@@ -702,7 +900,8 @@ text(0,0,"FDR",cex = 1.2,font=2)
 dev.off()
 par(mar = c(5,5,5,5))
 plot(c(2,2))
-legend(x="top",rownames(df1)[-c(1:2)],fill = cols,ncol = 1,border = F,cex=2)
+legend(x="top",c("MRPRESSO","ImpIV+MRPRESSO","IVW","ImpIV+IVW"),
+       fill = method2col[1:4],ncol = 1,border = F,cex=2)
 
 #######
 # Edge sep results: 
@@ -808,50 +1007,7 @@ radarchart(df1,axistype=1,seg=5,plwd=2,caxislabels=axslabs,plty=5,vlcex = 1.5,ca
 # legend(x=-1,y=1.8,c("Naive count","EM test","TDR test"),fill = cols,ncol = 2,border=F
 text(0,0,"FDR",cex = 1.2,font = 2)
 
-# Write down the supplementary tables
-load("simulations_def/simulation_summ_stats.RData")
-mean_fdrs_thm21 = mean_fdrs
-sd_fdrs_thm21 = sd_fdrs
-mean_num_discoveries_thm21 = mean_num_discoveries
-load("simulations_strict/simulation_summ_stats.RData")
-mean_fdrs_thm22 = mean_fdrs
-sd_fdrs_thm22 = sd_fdrs
-mean_num_discoveries_thm22 = mean_num_discoveries
 
-all(mean_fdrs_thm21[,1:4]==mean_fdrs_thm22[,1:4])
-mr_fdr_simulations_supp_table = mean_fdrs_thm21[,1:4]
-for(j in c(5,7,9)){
-  x1 = format(mean_fdrs_thm21[,j],digits=3)
-  x1 = paste(x1," (",format(sd_fdrs_thm21[,j],digits=3),")",sep="")
-  x21 = format(mean_fdrs_thm21[,j+1],digits=3)
-  x21 = paste(x21," (",format(sd_fdrs_thm21[,j+1],digits=3),")",sep="")
-  x22 = format(mean_fdrs_thm22[,j+1],digits=3)
-  x22 = paste(x22," (",format(sd_fdrs_thm22[,j+1],digits=3),")",sep="")
-  m = cbind(x1,x21,x22)
-  currname = colnames(mean_fdrs_thm21)[j]
-  colnames(m) = c(
-    currname,
-    paste(currname,"thm2.1",sep=","),
-    paste(currname,"thm2.2",sep=",")
-  )
-  mr_fdr_simulations_supp_table = cbind(mr_fdr_simulations_supp_table,m)
-}
-
-# Add the naive edge sep
-j=12
-x1 = format(mean_fdrs_thm21[,j],digits=3)
-x1 = paste(x1," (",format(sd_fdrs_thm21[,j],digits=3),")",sep="")
-x21 = format(mean_fdrs_thm21[,j+1],digits=3)
-x21 = paste(x21," (",format(sd_fdrs_thm21[,j+1],digits=3),")",sep="")
-x22 = format(mean_fdrs_thm22[,j+1],digits=3)
-x22 = paste(x22," (",format(sd_fdrs_thm22[,j+1],digits=3),")",sep="")
-m = cbind(x1,x21,x22)
-currname = "EdgeSep,naive_count"
-colnames(m) = c(
-  currname,
-  paste(currname,"thm2.1",sep=","),
-  paste(currname,"thm2.2",sep=",")
-)
 
 # library(reshape2);library(ggplot2)
 # deg = 1.5
