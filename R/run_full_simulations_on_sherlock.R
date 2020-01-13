@@ -758,7 +758,7 @@ for(j in c(14:22)){
 
 # Add the naive edge sep
 write.xlsx2(pi1_fdr_fpr_supp_table,file="./supp_tables/Supplementary_Tables.xlsx",
-            sheetName = "ST5",row.names=F)
+            sheetName = "ST5",row.names=F,append=T)
 supp_readme = c(supp_readme,
                 "ST5: Empirical FDRs and FPRs using the pi1 estimates")
 
@@ -778,7 +778,7 @@ for(j in c(14:22)){
 
 write.xlsx2(pi1_N_simulations_supp_table,
             file="./supp_tables/Supplementary_Tables.xlsx",
-            sheetName = "ST6",row.names=F)
+            sheetName = "ST6",row.names=F,append=T)
 supp_readme = c(supp_readme,
                 "ST6: Number of discoveries using the pi1 estimates (pi1>thr)")
 

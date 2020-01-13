@@ -518,13 +518,111 @@ for(p1 in P1s){
 ################################################################
 ################################################################
 ################################################################
-supp_path = paste(out_path,"supplementary_tables/",sep="")
+supp_path = paste(out_path,"../supp_tables/",sep="")
+load(paste(out_path,"all_pheno_name_metadata.RData",sep=""))
+library("xlsx",lib.loc = "~/R/packages3.5")
+options(java.parameters = "-Xmx5000m")
 
 P1s = c(1e-6,1e-7)
 P2s = c(0.01,0.001)
 
-
-
+setwd(supp_path)
+sheet_ind = 7;sheet_ind_sdata = 1
+captions = c()
+for(p1 in P1s){
+  for (p2 in P2s){
+    load(paste(out_path,"cgauge_res_",p1,"_",p2,".RData",sep=""))
+    
+    ivw_thm22_res = combine_mm_mr_analyses(meta_anal_res_thm22,ivw_res_thm22,
+                                       p_h_thr = -1,minIVs = 3,p_thr=2)
+    ivw_thm22_res = add_is_non_edge_column(ivw_thm22_res,G_t)
+    ivw_thm22_res = add_edgesep_res_column(ivw_thm22_res,edge_sep_em_res,G_t)
+    # Represent the selected edges nicely
+    ivw_thm22_res[,1] = pheno_names[ivw_thm22_res[,1]]
+    ivw_thm22_res[,2] = pheno_names[ivw_thm22_res[,2]]
+    
+    mrpresso_thm22_res = combine_mm_mr_analyses(meta_anal_res_thm22,mrpresso_thm22_res_raw,
+                            p_h_thr = -1,minIVs = 3,p_thr=2)
+    
+    rownames(ivw_res_thm22) = paste(ivw_res_thm22[,1],ivw_res_thm22[,2],sep="->")
+    rownames(mrpresso_thm22_res_raw) = paste(mrpresso_thm22_res_raw[,1],mrpresso_thm22_res_raw[,2],sep="->")
+    mr_inds = c(3:4,7:8)
+    cgauge_inf_results = ivw_thm22_res[,-mr_inds]
+    # initialize the MR columns
+    cgauge_inf_results$qvalue_ivw = NA
+    cgauge_inf_results$Est_ivw = NA
+    cgauge_inf_results$direction_ivw = NA
+    cgauge_inf_results[["-log10p_ivw"]] = NA
+    cgauge_inf_results$p_het_ivw = NA
+    cgauge_inf_results$qvalue_mrpresso = NA
+    cgauge_inf_results$Est_mrpresso = NA
+    cgauge_inf_results$direction_mrpresso = NA
+    cgauge_inf_results[["-log10p_mrpresso"]] = NA
+    cgauge_inf_results$mrpresso_globaltest = NA
+    # add the values
+    cgauge_inf_results$qvalue_ivw = p.adjust(ivw_thm22_res$p_MR,method="BY")
+    cgauge_inf_results$Est_ivw = ivw_thm22_res$Est
+    cgauge_inf_results$direction_ivw = ivw_thm22_res$EdgeDirection
+    cgauge_inf_results[["-log10p_ivw"]] = -log10(pmax(1e-200,ivw_thm22_res$p_MR))
+    shared = intersect(rownames(cgauge_inf_results),rownames(ivw_res_thm22))
+    cgauge_inf_results[shared,"p_het_ivw"] = ivw_res_thm22[shared,"p_het"]
+    # add mrpresso
+    shared = intersect(rownames(cgauge_inf_results),rownames(mrpresso_thm22_res_raw))
+    cgauge_inf_results[shared,"qvalue_mrpresso"] = p.adjust(mrpresso_thm22_res_raw[shared,"p"],method="BY")
+    cgauge_inf_results[shared,"Est_mrpresso"] = mrpresso_thm22_res_raw[shared,"est"]
+    mrpresso_effect_direction = rep("Up",length(shared))
+    mrpresso_effect_direction[as.numeric(mrpresso_thm22_res_raw[shared,"est"])<0] = "Down"
+    cgauge_inf_results[shared,"direction_mrpresso"] = mrpresso_effect_direction
+    cgauge_inf_results[shared,"-log10p_mrpresso"] = -log10(pmax(1e-200,mrpresso_thm22_res_raw[shared,"p"]))
+    cgauge_inf_results[shared,"mrpresso_globaltest"] = mrpresso_thm22_res_raw[shared,"p_het"]
+    # correct some names
+    rownames(cgauge_inf_results) = NULL
+    colnames(cgauge_inf_results)[6] = "MS_test"
+    
+    # some comparisons
+    table(cgauge_inf_results$qvalue_ivw < 0.1, cgauge_inf_results$qvalue_mrpresso < 0.1)
+    table(cgauge_inf_results$direction_ivw,cgauge_inf_results$direction_mrpresso)
+    table(cgauge_inf_results$numIVs>10)
+    
+    selected_results = cgauge_inf_results$qvalue_ivw < 0.1 | 
+      cgauge_inf_results$qvalue_mrpresso < 0.1 | cgauge_inf_results$MS_test < 1e-10
+    selected_results = selected_results & cgauge_inf_results$pi1 > 0.25
+    
+    cgauge_selected_results = cgauge_inf_results[selected_results,]
+    
+    write.table(cgauge_selected_results[grepl("cancer",cgauge_selected_results[,2]),],quote=F,sep="\t")
+    write.table(cgauge_selected_results[grepl("LDL",cgauge_selected_results[,1]),],quote=F,sep="\t")
+    write.table(cgauge_selected_results[grepl("HDL",cgauge_selected_results[,1]),],quote=F,sep="\t")
+    write.table(cgauge_inf_results[grepl("Eos",cgauge_inf_results[,1]) & 
+                  grepl("cancer",cgauge_inf_results[,2]),
+                  c("tr2","pi1","qvalue_ivw","qvalue_mrpresso")],quote=F,sep="\t")
+    write.table(cgauge_selected_results[grepl("depre",cgauge_selected_results[,1]),],quote=F,sep="\t")
+    write.table(cgauge_selected_results[grepl("Sleep",cgauge_selected_results[,1]),],quote=F,sep="\t")
+    write.table(cgauge_selected_results[grepl("Mood",cgauge_selected_results[,1]),],quote=F,sep="\t")
+    
+    # remove current sheets is exist already
+    # wb = loadWorkbook("./Supplementary_Tables.xlsx")
+    # removeSheet(wb, sheetName = paste("ST",sheet_ind,sep=""))
+    # saveWorkbook(wb, "./Supplementary_Tables.xlsx")
+    # wb = loadWorkbook("./Supplementary_Data.xlsx")
+    # removeSheet(wb, sheetName = paste("SD",sheet_ind_sdata,sep=""))
+    # saveWorkbook(wb, "./Supplementary_Data.xlsx")
+    
+    write.table(cgauge_selected_results,
+                file=paste("ST",sheet_ind,".txt",sep=""),row.names=F,sep="\t",quote = F,col.names = T)
+    write.table(cgauge_inf_results,
+                file= paste("SD",sheet_ind_sdata,".txt",sep=""),row.names=F,sep="\t",quote = F,col.names = T)
+    captions = c(captions,
+                 paste("ST",sheet_ind," selected causal inference results after the uniqueIV filter with p1=",p1, "and p2=",p2,sep=""))
+    captions = c(captions,
+                 paste("SD",sheet_ind_sdata," all causal inference results after the uniqueIV filter with p1=",p1, "and p2=",p2,sep=""))
+    
+    sheet_ind = sheet_ind+1
+    sheet_ind_sdata = sheet_ind_sdata+1
+    
+  }
+}
+write(captions,file = "./captions.txt")
 
 
 
