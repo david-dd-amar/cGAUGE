@@ -65,8 +65,8 @@ option_list <- list(
               help="Output RData file with the simulated data and the analysis results"),
   make_option(c( "--edgeSepRun"), action="store", default="0",type="character",
               help="0: run edgeSep with the other methods; 1: run edge sep only, ignore p2"),
-  make_option(c( "--cgaugeMode"), action="store", default="0",type="character",
-              help="0: remove provably improper instruments (but may be imperfect); 1: take the potentially small set of provably true instruments")
+  make_option(c( "--cgaugeMode"), action="store", default="1",type="character",
+              help="0: ImpIV - remove provably improper instruments (but may be imperfect); 1: UniqueIV - take the potentially small set of provably true instruments")
   
 )
 

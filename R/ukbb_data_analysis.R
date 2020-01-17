@@ -145,8 +145,8 @@ GWAS_Ps = iv2trait_p[pruned_snp_list,]
 ###################################################################################
 ###################################################################################
 
-P1s = c(1e-5,1e-6,1e-7,1e-8)
-P2s = c(0.1,0.01,0.001)
+P1s = c(1e-6,1e-7,1e-8)
+P2s = c(0.01,0.001)
 
 #### Perform the G_t skeleton learning for the different p1 values #####
 p12G_t = list()
@@ -257,8 +257,10 @@ for(p1 in P1s){
           curr_sep_ivs = rownames(G_vt)[G_vt[,sep]]
           iv_sets_thm21[[tr1]][[tr2]] = setdiff(iv_sets_thm21[[tr1]][[tr2]],curr_sep_ivs)
         }
-        
         iv_sets_thm22[[tr1]][[tr2]] = intersect(rownames(G_vt)[G_vt[,tr1]>0],uniquely_mapped_ivs)
+        # make sure iv sets are pruned using pruned_snp_lists defined above (from PLINK's output)
+        iv_sets_thm22[[tr1]][[tr2]] = intersect(iv_sets_thm22[[tr1]][[tr2]],pruned_snp_lists[[tr1]])
+        iv_sets_thm21[[tr1]][[tr2]] = intersect(iv_sets_thm21[[tr1]][[tr2]],pruned_snp_lists[[tr1]])
       }
     }
     
@@ -280,30 +282,12 @@ for(p1 in P1s){
     thm22_res = add_edgesep_res_column(thm22_res,edge_sep_em_res,G_t)
     
     # Represent the selected edges nicely
-    thm21_res[,1] = pheno_names[thm21_res[,1]]
-    thm21_res[,2] = pheno_names[thm21_res[,2]]
-    thm22_res[,1] = pheno_names[thm22_res[,1]]
-    thm22_res[,2] = pheno_names[thm22_res[,2]]
-    
-    write.table(thm21_res,file=paste(out_path,
-                "mr_thm21_res_",p1,"_",p2,".txt",sep=""),
-                quote=F,row.names = F,col.names = T,sep="\t")
-    thm21_res2 = thm21_res[as.numeric(thm21_res[,"numIVs"])>9,]
-    write.table(thm21_res2,file=paste(out_path,
-                "mr_thm21_res_atleast_10_ivs_",p1,"_",p2,".txt",sep=""),
-                quote=F,row.names = F,col.names = T,sep="\t")
-    
-    write.table(thm22_res,file=paste(out_path,
-                "mr_thm22_res_",p1,"_",p2,".txt",sep=""),
-                quote=F,row.names = F,col.names = T,sep="\t")
-    thm22_res2 = thm22_res[as.numeric(thm22_res[,"numIVs"])>9,]
-    write.table(thm22_res2,file=paste(out_path,
-                  "mr_thm22_res_atleast_10_ivs_",p1,"_",p2,".txt",sep=""),
-                quote=F,row.names = F,col.names = T,sep="\t")
+    thm21_res[,1] = pheno_names[as.character(thm21_res[,1])]
+    thm21_res[,2] = pheno_names[as.character(thm21_res[,2])]
+    thm22_res[,1] = pheno_names[as.character(thm22_res[,1])]
+    thm22_res[,2] = pheno_names[as.character(thm22_res[,2])]
     
     write.table(thm22_res[grepl("cancer",thm22_res[,2]),c(1:4,9)],quote=F,sep="\t")
-    write.table(thm22_res[grepl("LDL",thm22_res[,1]),c(1:4,9:10)],quote=F,sep="\t")
-    write.table(thm22_res[grepl("HDL",thm22_res[,1]),c(1:4,9:10)],quote=F,sep="\t")
     
     ####################################################################################################
     # save the results of the analysis for further examination

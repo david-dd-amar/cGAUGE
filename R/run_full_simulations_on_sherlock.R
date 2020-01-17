@@ -45,7 +45,7 @@ exec_cmd_on_sherlock<-function(cmd,jobname,out_path){
 ###################################################################################
 # Set the WD and number of repeats
 reps = 40
-WD = "/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/simulations_edgesep/"
+WD = "/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/simulations_uniqueiv2/"
 try(system(paste("mkdir",WD)))
 MAX_JOBS = 400
 # Set the simulation parameters
