@@ -238,7 +238,8 @@ for(p1 in P1s){
   for (p2 in P2s){
     G_vt = extract_skeleton_G_VT(GWAS_Ps,trait_pair_pvals,P1=p1,
                                  P2=p2,test_columns = c("test2","test3"))[[1]]
-    uniquely_mapped_ivs = rownames(G_vt)[rowSums(G_vt)==1]
+    G_vt[is.na(G_vt)] = 0
+    uniquely_mapped_ivs = rownames(G_vt)[rowSums(G_vt,na.rm = T)==1]
     
     # Get the iv sets for each MR analysis
     iv_sets_thm21 = list()
@@ -257,8 +258,7 @@ for(p1 in P1s){
           iv_sets_thm21[[tr1]][[tr2]] = setdiff(iv_sets_thm21[[tr1]][[tr2]],curr_sep_ivs)
         }
         
-        iv_sets_thm22[[tr1]][[tr2]] = rownames(GWAS_Ps)[!is.na(GWAS_Ps[,tr1]) & GWAS_Ps[,tr1]<p1]
-        iv_sets_thm22[[tr1]][[tr2]] = intersect(iv_sets_thm22[[tr1]][[tr2]],uniquely_mapped_ivs)
+        iv_sets_thm22[[tr1]][[tr2]] = intersect(rownames(G_vt)[G_vt[,tr1]>0],uniquely_mapped_ivs)
       }
     }
     
@@ -485,7 +485,7 @@ for(p1 in P1s){
     save(
       GWAS_Ps, # The original associations of the GWAS without conditional independence filtering
       G_t,G_vt, # the skeletons
-      meta_anal_res_thm21,meta_anal_res_thm22,
+      meta_anal_res_thm21,meta_anal_res_thm22, # Meta analysis results (pi1)
       iv_sets_thm21,iv_sets_thm22, # selected instruments per pair
       ivw_res_thm21,ivw_res_thm22, # raw MR results 
       thm21_res,thm22_res, # MR+Meta-analysis results after filters
@@ -520,18 +520,23 @@ for(p1 in P1s){
 ################################################################
 supp_path = paste(out_path,"../supp_tables/",sep="")
 load(paste(out_path,"all_pheno_name_metadata.RData",sep=""))
-library("xlsx",lib.loc = "~/R/packages3.5")
-options(java.parameters = "-Xmx5000m")
+load(paste(out_path,"p12G_t.RData",sep=""))
+load("/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/ukbb_res/em_edge_sep_jobs/edge_sep_em_res.RData")
 
 P1s = c(1e-6,1e-7)
 P2s = c(0.01,0.001)
 
 setwd(supp_path)
-sheet_ind = 7;sheet_ind_sdata = 1
+sheet_ind = 8;sheet_ind_sdata = 1
 captions = c()
 for(p1 in P1s){
   for (p2 in P2s){
     load(paste(out_path,"cgauge_res_",p1,"_",p2,".RData",sep=""))
+    
+    alltraits = pheno_names[colnames(G_t)]
+    biomarkers = alltraits[1:44]
+    diseases = alltraits[grepl("hypothyroidism|gout|diabetes|cancer|failure|disease|angina|infarction|melanoma|atrial|asthma|infection|ibd|pylori|sclerosis|stroke|migrane|reflux|hernia|allergic|ritis",
+                               alltraits,ignore.case = T)]
     
     ivw_thm22_res = combine_mm_mr_analyses(meta_anal_res_thm22,ivw_res_thm22,
                                        p_h_thr = -1,minIVs = 3,p_thr=2)
@@ -584,8 +589,10 @@ for(p1 in P1s){
     table(cgauge_inf_results$direction_ivw,cgauge_inf_results$direction_mrpresso)
     table(cgauge_inf_results$numIVs>10)
     
-    selected_results = cgauge_inf_results$qvalue_ivw < 0.1 | 
-      cgauge_inf_results$qvalue_mrpresso < 0.1 | cgauge_inf_results$MS_test < 1e-10
+    selected_results = 
+      (!is.na(cgauge_inf_results$qvalue_ivw) & cgauge_inf_results$qvalue_ivw < 0.01) | 
+      (!is.na(cgauge_inf_results$qvalue_mrpresso) & cgauge_inf_results$qvalue_mrpresso < 0.01) | 
+      (!is.na(cgauge_inf_results$MS_test) & cgauge_inf_results$MS_test < 1e-10)
     selected_results = selected_results & cgauge_inf_results$pi1 > 0.25
     
     cgauge_selected_results = cgauge_inf_results[selected_results,]
@@ -600,14 +607,6 @@ for(p1 in P1s){
     write.table(cgauge_selected_results[grepl("Sleep",cgauge_selected_results[,1]),],quote=F,sep="\t")
     write.table(cgauge_selected_results[grepl("Mood",cgauge_selected_results[,1]),],quote=F,sep="\t")
     
-    # remove current sheets is exist already
-    # wb = loadWorkbook("./Supplementary_Tables.xlsx")
-    # removeSheet(wb, sheetName = paste("ST",sheet_ind,sep=""))
-    # saveWorkbook(wb, "./Supplementary_Tables.xlsx")
-    # wb = loadWorkbook("./Supplementary_Data.xlsx")
-    # removeSheet(wb, sheetName = paste("SD",sheet_ind_sdata,sep=""))
-    # saveWorkbook(wb, "./Supplementary_Data.xlsx")
-    
     write.table(cgauge_selected_results,
                 file=paste("ST",sheet_ind,".txt",sep=""),row.names=F,sep="\t",quote = F,col.names = T)
     write.table(cgauge_inf_results,
@@ -620,9 +619,249 @@ for(p1 in P1s){
     sheet_ind = sheet_ind+1
     sheet_ind_sdata = sheet_ind_sdata+1
     
+    # get reduced data for figures
+    #   remove edges out of diseases
+    cgauge_for_fig_results = cgauge_selected_results[
+      ! cgauge_selected_results[,1] %in% diseases,
+    ]
+    # remove edges into biomarkers
+    cgauge_for_fig_results = cgauge_for_fig_results[
+      ! cgauge_for_fig_results[,2] %in% biomarkers,
+      ]
+    
+    write.table(cgauge_for_fig_results,
+                file=paste("cgauge_for_fig_results_p1",p1,"_p2",p2,".txt",sep=""),
+                row.names=F,sep="\t",quote = F,col.names = T)
+    
   }
 }
 write(captions,file = "./captions.txt")
+
+
+replace_names<-function(l,x){
+  newl = list()
+  for(n1 in names(l)){
+    xn1 = x[n1]
+    newl[[xn1]] = list()
+    for(n2 in names(l[[n1]])){
+      xn2 = x[n2]
+      if(length(l[[n1]][[n2]])==0){next}
+      newl[[xn1]][[xn2]] = l[[n1]][[n2]]
+    }
+  }
+  return(newl)
+}
+iv_lists_to_mat<-function(l,x,isuniqueiv = F){
+  m = c()
+  for(n1 in names(l)){
+    xn1 = x[n1]
+    for(n2 in names(l[[n1]])){
+      xn2 = x[n2]
+      if(length(l[[n1]][[n2]])==0){next}
+      if(isuniqueiv){
+        suppressWarnings({currm = data.frame(tr = xn1,ivs=l[[n1]][[n2]])})
+      }
+      else{
+        suppressWarnings({currm = data.frame(tr1 = xn1,tr2=xn2,ivs=l[[n1]][[n2]])})
+      }
+      print(dim(currm))
+      m = rbind(m,currm)
+      if(isuniqueiv){break}
+    }
+  }
+  return(m)
+}
+
+# Save the uniqueIV sets in single text files for analysis (e.g., in FUMA)
+uniqueivs_txt_path = paste(supp_path,"uniqueiv_out/",sep="")
+dir.create(uniqueivs_txt_path)
+for(p1 in P1s){
+  for (p2 in P2s){
+    load(paste(out_path,"cgauge_res_",p1,"_",p2,".RData",sep=""))
+    uniquivs  = iv_lists_to_mat(iv_sets_thm22,pheno_names,T)
+    for(tr in unique(uniquivs[,1])){
+      ivs = uniquivs[uniquivs[,1]==tr,2]
+      ivs = as.character(ivs)
+      suppressWarnings({iv_df = data.frame(rsID = ivs,"P-value"=p1,"P-value2"=p2,check.names = F)})
+      tr = gsub(" ","_",tr)
+      write.table(iv_df,file = paste(uniqueivs_txt_path,tr,"_p1",p2,"_p2",p2,".txt",sep=""),row.names = F,sep=" ")
+    }
+  }
+}
+
+# Print G_T to a text file
+G_t_edges = c()
+for(i in 2:nrow(G_t)){
+  for(j in 1:(i-1)){
+    if(!is.na(G_t[i,j]) && G_t[i,j]>0){
+      G_t_edges = rbind(G_t_edges,c(pheno_names[colnames(G_t)[i]],pheno_names[colnames(G_t)[j]]))
+    }
+  }
+}
+write.table(G_t_edges,file=paste(out_path,"G_t_edges","p1_",p1,".txt",sep=""),sep="\t",
+            row.names = F,col.names = F,quote = F)
+
+################################################################
+################################################################
+################################################################
+################################################################
+# Compare to MR-PRESSO and IVW without our filters
+################################################################
+################################################################
+################################################################
+################################################################
+
+# previously computed (but we can recompute using the code above)
+mrpresso_out = 
+  "/oak/stanford/groups/mrivas/users/davidama/april2019_traits_causal_analysis_flow_results/ccd_res/mrpresso.RData"
+other_mrs = 
+  "/oak/stanford/groups/mrivas/users/davidama/april2019_traits_causal_analysis_flow_results/ccd_res/standard_mr_res.RData"
+
+load(paste(out_path,"all_pheno_name_metadata.RData",sep=""))
+mrpresso_wo_filters = get(load(mrpresso_out))
+other_mr_wo_filters = get(load(other_mrs))
+
+parse_mrpresso_list<-function(l,pheno_names=NULL){
+  m = c()
+  for(nn in names(l)){
+    if(length(l[[nn]])==0){next}
+    arr = strsplit(nn,split = "->")[[1]]
+    if(!is.null(pheno_names)){
+      arr[1] = pheno_names[arr[1]]
+      arr[2] = pheno_names[arr[2]]
+    }
+    causalp = l[[nn]][2,"P-value"]
+    causalest = l[[nn]][2,"Causal Estimate"]
+    if(is.na(causalp)){
+      causalp = l[[nn]][1,"P-value"]
+      causalest = l[[nn]][1,"Causal Estimate"]
+    }
+    m = rbind(m,c(arr,causalp,causalest))
+  }
+  rownames(m) = paste(m[,1],m[,2],sep="->")
+  return(m)
+}
+
+for(p1 in P1s){
+  presso0 = mrpresso_wo_filters[[as.character(p1)]]
+  presso0 = parse_mrpresso_list(presso0,pheno_names)
+  ivw0 = other_mr_wo_filters[[as.character(p1)]][["IVW"]]
+  colnames(ivw0) = c("tr1","tr2","p","p_het","est","het_q","numIVs")
+  ivw0[,1] = pheno_names[ivw0[,1]]
+  ivw0[,2] = pheno_names[ivw0[,2]]
+  rownames(ivw0) = paste(ivw0[,1],ivw0[,2],sep="->")
+  for (p2 in P2s){
+    load(paste(out_path,"cgauge_res_",p1,"_",p2,".RData",sep=""))
+    ivw1 = ivw_res_thm22
+    ivw1[,1] = pheno_names[as.character(ivw1[,1])]
+    ivw1[,2] = pheno_names[as.character(ivw1[,2])]
+    rownames(ivw1) = paste(ivw1[,1],ivw1[,2],sep="->")
+    
+    currshared = intersect(rownames(ivw0),rownames(ivw1))
+    p0 = as.numeric(ivw0[currshared,3])
+    p1 = as.numeric(ivw1[currshared,3])
+    names(p0) = currshared;names(p1)=currshared
+    inds = !is.na(p0) & !is.na(p1)
+    p0 = p0[inds];p1=p1[inds]
+    table(p.adjust(p0,method="BY")<0.1,p.adjust(p1,method="BY")<0.1)
+    
+    # Coffee vs. height example
+    p0[grepl("coffe",names(p0),ignore.case=T) & grepl("hei",names(p0),ignore.case=T)]
+    p1[grepl("coffe",names(p0),ignore.case=T) & grepl("hei",names(p0),ignore.case=T)]
+    # lung cancer example
+    p0[grepl("lung",names(p0),ignore.case=T) & grepl("smok",names(p0),ignore.case=T)]
+    p1[grepl("lung",names(p0),ignore.case=T) & grepl("smok",names(p0),ignore.case=T)]
+    # unique MR results
+    names(which(p1 < 1e-03 & p0 > 0.1))
+    names(which(p0 < 1e-03 & p1 > 0.1))
+    
+    presso1 = mrpresso_thm22_res_raw
+    presso1[,1] = pheno_names[as.character(presso1[,1])]
+    presso1[,2] = pheno_names[as.character(presso1[,2])]
+    rownames(presso1) = paste(presso1[,1],presso1[,2],sep="->")
+    currshared = intersect(rownames(presso0),rownames(presso1))
+    p0 = as.numeric(presso0[currshared,3])
+    p1 = as.numeric(presso1[currshared,3])
+    names(p0) = currshared;names(p1)=currshared
+    inds = !is.na(p0) & !is.na(p1)
+    p0 = p0[inds];p1=p1[inds]
+    table(p.adjust(p0,method="BY")<0.1,p.adjust(p1,method="BY")<0.1)
+    
+    # Coffee vs. height example
+    p0[grepl("coffe",names(p0),ignore.case=T) & grepl("hei",names(p0),ignore.case=T)]
+    p1[grepl("coffe",names(p0),ignore.case=T) & grepl("hei",names(p0),ignore.case=T)]
+    # lung cancer example
+    p0[grepl("lung",names(p0),ignore.case=T) & grepl("smok",names(p0),ignore.case=T)]
+    p1[grepl("lung",names(p0),ignore.case=T) & grepl("smok",names(p0),ignore.case=T)]
+    # unique MR results
+    names(which(p1 < 1e-03 & p0 > 0.1))
+    names(which(p0 < 1e-03 & p1 > 0.1))
+    
+  }
+}
+
+################################################################
+################################################################
+################################################################
+################################################################
+# Examine specific cases
+################################################################
+################################################################
+################################################################
+################################################################
+
+
+
+
+
+
+################################################################
+################################################################
+################################################################
+################################################################
+# Some sanity checks
+################################################################
+################################################################
+################################################################
+################################################################
+
+# Compare to an older version
+old_out = "/oak/stanford/groups/mrivas/users/davidama/april2019_traits_causal_analysis_flow_results/ccd_res/"
+p1 = 1e-07
+p2 = 0.001
+load(paste(old_out,"three_rule_analysis_",p1,"_",p2,".RData",sep=""))
+G_t0 = G_t
+G_vt0 = G_it
+meta_anal_res0 = meta_anal_res
+load(paste(out_path,"cgauge_res_",p1,"_",p2,".RData",sep=""))
+diffs = G_t!=G_t0
+which(rowSums(diffs)>0)
+
+shared = intersect(rownames(G_vt),rownames(G_vt0))
+table(G_vt[shared,]==G_vt0[shared,])
+table(is.na(G_vt[shared,]))
+G_vt0[shared,][is.na(G_vt[shared,])]
+uniquely_mapped_ivs = rownames(G_vt)[rowSums(G_vt,na.rm=T)==1]
+uniquely_mapped_ivs0 = rownames(G_vt0)[rowSums(G_vt0,na.rm=T)==1]
+intersect(rownames(G_vt)[G_vt[,"INI30160"]>0],uniquely_mapped_ivs)
+intersect(rownames(G_vt0)[G_vt0[,"INI30160"]>0],uniquely_mapped_ivs0)
+intersect(rownames(G_vt)[G_vt[,"Alanine_aminotransferase"]>0],uniquely_mapped_ivs)
+intersect(rownames(G_vt0)[G_vt0[,"Alanine_aminotransferase"]>0],uniquely_mapped_ivs0)
+
+# compare pi1s
+rownames(meta_anal_res_thm22) = paste(meta_anal_res_thm22[,1],meta_anal_res_thm22[,2],sep="->")
+rownames(meta_anal_res0) = paste(meta_anal_res0[,1],meta_anal_res0[,2],sep="->")
+shared = intersect(rownames(meta_anal_res_thm22),rownames(meta_anal_res0))
+meta_anal_res_thm22 = meta_anal_res_thm22[shared,]
+meta_anal_res0 = meta_anal_res0[shared,]
+pi10 = as.numeric(meta_anal_res0[,4])
+pi1 = as.numeric(meta_anal_res_thm22[,3])
+nivs0 = as.numeric(meta_anal_res0[,5])
+nivs = as.numeric(meta_anal_res_thm22[,5])
+
+
+
+
 
 
 

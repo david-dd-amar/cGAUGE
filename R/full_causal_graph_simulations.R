@@ -539,9 +539,9 @@ if(cgaugeMode == "1"){
   for(tr1 in phenos){
     iv_sets[[tr1]] = list()
     for(tr2 in phenos){
-      iv_sets[[tr1]][[tr2]] = rownames(GWAS_Ps)[GWAS_Ps[,tr1]<p1]
-      iv_sets[[tr1]][[tr2]] = intersect(iv_sets[[tr1]][[tr2]],
-                                        uniquely_mapped_ivs)
+      iv_sets[[tr1]][[tr2]] = intersect(rownames(G_vt)[G_vt[,tr1]>0],uniquely_mapped_ivs)
+      # iv_sets[[tr1]][[tr2]] = rownames(GWAS_Ps)[GWAS_Ps[,tr1]<p1]
+      # iv_sets[[tr1]][[tr2]] = intersect(iv_sets[[tr1]][[tr2]],uniquely_mapped_ivs)
     }
   }
 }
