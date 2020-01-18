@@ -87,7 +87,10 @@ for(p1 in tested_p1){
         for(i in 1:reps){
           
           curr_out_file = paste(curr_folder,"sim_rep",i,".RData",sep="")
-          if(file.exists(curr_out_file)){next}
+          if(file.exists(curr_out_file)){
+            print(paste("results for rep",i,"exist,skipping"))
+            next
+          }
           cmd = paste(
             "~/repos/cGAUGE/R/full_causal_graph_simulations.R",
             "--deg",deg,
@@ -600,7 +603,7 @@ load("simulations_default/simulation_summ_stats.RData")
 mean_fdrs_thm21 = mean_fdrs
 sd_fdrs_thm21 = sd_fdrs
 mean_num_discoveries_thm21 = mean_num_discoveries
-load("simulations_uniqueivs/simulation_summ_stats.RData")
+load("simulations_uniqueiv2/simulation_summ_stats.RData")
 mean_fdrs_thm22 = mean_fdrs
 sd_fdrs_thm22 = sd_fdrs
 mean_num_discoveries_thm22 = mean_num_discoveries
@@ -806,7 +809,7 @@ names(method2col) = c(
   "edge_sep","edge_sep_test1","edge_sep_test2"
 )
 
-load("simulations_strict/simulation_summ_stats.RData")
+load("simulations_uniqueiv/simulation_summ_stats.RData")
 par(mfrow=c(1,2),mar=c(0,1,4,1),xpd=TRUE)
 # (A) IVW, MR-PRESSO: Num discoveries
 resultsdf = mean_num_discoveries

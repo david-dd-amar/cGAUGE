@@ -268,9 +268,11 @@ for(p1 in P1s){
     meta_anal_res_thm21 = run_pairwise_pval_combination_analysis_from_iv_sets(iv_sets_thm21,GWAS_Ps)
     meta_anal_res_thm22 = run_pairwise_pval_combination_analysis_from_iv_sets(iv_sets_thm22,GWAS_Ps)
     ivw_res_thm21 = run_pairwise_mr_analyses_with_iv_sets(
-      sum_stat_matrix,sum_stat_se_matrix,iv_sets_thm21,func=mr_ivw,robust=T)
+      sum_stat_matrix,sum_stat_se_matrix,iv_sets_thm21,func=mr_ivw,robust=T,
+      minIVs=3)
     ivw_res_thm22 = run_pairwise_mr_analyses_with_iv_sets(
-      sum_stat_matrix,sum_stat_se_matrix,iv_sets_thm22,func=mr_ivw,robust=T)
+      sum_stat_matrix,sum_stat_se_matrix,iv_sets_thm22,func=mr_ivw,robust=T,
+      minIVs=3)
     print("Done updating the MR results")
     thm21_res = combine_mm_mr_analyses(meta_anal_res_thm21,ivw_res_thm21,
                                         p_h_thr = -1,minIVs = 3)
@@ -315,7 +317,7 @@ for(p1 in P1s){
 presso_runs_path = paste(out_path,"mrpresso_runs/",sep="")
 system(paste("mkdir",presso_runs_path))
 # Subset of the data - save some time
-P1s = c(1e-05,1e-6,1e-7,1e-8)
+P1s = c(1e-6,1e-7,1e-8)
 P2s = c(0.01,0.001)
 # Load the EdgeSep results, create output files and networks
 load(paste(out_path,"p12G_t.RData",sep=""))
@@ -323,7 +325,7 @@ load("/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/ukbb_res/em_edge_s
 
 #####
 # Helper functions for running in Stanford's HPC
-get_sh_prefix<-function(err="",log="",time="3:00:00"){
+get_sh_prefix<-function(err="",log="",time="1:00:00"){
   return(
     c(
       "#!/bin/bash",
@@ -364,13 +366,15 @@ for(p1 in P1s){
   print(paste("p1",p1))
   for (p2 in P2s){
     print(paste("p2",p2))
+    suppressWarnings(try(rm(mrpresso_thm22_res)))
     load(paste(out_path,"cgauge_res_",p1,"_",p2,".RData",sep=""))
+    # print("mrpresso_thm22_res" %in% ls());next
     if("mrpresso_thm22_res" %in% ls()){next}
     for(tr1 in names(iv_sets_thm22)){
       for(tr2 in names(iv_sets_thm22)){
         if(tr1==tr2){next}
         ivs = iv_sets_thm22[[tr1]][[tr2]]
-        if(length(ivs)<5){next}
+        if(length(ivs)<3){next}
         curr_job_name = paste(tr1,"_",tr2,"_",p1,"_",p2,sep="")
         curr_out_file = paste(presso_runs_path,curr_job_name,".RData",sep="")
         curr_ivs_file = paste(presso_runs_path,curr_job_name,"_ivs.RData",sep="")
@@ -842,10 +846,17 @@ pi10 = as.numeric(meta_anal_res0[,4])
 pi1 = as.numeric(meta_anal_res_thm22[,3])
 nivs0 = as.numeric(meta_anal_res0[,5])
 nivs = as.numeric(meta_anal_res_thm22[,5])
+table(nivs == nivs0)
+nivs[nivs!=nivs0]
+table(pi1 == pi10)
+quantile(pi1-pi10)
+
+pi1[grepl("INI30160",shared) & grepl("cancer1044",shared)]
+meta_anal_res_thm22[grepl("INI30160",shared) & grepl("cancer1044",shared),]
 
 
-
-
-
+ivw1 = ivw_res_thm22
+rownames(ivw1) = paste(ivw1[,1],ivw1[,2],sep="->")
+ivw1[grepl("INI30160",rownames(ivw1)) & grepl("cancer1044",rownames(ivw1)),]
 
 
