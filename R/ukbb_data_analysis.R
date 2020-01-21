@@ -406,6 +406,10 @@ for(p1 in P1s){
 load(paste(out_path,"all_pheno_name_metadata.RData",sep=""))
 for(p1 in P1s){
   for (p2 in P2s){
+    try({rm(meta_anal_res_thm21)})
+    try({rm(meta_anal_res_thm22)})
+    try({rm(cgauge_mrpresso_thm22)})
+    try({rm(G_t)})
     load(paste(out_path,"cgauge_res_",p1,"_",p2,".RData",sep=""))
     # Get the results in a similar format to the other MR analyses
     if("mrpresso_thm22_res" %in% ls()){next}
@@ -415,7 +419,7 @@ for(p1 in P1s){
       for(tr2 in names(iv_sets_thm22)){
         if(tr1==tr2){next}
         ivs = iv_sets_thm22[[tr1]][[tr2]]
-        if(length(ivs)<5){next}
+        if(length(ivs)<3){next}
         curr_job_name = paste(tr1,"_",tr2,"_",p1,"_",p2,sep="")
         curr_out_file = paste(presso_runs_path,curr_job_name,".RData",sep="")
         if(!file.exists(curr_out_file)){next}
@@ -444,8 +448,8 @@ for(p1 in P1s){
       cgauge_mrpresso_thm22[[j]] = as.numeric(as.character(cgauge_mrpresso_thm22[[j]]))
     }
     # combine with the other analyses and save the results
-    meta_anal_res_thm21 = run_pairwise_pval_combination_analysis_from_iv_sets(iv_sets_thm21,GWAS_Ps)
-    meta_anal_res_thm22 = run_pairwise_pval_combination_analysis_from_iv_sets(iv_sets_thm22,GWAS_Ps)
+    # meta_anal_res_thm21 = run_pairwise_pval_combination_analysis_from_iv_sets(iv_sets_thm21,GWAS_Ps)
+    # meta_anal_res_thm22 = run_pairwise_pval_combination_analysis_from_iv_sets(iv_sets_thm22,GWAS_Ps)
     presso_thm22_res = combine_mm_mr_analyses(meta_anal_res_thm22,cgauge_mrpresso_thm22,
                                        p_h_thr = -1,minIVs = 3)
     presso_thm22_res = add_is_non_edge_column(presso_thm22_res,G_t)
@@ -454,13 +458,13 @@ for(p1 in P1s){
     presso_thm22_res[,1] = pheno_names[presso_thm22_res[,1]]
     presso_thm22_res[,2] = pheno_names[presso_thm22_res[,2]]
     
-    write.table(presso_thm22_res,file=paste(out_path,
-                                     "mr_thm22_res_mrpresso_",p1,"_",p2,".txt",sep=""),
-                quote=F,row.names = F,col.names = T,sep="\t")
-    presso_thm22_res2 = presso_thm22_res[as.numeric(presso_thm22_res[,"numIVs"])>9,]
-    write.table(presso_thm22_res2,file=paste(out_path,
-                                      "mr_thm22_res_mrpresso_atleast_10_ivs_",p1,"_",p2,".txt",sep=""),
-                quote=F,row.names = F,col.names = T,sep="\t")
+    # write.table(presso_thm22_res,file=paste(out_path,
+    #                                  "mr_thm22_res_mrpresso_",p1,"_",p2,".txt",sep=""),
+    #             quote=F,row.names = F,col.names = T,sep="\t")
+    # presso_thm22_res2 = presso_thm22_res[as.numeric(presso_thm22_res[,"numIVs"])>9,]
+    # write.table(presso_thm22_res2,file=paste(out_path,
+    #                                   "mr_thm22_res_mrpresso_atleast_10_ivs_",p1,"_",p2,".txt",sep=""),
+    #             quote=F,row.names = F,col.names = T,sep="\t")
     
     write.table(presso_thm22_res[grepl("cancer",presso_thm22_res[,2]),c(1:5)],quote=F,sep="\t")
     write.table(presso_thm22_res[grepl("LDL",presso_thm22_res[,1]),c(2:5,9:10)],quote=F,sep="\t")
@@ -511,7 +515,7 @@ load(paste(out_path,"all_pheno_name_metadata.RData",sep=""))
 load(paste(out_path,"p12G_t.RData",sep=""))
 load("/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/ukbb_res/em_edge_sep_jobs/edge_sep_em_res.RData")
 
-P1s = c(1e-6,1e-7)
+P1s = c(1e-6,1e-7,1e-08)
 P2s = c(0.01,0.001)
 
 setwd(supp_path)
@@ -523,8 +527,9 @@ for(p1 in P1s){
     
     alltraits = pheno_names[colnames(G_t)]
     biomarkers = alltraits[1:44]
-    diseases = alltraits[grepl("hypothyroidism|gout|diabetes|cancer|failure|disease|angina|infarction|melanoma|atrial|asthma|infection|ibd|pylori|sclerosis|stroke|migrane|reflux|hernia|allergic|ritis",
-                               alltraits,ignore.case = T)]
+    diseases = alltraits[grepl(
+      "hypothyroidism|gout|diabetes|cancer|failure|disease|angina|infarction|melanoma|atrial|asthma|infection|ibd|pylori|sclerosis|stroke|migrane|reflux|hernia|allergic|ritis",
+       alltraits,ignore.case = T)]
     
     ivw_thm22_res = combine_mm_mr_analyses(meta_anal_res_thm22,ivw_res_thm22,
                                        p_h_thr = -1,minIVs = 3,p_thr=2)
@@ -545,18 +550,18 @@ for(p1 in P1s){
     cgauge_inf_results$qvalue_ivw = NA
     cgauge_inf_results$Est_ivw = NA
     cgauge_inf_results$direction_ivw = NA
-    cgauge_inf_results[["-log10p_ivw"]] = NA
+    cgauge_inf_results[["log10p_ivw"]] = NA
     cgauge_inf_results$p_het_ivw = NA
     cgauge_inf_results$qvalue_mrpresso = NA
     cgauge_inf_results$Est_mrpresso = NA
     cgauge_inf_results$direction_mrpresso = NA
-    cgauge_inf_results[["-log10p_mrpresso"]] = NA
+    cgauge_inf_results[["log10p_mrpresso"]] = NA
     cgauge_inf_results$mrpresso_globaltest = NA
     # add the values
     cgauge_inf_results$qvalue_ivw = p.adjust(ivw_thm22_res$p_MR,method="BY")
     cgauge_inf_results$Est_ivw = ivw_thm22_res$Est
     cgauge_inf_results$direction_ivw = ivw_thm22_res$EdgeDirection
-    cgauge_inf_results[["-log10p_ivw"]] = -log10(pmax(1e-200,ivw_thm22_res$p_MR))
+    cgauge_inf_results[["log10p_ivw"]] = -log10(pmax(1e-200,ivw_thm22_res$p_MR))
     shared = intersect(rownames(cgauge_inf_results),rownames(ivw_res_thm22))
     cgauge_inf_results[shared,"p_het_ivw"] = ivw_res_thm22[shared,"p_het"]
     # add mrpresso
@@ -566,7 +571,7 @@ for(p1 in P1s){
     mrpresso_effect_direction = rep("Up",length(shared))
     mrpresso_effect_direction[as.numeric(mrpresso_thm22_res_raw[shared,"est"])<0] = "Down"
     cgauge_inf_results[shared,"direction_mrpresso"] = mrpresso_effect_direction
-    cgauge_inf_results[shared,"-log10p_mrpresso"] = -log10(pmax(1e-200,mrpresso_thm22_res_raw[shared,"p"]))
+    cgauge_inf_results[shared,"log10p_mrpresso"] = -log10(pmax(1e-200,mrpresso_thm22_res_raw[shared,"p"]))
     cgauge_inf_results[shared,"mrpresso_globaltest"] = mrpresso_thm22_res_raw[shared,"p_het"]
     # correct some names
     rownames(cgauge_inf_results) = NULL
@@ -578,22 +583,23 @@ for(p1 in P1s){
     table(cgauge_inf_results$numIVs>10)
     
     selected_results = 
-      (!is.na(cgauge_inf_results$qvalue_ivw) & cgauge_inf_results$qvalue_ivw < 0.01) | 
-      (!is.na(cgauge_inf_results$qvalue_mrpresso) & cgauge_inf_results$qvalue_mrpresso < 0.01) | 
+      (!is.na(cgauge_inf_results$qvalue_ivw) & cgauge_inf_results$qvalue_ivw < 0.1) | 
+      (!is.na(cgauge_inf_results$qvalue_mrpresso) & cgauge_inf_results$qvalue_mrpresso < 0.1) | 
       (!is.na(cgauge_inf_results$MS_test) & cgauge_inf_results$MS_test < 1e-10)
     selected_results = selected_results & cgauge_inf_results$pi1 > 0.25
     
     cgauge_selected_results = cgauge_inf_results[selected_results,]
-    
-    write.table(cgauge_selected_results[grepl("cancer",cgauge_selected_results[,2]),],quote=F,sep="\t")
-    write.table(cgauge_selected_results[grepl("LDL",cgauge_selected_results[,1]),],quote=F,sep="\t")
-    write.table(cgauge_selected_results[grepl("HDL",cgauge_selected_results[,1]),],quote=F,sep="\t")
-    write.table(cgauge_inf_results[grepl("Eos",cgauge_inf_results[,1]) & 
-                  grepl("cancer",cgauge_inf_results[,2]),
-                  c("tr2","pi1","qvalue_ivw","qvalue_mrpresso")],quote=F,sep="\t")
-    write.table(cgauge_selected_results[grepl("depre",cgauge_selected_results[,1]),],quote=F,sep="\t")
-    write.table(cgauge_selected_results[grepl("Sleep",cgauge_selected_results[,1]),],quote=F,sep="\t")
-    write.table(cgauge_selected_results[grepl("Mood",cgauge_selected_results[,1]),],quote=F,sep="\t")
+
+    # write.table(cgauge_inf_results[grepl("cancer",cgauge_inf_results[,2]),],quote=F,sep="\t")
+    # write.table(cgauge_selected_results[grepl("cancer",cgauge_selected_results[,2]),],quote=F,sep="\t")
+    # write.table(cgauge_selected_results[grepl("LDL",cgauge_selected_results[,1]),],quote=F,sep="\t")
+    # write.table(cgauge_selected_results[grepl("HDL",cgauge_selected_results[,1]),],quote=F,sep="\t")
+    # write.table(cgauge_inf_results[grepl("Baso",cgauge_inf_results[,1]) & 
+    #               grepl("cancer",cgauge_inf_results[,2]),
+    #               c("tr2","pi1","qvalue_ivw","qvalue_mrpresso","numIVs")],quote=F,sep="\t")
+    # write.table(cgauge_selected_results[grepl("depre",cgauge_selected_results[,1]),],quote=F,sep="\t")
+    # write.table(cgauge_selected_results[grepl("Sleep",cgauge_selected_results[,1]),],quote=F,sep="\t")
+    # write.table(cgauge_selected_results[grepl("Mood",cgauge_selected_results[,1]),],quote=F,sep="\t")
     
     write.table(cgauge_selected_results,
                 file=paste("ST",sheet_ind,".txt",sep=""),row.names=F,sep="\t",quote = F,col.names = T)
@@ -620,6 +626,24 @@ for(p1 in P1s){
     write.table(cgauge_for_fig_results,
                 file=paste("cgauge_for_fig_results_p1",p1,"_p2",p2,".txt",sep=""),
                 row.names=F,sep="\t",quote = F,col.names = T)
+    
+    curr_cancer_results = cgauge_inf_results[
+      grepl("cancer|oma",cgauge_inf_results[,2],ignore.case = T) &
+        cgauge_inf_results[,1] %in% biomarkers,
+    ]
+    cancer_ivwp = 10^(-curr_cancer_results$'log10p_ivw')
+    cancer_mrpressop = 10^(-curr_cancer_results$'log10p_mrpresso')
+    curr_cancer_results$qvalue_ivw = p.adjust(cancer_ivwp,method="fdr")
+    curr_cancer_results$qvalue_mrpresso = p.adjust(cancer_mrpressop,method="fdr")
+    curr_cancer_results = curr_cancer_results[
+      (!is.na(curr_cancer_results$qvalue_ivw) & curr_cancer_results$qvalue_ivw < 0.1) | 
+      (!is.na(curr_cancer_results$qvalue_mrpresso) & curr_cancer_results$qvalue_mrpresso < 0.1),]
+    
+    write.table(curr_cancer_results,
+                file=paste("cgauge_cancer_results_p1",p1,"_p2",p2,".txt",sep=""),
+                row.names=F,sep="\t",quote = F,col.names = T)
+    
+    write.table(curr_cancer_results,quote=F,sep="\t")
     
   }
 }
@@ -797,8 +821,6 @@ for(p1 in P1s){
 ################################################################
 ################################################################
 ################################################################
-
-
 
 
 

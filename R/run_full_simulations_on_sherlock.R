@@ -432,7 +432,8 @@ save(
 ##############################################################
 ##############################################################
 # WD = "/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/simulations_uniqueivs/"
-WD = "/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/simulations_default/"
+# WD = "/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/simulations_default/"
+WD = "/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/simulations_uniqueiv2/"
 setwd(WD)
 # Go over all RData files in WD and add their pi1_estimates
 wd_folders = list.files(WD,full.names = T)
@@ -699,7 +700,7 @@ sd_fdrs_thm21 = sd_fdrs
 mean_fprs_thm21 = mean_fprs
 sd_fprs_thm21 = sd_fprs
 mean_num_discoveries_thm21 = mean_num_discoveries
-load("simulations_uniqueivs/simulation_pi1_summ_stats.RData")
+load("simulations_uniqueiv2/simulation_pi1_summ_stats.RData")
 mean_fdrs_thm22 = mean_fdrs
 sd_fdrs_thm22 = sd_fdrs
 mean_fprs_thm22 = mean_fprs
@@ -784,6 +785,8 @@ write.xlsx2(pi1_N_simulations_supp_table,
             sheetName = "ST6",row.names=F,append=T)
 supp_readme = c(supp_readme,
                 "ST6: Number of discoveries using the pi1 estimates (pi1>thr)")
+
+write(supp_readme,file = "./supp_tables/supp_readme.txt")
 
 ##############################################################
 ##############################################################

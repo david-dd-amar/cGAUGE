@@ -251,7 +251,7 @@ remove_non_minimal_sepsets<-function(l){
 #' @param ... Additional parameters to run_single_mr_analysis.
 #' @return A matrix. A row for each analyzed pair. First elements are phenotype 1 (cause), phenotype 2. Then the MR results (depend on the MR method used). Last element is the number of variants of phenotype 1 that were used in the analysis.
 run_pairwise_mr_analyses<-function(G_VT,sum_stats,sum_stats_se,
-                                   pleio_size=1, minIVs = 5,pruned_lists=NULL,...){
+                                   pleio_size=1, minIVs = 3,pruned_lists=NULL,...){
   trait_pairs_analysis = c()
   traits = colnames(G_VT)
   num_tests = 0
@@ -290,7 +290,7 @@ run_pairwise_mr_analyses<-function(G_VT,sum_stats,sum_stats_se,
 #' @param ... Additional parameters to run_single_mr_analysis.
 #' @return A matrix. A row for each analyzed pair. First elements are phenotype 1 (cause), phenotype 2. Then the MR results (depend on the MR method used). Last element is the number of variants of phenotype 1 that were used in the analysis.
 run_pairwise_mr_analyses_with_iv_sets<-function(sum_stats,sum_stats_se,iv_sets,
-                                                minIVs = 5,...){
+                                                minIVs = 3,...){
   trait_pairs_analysis = c()
   traits = colnames(sum_stats)
   num_tests = 0
@@ -352,7 +352,7 @@ run_pairwise_pval_combination_analysis_from_iv_sets<-function(iv_sets,GWAS_Ps){
 #' @param minIVs numeric, trait pairs whose analysis is based on less than this number are excluded
 #' @return a matrix with the combined meta-analysis and Mendelian randomization results
 combine_mm_mr_analyses<-function(mm,mr,p_thr=0.01,adj_method="BY",
-                                 p_h_thr=1,minIVs=5){
+                                 p_h_thr=1,minIVs=3){
   names1 = paste(mm[,1],mm[,2],sep="->")
   names2 = paste(mr[,1],mr[,2],sep="->")
   rownames(mm) = names1;rownames(mr)=names2
