@@ -485,16 +485,16 @@ if(edgeSepRun=="1"){
                                            test = grid_ms_test)
   edge_sep_results_statTest1 = add_distances(edge_sep_results_statTest1,
                                             B_distances,newcolname = "KnownDistance")
-  edge_sep_results_statTest2 = EdgeSepTest(GWAS_Ps,G_t,trait_pair_pvals,text_col_name=1,
-                                            test = simple_lfdr_test)
-  edge_sep_results_statTest2 = add_distances(edge_sep_results_statTest2,
-                                             B_distances,newcolname = "KnownDistance")
+  # edge_sep_results_statTest2 = EdgeSepTest(GWAS_Ps,G_t,trait_pair_pvals,text_col_name=1,
+  #                                           test = simple_lfdr_test)
+  # edge_sep_results_statTest2 = add_distances(edge_sep_results_statTest2,
+  #                                            B_distances,newcolname = "KnownDistance")
   
   save(
     opt, # input parameters
     B,Bg,simulated_data,B_distances, # simulated data
     edge_sep_results_statTest1, # EdgeSepStatTest1
-    edge_sep_results_statTest2, # EdgeSepStatTest2
+    # edge_sep_results_statTest2, # EdgeSepStatTest2
     G_it,G_vt,G_t, # Skeletons
     file = outfile
   )
@@ -506,12 +506,12 @@ if(edgeSepRun=="1"){
     sum(edge_sep_results_statTest1$KnownDistance==-1)/nrow(edge_sep_results_statTest1),
     nrow(edge_sep_results_statTest1)))
 
-  edge_sep_results_statTest2 = edge_sep_results_statTest2[
-    p.adjust(edge_sep_results_statTest2$`pval:trait1->trait2`)<0.1,]
-  print("EdgeSepTest1, Bonf correction (0.1), FDR and num discoveries:")
-  print(paste(
-    sum(edge_sep_results_statTest2$KnownDistance==-1)/nrow(edge_sep_results_statTest2),
-    nrow(edge_sep_results_statTest2)))
+  # edge_sep_results_statTest2 = edge_sep_results_statTest2[
+  #   p.adjust(edge_sep_results_statTest2$`pval:trait1->trait2`)<0.1,]
+  # print("EdgeSepTest1, Bonf correction (0.1), FDR and num discoveries:")
+  # print(paste(
+  #   sum(edge_sep_results_statTest2$KnownDistance==-1)/nrow(edge_sep_results_statTest2),
+  #   nrow(edge_sep_results_statTest2)))
   
   q(save = "no",status = 0)
 }
