@@ -1,4 +1,5 @@
 try({library(mixtools)})
+try({library(mclust)})
 
 # Modified code from znormix (pi0 was depricated from CRAN on 2018)
 # Alternatives: spEMsymlocN01, locfdr, fdrtool
@@ -144,20 +145,23 @@ normalmixEM_wrapper<-function(zz,reps=100,k,...){
     lambda=1
     mu = mean(zz,na.rm = T)
     s = sd(zz,na.rm = T)
-    loglik = sum(dnorm(zz,mean=mu,sd=d,log = T))
+    loglik = sum(dnorm(zz,mean=mu,sd=s,log = T))
     return(list(
       lambda=lambda,mu=mu,sd=s,loglik=loglik
     ))
   }
   bestModel = NULL
+  logliks = c()
   for(j in 1:reps){
     try({
-      currModel = normalmixEM(zz,k=k,...)
+      currModel = normalmixEM(sample(zz),k=k,...)
+      logliks[j] = currModel$loglik
       if(is.null(bestModel) || currModel$loglik > bestModel$loglik){
         bestModel = currModel
       }
     })
   }
+  bestModel$logliks = logliks
   return(bestModel)
 }
 
@@ -182,9 +186,9 @@ simple_lfdr_test<-function(p1,p2,zthr = 10){
   z2[z2 < -zthr]  = -zthr
   
   z1_m = znormix_wrapper(p=NULL,z=z1,theoretical_null = T,
-                         min_mean_z1 = 1,min_sd1 = 0.25,reps = 5)
+                         min_mean_z1 = 1,min_sd1 = 0.25,reps = 50)
   z2_m = znormix_wrapper(p=NULL,z=z2,theoretical_null = T,
-                         min_mean_z1 = 1,min_sd1 = 0.25,reps = 5)
+                         min_mean_z1 = 1,min_sd1 = 0.25,reps = 50)
   # print(cbind(z1_m[1:5],z2_m[1:5]))
   fdr1 = attr(z1_m,"lfdr")
   fdr2 = attr(z2_m,"lfdr")
@@ -198,62 +202,13 @@ simple_lfdr_test<-function(p1,p2,zthr = 10){
   return(pv)
 }
 
-# library(EnvStats)
-# simple_z1_variance_test<-function(p1,p2,ltdr_val = 0.4){
-#   z1 = c(-qnorm(p1))
-#   z1 = fix_inf_z(z1)
-#   z2 = c(-qnorm(p2))
-#   z2 = fix_inf_z(z2)
-#   z2_m = znormix_wrapper(p2,theoretical_null = T,
-#             min_mean_z1 = 1,min_sd1 = 0.25,reps=2)
-#   tdr2 = 1-attr(z2_m,"lfdr")
-#   
-#   inds = tdr2 < ltdr_val
-#   print(table(inds))
-#   p = varTest(z1[inds],alternative = "greater", sigma.squared =  1)$p.value
-#   return(p)
-# }
-
-
-# # Check the tdr plots
-# order_tdr_test<-function(p1,p2,reps=20,zthr = 10){
-#   z1 = c(-qnorm(p1))
-#   z1 = fix_inf_z(z1)
-#   z1[z1 > zthr] = zthr
-#   z2 = c(-qnorm(p2))
-#   z2 = fix_inf_z(z2)
-#   z2[z2>zthr]  = zthr
-#   z1_m = znormix_wrapper(p1,theoretical_null = T,
-#                          min_mean_z1 = 1,min_sd1 = 0.25,reps=2)
-#   z2_m = znormix_wrapper(p2,theoretical_null = T,
-#                          min_mean_z1 = 1,min_sd1 = 0.25,reps=2)
-#   # compute our statistics
-#   fdr1 = attr(z1_m,"fdr")
-#   fdr2 = attr(z2_m,"fdr")
-#   
-#   tdr1 = 1-fdr1
-#   tdr2 = 1-fdr2
-#   ord1 = order(z1,decreasing = T)
-#   ord2 = order(z2,decreasing = T)
-#   F0 = cumsum(tdr1[ord1])/sum(tdr1)
-#   F1 = cumsum(tdr1[ord2])/sum(tdr1)
-#   plot(F0,type="l",ylab="tdr",xlab="")
-#   lines(F1,type="l",col="blue")
-#   diffs = F0-F1
-#   lines(diffs)
-#   abline(0,0,xpd=F)
-#   STATISTIC = max(F0-F1)
-# }
-
 # # Too slow, under powered
 # # # Code from mixtools (copied and simplified to avoid messages and unneeded options)
 # # library(mixtools)
-# # library(mixtools)
-univar_mixtools_em<-function(p1,p2,zthr = 10,...){
+univar_mixtools_em<-function(p1,p2,zthr = 10,return_models=F,...){
   
   inds = !is.na(p1) & !is.na(p2)
   p1 = p1[inds];p2 = p2[inds]
-  
   z1 = c(-qnorm(p1))
   z1 = fix_inf_z(z1)
   z1[z1 > zthr] = zthr
@@ -272,324 +227,63 @@ univar_mixtools_em<-function(p1,p2,zthr = 10,...){
   zz = z1-z2
   try({
     possible_means = c(z1_m[2]-z2_m[2],z1_m[2]-z2_m[4],z1_m[4]-z2_m[4],z1_m[4]-z2_m[2])
-    null_prior = c(0.8,rep(0.2/2,2))
-    null_m = normalmixEM_wrapper(zz,lambda = null_prior,
-                                 mean.constr = possible_means[1:3],k=3,...)
     alt_prior = c(0.8,rep(0.2/3,3))
     alt_m = normalmixEM_wrapper(zz,lambda = alt_prior,
                                 mean.constr = possible_means[1:4],k=4,...)
+    alt_m = emFixedMeans(zz,mu=possible_means)
+    null_prior = c(0.8,rep(0.2/2,2))
+    null_m = normalmixEM_wrapper(zz,lambda = null_prior,
+                                 mean.constr = possible_means[1:3],k=3,...)
     l_diff = alt_m$loglik - null_m$loglik
     l_diff_p = pchisq(2*l_diff,2,lower.tail = F)
+    if(return_models){
+      return(list(
+        null_m=null_m,alt_m=alt_m,l_diff_p=l_diff_p,possible_means=possible_means)
+      )
+    }
     return(l_diff_p)
   })
 
   return(1)
 }
 
+# # Some tests
+# setwd("~/Desktop/causal_inference_projects/ms3/edge_sep_em/")
+# load("./Lipoprotein_A_LDL_direct_input.RData")
+# load("./Lipoprotein_A_LDL_direct_edgesep_em_output.RData")
+# prlist = read.delim("./plink.prune.in",stringsAsFactors = F)[,1]
+# prlist = intersect(rownames(ps),prlist)
+# p1 = ps[prlist,1];p2 = ps[prlist,2]
+# grid_ms_test(p1,p2)
 
-#' library(MASS)
-#' rmvn_mix<-function(n,lambda,mu,sigma){
-#'   samp = c()
-#'   clustSamples = rmultinom(1,n,lambda)
-#'   for(i in 1:nrow(clustSamples)){
-#'     if(clustSamples[i,1]==0){next}
-#'     currsamp = mvrnorm(clustSamples[i,1],mu[[i]],sigma[[i]])
-#'     samp = rbind(samp,currsamp)
-#'   }
-#'   return(samp)
-#' }
-#' get_correl_from_diff_sd<-function(sd_diff,sd1,sd2){
-#'   var_diff = sd_diff^2
-#'   correl = (sd1^2 + sd2^2 - var_diff)/(2*sd1*sd2)
-#'   return(correl)
-#' }
-#' #' 
-#' #' Parametric bootstrap test for the existance of edge sep points.
-#' #'
-#' #' This test transforms the input p-value vectors to z-scores (-qnorm(p)).
-#' #' For each z-score vector we fit a two groups model as a mixture of two gaussians:
-#' #' standard normal and a distribution of significant non-null z-scores.
-#' #' We assume that this estimation is correct and take the two groups models as fixed.
-#' #' Thus, each vector has three parameters: \pi (probability of null), \mu mean of discoveries
-#' #' and \sigma - standard deviation of discoveries (assumed to be > 0.25).
-#' #'
-#' #' As we are interested in cases with "high" z1 and "insignificant" z2, we use the following test
-#' #' statistic: \sum_i{tdr^1({z^1}_i)fdr^2({z^2}_i)}. Note that this statistic is not equivalent
-#' #' to summing over Pr(non-null|{z^1}_i)Pr(null|{z^2}_i) due to the dependence structure of z1 and z2.
-#' #' However, as we explain below, we can simulate data points from the null distribution and compute
-#' #' the significance of our statistic.
-#' #'
-#' #' Assuming that z1 and z2 each follows a two groups model,
-#' #' their the joint distribution is a mixture of up to four Guassians:
-#' #' 1. (null,null) - a mixture around (0,0) with known marginal variance and unknown covariance.
-#' #' 2. (non-null,non-null) - a mixture around (\mu_1,\mu_2) with known marginal variance and unknown covariance.
-#' #' 3. (null,non-null) - a mixture around (0,\mu_2)
-#' #' 4. (non-null,null) - a mixture around (\mu_1,0)
-#' #' Assuming that if cluster 3 exists in the data then its contribution to the statistic
-#' #' is zero (because Pr(non-null) for low zscores is zero) then simulating without this component
-#' #' can only increase the statistic under the null. We thus simulate from a mixture of 1 and 2 only.
-#' #' We have two unknown parameters: the covariances within these mixtures. We estimate these using a four
-#' #' mixture model for the difference zz = z1-z2.
-#' #' We fit three possible models: all with the component for cluster 4 and:
-#' #' with cluster 1 only, with 1 and 2 and with 1-3.
-#' #' Model selection for the null is based on BIC.
-#' #' Given the selected model, we simulate data from the joint distribution with
-#' #' clusters 1 and 2 only.
-#' #' We then compute empirical p-values using the normal approximation (requires assuming
-#' #' that z-scores are independent.)
-#' param_bootstrap_test<-function(p1,p2,reps=500,zthr = 10){
-#'   inds = !is.na(p1) & !is.na(p2)
-#'   p1 = p1[inds];p2 = p2[inds]
-#'   
-#'   z1 = c(-qnorm(p1))
-#'   z1 = fix_inf_z(z1)
-#'   z1[z1 > zthr] = zthr
-#'   z1[z1 < -zthr] = -zthr
-#'   z2 = c(-qnorm(p2))
-#'   z2 = fix_inf_z(z2)
-#'   z2[z2 > zthr]  = zthr
-#'   z2[z2 < -zthr]  = -zthr
-#'   
-#'   z1_m = znormix_wrapper(p=NULL,z=z1,theoretical_null = T,
-#'                          min_mean_z1 = 1,min_sd1 = 0.25,reps = 5)
-#'   z2_m = znormix_wrapper(p=NULL,z=z2,theoretical_null = T,
-#'                          min_mean_z1 = 1,min_sd1 = 0.25,reps = 5)
-#'   # compute our statistics
-#'   fdr1 = attr(z1_m,"lfdr")
-#'   fdr2 = attr(z2_m,"lfdr")
-#'   
-#'   stat = sum((1-fdr1)*fdr2)
-#' 
-#'   try({
-#'     # create the null distribution
-#'     zz = z1-z2
-#'     # define the differences
-#'     possible_means = c(0,-z2_m[4],z1_m[4]-z2_m[4],z1_m[4])
-#'     null_prior = c(0.8,rep(0.2/3,3))
-#'     null_m = normalmixEM_wrapper(zz,lambda = null_prior,
-#'                                mean.constr = possible_means,k=4,reps=5)
-#'     zcor = get_correl_from_diff_sd(null_m$sigma[1],1,1)
-#'     zcor1 = get_correl_from_diff_sd(null_m$sigma[3],z1_m[5],z2_m[5])
-#'     zcor2 = get_correl_from_diff_sd(null_m$sigma[2],1,z2_m[5])
-#'     zcor1 = min(zcor1,1);zcor = min(zcor,1);zcor2 = min(zcor2,1)
-#'     zcor1 = max(zcor1,0);zcor = max(zcor,0);zcor2 = max(zcor2,0)
-#'     zcov1 = zcor1*z1_m[5]*z2_m[5]
-#'     zcov2 = zcor2*z2_m[5]
-#'     corrmat0 = matrix(c(1,zcor,zcor,1),2,2)
-#'     corrmat1 = matrix(c(z1_m[5]^2,zcov1,zcov1,z2_m[5]^2),2,2)
-#'     corrmat2 = matrix(c(1,zcov2,zcov2,z2_m[5]^2),2,2)
-#'     sigma = list(corrmat0,corrmat2,corrmat1)
-#'     lambda = null_m$lambda[1:3]
-#'     lambda = lambda/sum(lambda)
-#'     mu = list(c(0,0),c(0,z2_m[4]),c(z1_m[4],z2_m[4]))
-#'     
-#'     # pi0 = (z1_m[1] + z2_m[1])*0.5
-#'     # pi0 = (m1$fp0[3,3] + m2$fp0[3,3])*0.5
-#'     # lambda = c(pi0,1-pi0)
-#'     # corrmat0 = matrix(c(1,0,0,1),2,2)
-#'     # corrmat1 = matrix(c(z1_m[5]^2,0,0,z2_m[5]^2),2,2)
-#'     # sigma = list(corrmat0,corrmat1)
-#'     # mu = list(c(0,0),c(z1_m[4],z2_m[4]))
-#'     # parametric bootstrap
-#'     b_scores = c();sum_b_greater = 0
-#'     for(j in 1:reps){
-#'       if(j %% 20 == 0){print(j)}
-#'       zzsamp = rmvn_mix(length(z1),lambda,mu,sigma)
-#'       currz1 = zzsamp[,1]
-#'       currz2 = zzsamp[,2]
-#'       # plot(currz1,currz2,xlim=c(-5,15),ylim=c(-5,15),
-#'       #    main=paste(format(zcor1,digits = 3),
-#'       #               format(zcor,digits = 3),sep=","));abline(0,1)
-#'       # plot(z1,z2,xlim=c(-5,15),ylim=c(-5,15));abline(0,1)
-#'       currz1_m = znormix_compute_fdrs(currz1,z1_m[1:5])
-#'       currz2_m = znormix_compute_fdrs(currz2,z2_m[1:5])
-#'       currfdr1 = attr(currz1_m,"lfdr")
-#'       currfdr2 = attr(currz2_m,"lfdr")
-#'       
-#'       currstat = sum((1-currfdr1)*currfdr2)
-#'       b_scores = c(b_scores,currstat)
-#'       sum_b_greater = sum_b_greater + as.numeric(currstat > stat)
-#'       emp_p = (1+sum_b_greater)/(1+length(b_scores))
-#'       if(j > 20 && emp_p > 0.1){break}
-#'     }
-#'     return(emp_p)
-#'   })
-#'   return(1)
-#' }
-#' 
-#' 
-#' permutation_fdr_test<-function(p1,p2,reps=500,zthr = 10){
-#'   inds = !is.na(p1) & !is.na(p2)
-#'   p1 = p1[inds];p2 = p2[inds]
-#'   
-#'   z1 = c(-qnorm(p1))
-#'   z1 = fix_inf_z(z1)
-#'   z1[z1 > zthr] = zthr
-#'   z1[z1 < -zthr] = -zthr
-#'   z2 = c(-qnorm(p2))
-#'   z2 = fix_inf_z(z2)
-#'   z2[z2 > zthr]  = zthr
-#'   z2[z2 < -zthr]  = -zthr
-#'   
-#'   z1_m = znormix_wrapper(p=NULL,z=z1,theoretical_null = T,
-#'                          min_mean_z1 = 5,min_sd1 = 0.25,reps = 5)
-#'   z2_m = znormix_wrapper(p=NULL,z=z2,theoretical_null = T,
-#'                          min_mean_z1 = 1,min_sd1 = 0.25,reps = 5)
-#'   # compute our statistics
-#'   fdr1 = attr(z1_m,"lfdr")
-#'   fdr2 = attr(z2_m,"lfdr")
-#'   stat = sum((1-fdr1)*fdr2)
-#'   
-#'   try({
-#'     # create the null distribution
-#'     zz = cbind(z1,z2)
-#'     perm_scores = c();sum_perm_greater = 0
-#'     for(j in 1:reps){
-#'       if(j %% 20 == 0){print(j)}
-#'       inds = rep(F,nrow(zz))
-#'       inds[sample(1:nrow(zz),replace = F)[1:(nrow(zz)/2)]] = T
-#'       currz1 = c(zz[inds,1],zz[!inds,2])
-#'       currz2 = c(zz[inds,2],zz[!inds,1])
-#'       currz1_m = znormix_wrapper(p=NULL,z=z1,theoretical_null = T,
-#'                              min_mean_z1 = 1,min_sd1 = 0.25,reps = 5)
-#'       currz2_m = znormix_wrapper(p=NULL,z=z2,theoretical_null = T,
-#'                              min_mean_z1 = 1,min_sd1 = 0.25,reps = 5)
-#'       currfdr1 = attr(currz1_m,"lfdr")
-#'       currfdr2 = attr(currz2_m,"lfdr")
-#'       currstat = sum((1-currfdr1)*currfdr2)
-#'       perm_scores = c(perm_scores,currstat)
-#'       sum_perm_greater = sum_perm_greater + as.numeric(currstat > stat)
-#'       emp_p = (1+sum_perm_greater)/(1+length(perm_scores))
-#'       if(j > 20 && emp_p > 0.1){break}
-#'     }
-#'     return(emp_p)
-#'   })
-#'   return(1)
-#' }
-
-# get_univar_diff_null_model<-function(zz,z1_m,z2_m,...){
-#   # infer the correct null model
-#   null_k1_likelihoods = dnorm(zz,mean(zz,na.rm = T),
-#                               sd(zz,na.rm = T),log = T)
-#   null_m =  list(mu = mean(zz,na.rm=T),
-#                  sigma = sd(zz,na.rm=T),lambda=1,
-#                  loglik = sum(null_k1_likelihoods)
-#   )
-# 
-#   # try adding a the negative component
-#   try({
-#     curr_EM = normalmixEM_wrapper(zz,lambda = c(0.9,0.1),
-#                                   mean.constr = c(0,-z2_m[4]),
-#                                   k=2)
-#     l_diff = curr_EM$loglik - null_m$loglik
-#     l_diff_p = pchisq(2*l_diff,2,lower.tail = F)
-#     if(l_diff_p < 0.001){
-#       null_m = curr_EM
+# allfiles = list.files("./")
+# res_vs_sum = c()
+# for(f in allfiles){
+#   if(!grepl("_input.RData",f)){next}
+#   currn = gsub("_input.RData","",f)
+#   load(f)
+#   load(paste(currn,"_edgesep_em_output.RData",sep=""))
+#   p1 = ps[prlist,1];p2 = ps[prlist,2]
+#   currs = sum(p1 < 1e-04 & p2>0.01,na.rm=T)
+#   inds = !is.na(p1) & !is.na(p2)
+#   p1 = p1[inds];p2 = p2[inds]
+#   res_vs_sum = rbind(res_vs_sum,c(res,currs))
+#   if(length(res)==0){next}
+#   if(res<1e-10){
+#     if(currs == 0){
+#       print(f)
 #     }
-#   })
-# 
-#   # try adding a the z1 z2 non-null shift component
-#   try({
-#     newk = length(null_m$lambda)+1
-#     new_prior = c(0.8,rep(0.2/newk,newk))
-#     new_means = c(0,-z2_m[4],z1_m[4]-z2_m[4])
-#     if(newk == 2){
-#       new_means = c(0,z1_m[4]-z2_m[4])
-#     }
-#     curr_EM = normalmixEM_wrapper(zz,lambda = new_prior,
-#                                   mean.constr = new_means,
-#                                   k=newk)
-#     l_diff = curr_EM$loglik - null_m$loglik
-#     l_diff_p = pchisq(2*l_diff,2,lower.tail = F)
-#     if(l_diff_p < 0.001){
-#       null_m = curr_EM
-#     }
-#   })
-#   return(null_m)
+#   }
 # }
 
-# Too slow:
-bivar_mixtools_em<-function(p1,p2,...){
-  z1 = c(-qnorm(p1))
-  z1 = fix_inf_z(z1)
-  z2 = c(-qnorm(p2))
-  z2 = fix_inf_z(z2)
-  z1_m = znormix_wrapper(p1,theoretical_null = T,
-                         min_mean_z1 = 1,min_sd1 = 0.25)[1:5]
-  z2_m = znormix_wrapper(p2,theoretical_null = T,
-                         min_mean_z1 = 1,min_sd1 = 0.25)[1:5]
-
-  # define the differences
-  zz = cbind(z1,z2)
-
-  # infer the correct null model
-  # no mixture
-  null_k1_likelihoods = log(dmvnorm(zz,colMeans(zz),cov(zz)))
-  null_m =  list(mu = mean(zz,na.rm=T),
-                 sigma = sd(zz,na.rm=T),lambda=1,
-                 loglik = sum(null_k1_likelihoods))
-
-  # Two components - additional one for non-nulls
-  try({
-    curr_EM = mvnormalmixEM(zz,lambda = c(0.9,0.1),
-                 mu = list(c(0,0),c(z1_m[4],z2_m[4])),k=2,verb=T,epsilon = 1e-02)
-    l_diff = curr_EM$loglik - null_m$loglik
-    l_diff_p = pchisq(2*l_diff,4,lower.tail = F)
-    if(l_diff_p < 0.001){
-      null_m = curr_EM
-    }
-  })
-
-  # try adding a the z1 z2 non-null shift component
-  try({
-    newk = length(null_m$lambda)+1
-    new_prior = c(0.8,rep(0.2/(newk-1),newk-1))
-    new_means = list(
-      c(0,0),
-      c(z1_m[4],z2_m[4]),
-      c(0,z2_m[4])
-    )
-    if(newk == 2){
-      new_means = list(
-        c(0,0),
-        c(0,z2_m[4])
-      )
-    }
-    curr_EM = mvnormalmixEM(zz,lambda = new_prior, mu = new_means,
-                                  k=newk,epsilon = 1e-02)
-    l_diff = curr_EM$loglik - null_m$loglik
-    l_diff_p = pchisq(2*l_diff,2,lower.tail = F)
-    if(l_diff_p < 1e-05){
-      null_m = curr_EM
-    }
-  })
-
-  # At this point we have the null model, now we try adding the new component
-  try({
-    newk = length(null_m$lambda)+1
-    new_prior = c(0.8,rep(0.2/(newk-1),newk-1))
-    new_means = list(
-      c(0,0),
-      c(z1_m[4],z2_m[4]),
-      c(0,z2_m[4]),
-      c(z1_m[4],0)
-    )
-    if(newk == 2){
-      new_means = list(
-        c(0,0),
-        c(0,z2_m[4]),
-        c(z1_m[4],0)
-      )
-    }
-    curr_EM = mvnormalmixEM(zz,lambda = new_prior, mu = new_means,
-                            k=newk,epsilon = 1e-02,verb = T)
-    l_diff = curr_EM$loglik - null_m$loglik
-    l_diff_p = pchisq(2*l_diff,4,lower.tail = F)
-    return(l_diff_p)
-  })
-  return(1)
-}
-
+# inds = !is.na(p1) & !is.na(p2)
+# p1 = p1[inds];p2 = p2[inds]
+# z1 = c(-qnorm(p1))
+# z1 = fix_inf_z(z1)
+# z2 = c(-qnorm(p2))
+# z2 = fix_inf_z(z2)
+# plot(z1,z2)
+# univar_mixtools_em(p1,p2,reps=10)
 
 # univar_mixtools_em(
 #   c(runif(10000),runif(1000)/1000000000),
@@ -602,219 +296,376 @@ bivar_mixtools_em<-function(p1,p2,...){
 # z2 = c(-qnorm(p2))
 # plot(z1,z2)
 # univar_mixtools_em(p1,p2)
-# 
-# # Use rstan for a mixture model
-# # code based on
-# # http://rpubs.com/kaz_yos/fmm2
-# models = "
-#   
-#  data { 
-#      // Hyperparameters for the hyper-priors
-#      real alpha; 
-#      real beta; 
-#      real m; 
-#      real s_squared; 
-#      real<lower=0> dirichlet_alpha; 
-#   
-#      // Define variables in data 
-#      // Number of observations (an integer) 
-#      int<lower=0> n; 
-#      // Outcome (a real vector of length n) 
-#      real y[n]; 
-#      // Number of latent clusters 
-#      int<lower=1> H; 
-#   
-#      // Grid evaluation 
-#      real grid_max; 
-#      real grid_min; 
-#      int<lower=1> grid_length; 
-#  } 
-#   
-#  transformed data { 
-#      real s; 
-#      real grid_step; 
-#   
-#      s = sqrt(s_squared); 
-#      grid_step = (grid_max - grid_min) / (grid_length - 1); 
-#  } 
-#   
-#  parameters { 
-#      // Define parameters to estimate 
-#      // Population mean (a real number) 
-#      vector[H] mu; 
-#      // Population variance (a positive real number) 
-#      real<lower=0> sigma_squared[H]; 
-#      // Cluster probability 
-#      simplex[H] Pi; 
-#  } 
-#   
-#  transformed parameters { 
-#      // Population standard deviation (a positive real number) 
-#      real<lower=0> sigma[H]; 
-#      // Standard deviation (derived from variance) 
-#      sigma = sqrt(sigma_squared); 
-#  } 
-#   
-#  model { 
-#      // Temporary vector for loop use. Need to come first before priors. 
-#      real contributions[H]; 
-#   
-#      // Prior part of Bayesian inference 
-#      // All vectorized 
-#      // Mean 
-#      mu ~ normal(m, s); 
-#      // sigma^2 has inverse gamma (alpha = 1, beta = 1) prior 
-#      sigma_squared ~ inv_gamma(alpha, beta); 
-#      // cluster probability vector 
-#      Pi ~ dirichlet(rep_vector(dirichlet_alpha / H, H)); 
-#   
-#      // Likelihood part of Bayesian inference 
-#      // Outcome model N(mu, sigma^2) (use SD rather than Var) 
-#      for (i in 1:n) { 
-#          // Loop over individuals 
-#   
-#            for (h in 1:H) { 
-#                // Loop over clusters within each individual 
-#                // Log likelihood contributions log(Pi[h] * N(y[i] | mu[h],sigma[h])) 
-#                contributions[h] = log(Pi[h]) + normal_lpdf(y[i] | mu[h], sigma[h]); 
-#            } 
-#   
-#            // log(sum(exp(contribution element))) 
-#            target += log_sum_exp(contributions); 
-#   
-#      } 
-#  } 
-#   
-#  generated quantities { 
-#   
-#      real log_f[grid_length]; 
-#   
-#      for (g in 1:grid_length) { 
-#          // Definiting here avoids reporting of these intermediates. 
-#          real contributions[H]; 
-#          real grid_value; 
-#   
-#          grid_value = grid_min + grid_step * (g - 1); 
-#          for (h in 1:H) { 
-#              contributions[h] = log(Pi[h]) + normal_lpdf(grid_value | mu[h], sigma[h]); 
-#          } 
-#   
-#          log_f[g] = log_sum_exp(contributions); 
-#      } 
-#   
-#  } 
-#  
-# "
-# 
-# # range of values to examine estimated density.
-# grid_max <- 20
-# grid_min <- -20
-# grid_length <- 100
-# data = list(alpha = 10^(-3), beta = 10^(-3),
-#             m = 0, s_squared = 10^(3),
-#             n = length(zz),
-#             y = zz,
-#             dirichlet_alpha = 1,
-#             H = 4,
-#             grid_max = grid_max, grid_min = grid_min, grid_length = grid_length)
-# fit = stan(model_code=models,data=data,chains=4)
-# 
-# 
-# models4 = "
-#   
-# data { 
-#   // Define variables in data 
-#   // Number of observations (an integer) 
-#   int<lower=0> n; 
-#   // Outcome (a real vector of length n) 
-#   real y[n];
-# } 
-# 
-# parameters { 
-#   // Define parameters to estimate 
-#   // Population mean (a real number) 
-#   real mu00;
-#   real mu10;
-#   real mu01;
-#   // real mu11;
-#   // Population variance (a positive real number) 
-#   real<lower=0> sigma_squared00; 
-#   real<lower=0> sigma_squared10; 
-#   real<lower=0> sigma_squared01; 
-#   // real<lower=0> sigma_squared11; 
-#   // Cluster probability 
-#   simplex[3] Pi;
-# } 
-# 
-# transformed parameters { 
-#   // Population standard deviation (a positive real number) 
-#   real<lower=0> sigma00;
-#   real<lower=0> sigma10;
-#   real<lower=0> sigma01;
-#   // real<lower=0> sigma11;
-#   // Standard deviation (derived from variance) 
-#   sigma00 = sqrt(sigma_squared00);
-#   sigma10 = sqrt(sigma_squared10);
-#   sigma01 = sqrt(sigma_squared01);
-#   // sigma11 = sqrt(sigma_squared11);
-# } 
-# 
-# model { 
-#   // Temporary vector for loop use. Need to come first before priors. 
-#   real contributions[3]; 
-# 
-#   // Prior part of Bayesian inference 
-#   // All vectorized 
-#   // Mean 
-#   mu00 ~ normal(0, 0.2);
-#   mu10 ~ normal(4, 1);
-#   mu01 ~ normal(-4, 1);
-#   //mu11 ~ normal(1, 0.5);
-#   // sigma^2 has inverse gamma (alpha = 1, beta = 1) prior 
-#   sigma_squared00 ~ inv_gamma(2, 1); 
-#   sigma_squared10 ~ inv_gamma(3, 1); 
-#   sigma_squared01 ~ inv_gamma(3, 1); 
-#   //sigma_squared11 ~ inv_gamma(2, 1); 
-#   // cluster probability vector 
-#   Pi ~ dirichlet(rep_vector(1, 3)); 
-# 
-#   // Likelihood part of Bayesian inference 
-#   // Outcome model N(mu, sigma^2) (use SD rather than Var) 
-#   for (i in 1:n) {
-#     // Log likelihood contributions log(Pi[h] * N(y[i] | mu[h],sigma[h])) 
-#     contributions[1] = log(Pi[1]) + normal_lpdf(y[i] | mu00, sigma00);
-#     contributions[2] = log(Pi[2]) + normal_lpdf(y[i] | mu10, sigma10);
-#     contributions[3] = log(Pi[3]) + normal_lpdf(y[i] | mu01, sigma01);
-#     // contributions[4] = log(Pi[4]) + normal_lpdf(y[i] | mu11, sigma11);
-#     // log(sum(exp(contribution element))) 
-#    target += log_sum_exp(contributions); 
-#   } 
-# } 
-# 
-# generated quantities { 
-#   vector[3] contributions;
-#   vector[n] log_lik;
-# 
-#   for (i in 1:n) {
-#     // Log likelihood contributions log(Pi[h] * N(y[i] | mu[h],sigma[h])) 
-#     contributions[1] = log(Pi[1]) + normal_lpdf(y[i] | mu00, sigma00);
-#     contributions[2] = log(Pi[2]) + normal_lpdf(y[i] | mu10, sigma10);
-#     contributions[3] = log(Pi[3]) + normal_lpdf(y[i] | mu01, sigma01);
-#     // contributions[4] = log(Pi[4]) + normal_lpdf(y[i] | mu11, sigma11);
-#     log_lik[i] = log_sum_exp(contributions);
+
+mvnormix_e_step <- function(x, mu,covs, lambda) {
+  comp_prods = c()
+  for(j in 1:nrow(mu)){
+    comp_prods = cbind(comp_prods,
+                       dmvnorm(x, mu[j,], covs[[j]]) * lambda[j])
+  }
+  sum.of.comps <- rowSums(comp_prods)
+  comp_posts = c()
+  for(j in 1:nrow(mu)){
+    comp_posts = cbind(comp_posts,
+                       comp_prods[,j]/sum.of.comps)
+  }
+  
+  sum.of.comps.ln <- log(sum.of.comps, base = exp(1))
+  sum.of.comps.ln.sum <- sum(sum.of.comps.ln)
+  
+  list("loglik" = sum.of.comps.ln.sum,
+       "posterior" = comp_posts)
+}
+
+mvnormix_lambda_m_step <- function(x, posterior.df) {
+  return(colSums(posterior.df) / nrow(x))
+}
+
+lambda_em<-function(x,mu,cov,initial,maxiter=100,eps = 1e-03){
+  e_step = mvnormix_e_step(x,mu,cov,initial)
+  newl = mvnormix_lambda_m_step(x,e_step$posterior)
+  mem = initial
+  delta = sum((newl-mem)^2)
+  iter = 1
+  while(delta > eps && iter < maxiter){
+    mem = newl 
+    e_step = mvnormix_e_step(x,mu,cov,newl)
+    newl = mvnormix_lambda_m_step(x,e_step$posterior)
+    delta = sum((newl-mem)^2)
+    iter = iter + 1
+  }
+  return(newl)
+}
+
+grid_bivar_normix_fixed_marginals<-function(z1,z2,z1_m,z2_m,cor_ranges = seq(0.5,0.9,0.1)){
+  # define the mus
+  zz = cbind(z1,z2)
+  mu = rbind(
+    c(z1_m[2],z2_m[2]),
+    c(z1_m[2],z2_m[4]),
+    c(z1_m[4],z2_m[4]),
+    c(z1_m[4],z2_m[2])
+  )
+  covs = list(
+    rbind(c(z1_m[3],NA),c(NA,z2_m[3])),
+    rbind(c(z1_m[3],NA),c(NA,z2_m[5])),
+    rbind(c(z1_m[5],NA),c(NA,z2_m[5])),
+    rbind(c(z1_m[5],NA),c(NA,z2_m[3]))
+  )
+  
+  null_models_loglik = c()
+  alt_models_loglik = c()
+  for(r00 in cor_ranges){
+    cov00 = r00 * z1_m[3]*z2_m[3]
+    for(r01 in cor_ranges){
+      cov01 = r01 *z1_m[3]*z2_m[5]
+      for(r11 in cor_ranges){
+        cov11 = r11 *z1_m[5]*z2_m[5]
+        curr_null_name = paste(r00,r01,r11,sep=",")
+        curr_covs = list(
+          rbind(c(z1_m[3],cov00),c(cov00,z2_m[3])),
+          rbind(c(z1_m[3],cov01),c(cov01,z2_m[5])),
+          rbind(c(z1_m[5],cov11),c(cov11,z2_m[5]))
+        )
+        null_lambda = c(0.8,0.1,0.1)
+        est_lambda = lambda_em(zz,mu[-4,],curr_covs,null_lambda)
+        curr_null_estep = mvnormix_e_step(x,mu[-4,],curr_covs,est_lambda)
+        null_models_loglik[curr_null_name] = curr_null_estep$loglik
+        
+        for(r10 in cor_ranges){
+          cov10 = r10 *z1_m[5]*z2_m[3]
+          curr_alt_name = paste(r00,r01,r11,r10,sep=",")
+          curr_alt_covs = list(
+            rbind(c(z1_m[3],cov00),c(cov00,z2_m[3])),
+            rbind(c(z1_m[3],cov01),c(cov01,z2_m[5])),
+            rbind(c(z1_m[5],cov11),c(cov11,z2_m[5])),
+            rbind(c(z1_m[5],cov10),c(cov10,z2_m[3]))
+          )
+          alt_initial_lambda = c(0.8,rep(0.2/3,3))
+          alt_est_lambda = lambda_em(zz,mu,curr_alt_covs,alt_initial_lambda)
+          curr_alt_estep = mvnormix_e_step(x,mu,curr_alt_covs,alt_est_lambda)
+          alt_models_loglik[curr_alt_name] = curr_alt_estep$loglik
+        }
+      }
+    }
+  }
+  
+  liks = list(
+    null_models_loglik = null_models_loglik,
+    alt_models_loglik = alt_models_loglik
+  )
+  
+  return(liks)
+}
+
+
+grid_ms_test<-function(p1,p2,zthr=10,marginal_em_reps = 20){
+  inds = !is.na(p1) & !is.na(p2)
+  p1 = p1[inds];p2 = p2[inds]
+  z1 = c(-qnorm(p1))
+  z1 = fix_inf_z(z1)
+  z1[z1 > zthr] = zthr
+  z1[z1 < -zthr] = -zthr
+  z2 = c(-qnorm(p2))
+  z2 = fix_inf_z(z2)
+  z2[z2 > zthr]  = zthr
+  z2[z2 < -zthr]  = -zthr
+  z1_m = znormix_wrapper(p=NULL,z=z1,theoretical_null = F,
+                         min_mean_z1 = 1,min_sd1 = 0.25,reps = marginal_em_reps)
+  z2_m = znormix_wrapper(p=NULL,z=z2,theoretical_null = F,
+                         min_mean_z1 = 1,min_sd1 = 0.25,reps = marginal_em_reps)
+  
+  liks = grid_bivar_normix_fixed_marginals(z1,z2,z1_m,z2_m)
+  l_diff = max(liks$alt_models_loglik,na.rm = T) - 
+    max(liks$null_models_loglik,na.rm = T)
+  l_diff_p = pchisq(2*l_diff,2,lower.tail = F)
+  # print(l_diff_p)
+  return(l_diff_p)
+}
+
+tr1 = "T4"
+tr2 = "T7"
+p1 = GWAS_Ps[,tr2]
+p2 = trait_pair_pvals[[tr2]][[tr1]][,1]
+
+# library(MASS)
+# rmvn_mix<-function(n,lambda,mu,sigma){
+#   samp = c()
+#   clustSamples = rmultinom(1,n,lambda)
+#   for(i in 1:nrow(clustSamples)){
+#     if(clustSamples[i,1]==0){next}
+#     currsamp = mvrnorm(clustSamples[i,1],mu[[i]],sigma[[i]])
+#     samp = rbind(samp,currsamp)
 #   }
+#   return(samp)
+# }
+
+# get_correl_from_diff_sd<-function(sd_diff,sd1,sd2){
+#   var_diff = sd_diff^2
+#   correl = (sd1^2 + sd2^2 - var_diff)/(2*sd1*sd2)
+#   return(correl)
+# }
+
+# Parametric bootstrap test for the existance of edge sep points.
 # 
-# } 
+# This test transforms the input p-value vectors to z-scores (-qnorm(p)).
+# For each z-score vector we fit a two groups model as a mixture of two gaussians:
+# standard normal and a distribution of significant non-null z-scores.
+# We assume that this estimation is correct and take the two groups models as fixed.
+# Thus, each vector has three parameters: \pi (probability of null), \mu mean of discoveries
+# and \sigma - standard deviation of discoveries (assumed to be > 0.25).
 # 
-# "
+# As we are interested in cases with "high" z1 and "insignificant" z2, we use the following test
+# statistic: \sum_i{tdr^1({z^1}_i)fdr^2({z^2}_i)}. Note that this statistic is not equivalent
+# to summing over Pr(non-null|{z^1}_i)Pr(null|{z^2}_i) due to the dependence structure of z1 and z2.
+# However, as we explain below, we can simulate data points from the null distribution and compute
+# the significance of our statistic.
 # 
-# # range of values to examine estimated density.
-# data = list(n = length(zz),y = zz)
-# fit = stan(model_code=models4,data=data,chains=2,iter=100,warmup = 20)
+# Assuming that z1 and z2 each follows a two groups model,
+# their the joint distribution is a mixture of up to four Guassians:
+# 1. (null,null) - a mixture around (0,0) with known marginal variance and unknown covariance.
+# 2. (non-null,non-null) - a mixture around (\mu_1,\mu_2) with known marginal variance and unknown covariance.
+# 3. (null,non-null) - a mixture around (0,\mu_2)
+# 4. (non-null,null) - a mixture around (\mu_1,0)
+# Assuming that if cluster 3 exists in the data then its contribution to the statistic
+# is zero (because Pr(non-null) for low zscores is zero) then simulating without this component
+# can only increase the statistic under the null. We thus simulate from a mixture of 1 and 2 only.
+# We have two unknown parameters: the covariances within these mixtures. We estimate these using a four
+# mixture model for the difference zz = z1-z2.
+# We fit three possible models: all with the component for cluster 4 and:
+# with cluster 1 only, with 1 and 2 and with 1-3.
+# Model selection for the null is based on BIC.
+# Given the selected model, we simulate data from the joint distribution with
+# clusters 1 and 2 only.
+# We then compute empirical p-values using the normal approximation (requires assuming
+# that z-scores are independent.)
+# param_bootstrap_test<-function(p1,p2,reps=500,zthr = 10){
+#   inds = !is.na(p1) & !is.na(p2)
+#   p1 = p1[inds];p2 = p2[inds]
 # 
-#
-# zdiff = z1-z2
-# loglik0 = sum(dnorm(zdiff,mean(zdiff),sd(zdiff),log = T))
-# emEst1 = normalmixEM(zdiff,lambda = c(0.5,0.5),mean.constr = c(0,"a"),k=2,epsilon = 1e-8)
-# m2 = spEMsymlocN01(z1,maxiter = 20)                      
-#                          
+#   z1 = c(-qnorm(p1))
+#   z1 = fix_inf_z(z1)
+#   z1[z1 > zthr] = zthr
+#   z1[z1 < -zthr] = -zthr
+#   z2 = c(-qnorm(p2))
+#   z2 = fix_inf_z(z2)
+#   z2[z2 > zthr]  = zthr
+#   z2[z2 < -zthr]  = -zthr
+# 
+#   z1_m = znormix_wrapper(p=NULL,z=z1,theoretical_null = T,
+#                          min_mean_z1 = 1,min_sd1 = 0.25,reps = 5)
+#   z2_m = znormix_wrapper(p=NULL,z=z2,theoretical_null = T,
+#                          min_mean_z1 = 1,min_sd1 = 0.25,reps = 5)
+#   # compute our statistics
+#   fdr1 = attr(z1_m,"lfdr")
+#   fdr2 = attr(z2_m,"lfdr")
+# 
+#   stat = sum((1-fdr1)*fdr2)
+# 
+#   try({
+#     # create the null distribution
+#     zz = z1-z2
+#     # define the differences
+#     possible_means = c(0,-z2_m[4],z1_m[4]-z2_m[4],z1_m[4])
+#     null_prior = c(0.8,rep(0.2/3,3))
+#     null_m = normalmixEM_wrapper(zz,lambda = null_prior,
+#                                mean.constr = possible_means,k=4,reps=5)
+#     zcor = get_correl_from_diff_sd(null_m$sigma[1],1,1)
+#     zcor1 = get_correl_from_diff_sd(null_m$sigma[3],z1_m[5],z2_m[5])
+#     zcor2 = get_correl_from_diff_sd(null_m$sigma[2],1,z2_m[5])
+#     zcor1 = min(zcor1,1);zcor = min(zcor,1);zcor2 = min(zcor2,1)
+#     zcor1 = max(zcor1,0);zcor = max(zcor,0);zcor2 = max(zcor2,0)
+#     zcov1 = zcor1*z1_m[5]*z2_m[5]
+#     zcov2 = zcor2*z2_m[5]
+#     corrmat0 = matrix(c(1,zcor,zcor,1),2,2)
+#     corrmat1 = matrix(c(z1_m[5]^2,zcov1,zcov1,z2_m[5]^2),2,2)
+#     corrmat2 = matrix(c(1,zcov2,zcov2,z2_m[5]^2),2,2)
+#     sigma = list(corrmat0,corrmat2,corrmat1)
+#     lambda = null_m$lambda[1:3]
+#     lambda = lambda/sum(lambda)
+#     mu = list(c(0,0),c(0,z2_m[4]),c(z1_m[4],z2_m[4]))
+# 
+#     # pi0 = (z1_m[1] + z2_m[1])*0.5
+#     # pi0 = (m1$fp0[3,3] + m2$fp0[3,3])*0.5
+#     # lambda = c(pi0,1-pi0)
+#     # corrmat0 = matrix(c(1,0,0,1),2,2)
+#     # corrmat1 = matrix(c(z1_m[5]^2,0,0,z2_m[5]^2),2,2)
+#     # sigma = list(corrmat0,corrmat1)
+#     # mu = list(c(0,0),c(z1_m[4],z2_m[4]))
+#     # parametric bootstrap
+#     b_scores = c();sum_b_greater = 0
+#     for(j in 1:reps){
+#       if(j %% 20 == 0){print(j)}
+#       zzsamp = rmvn_mix(length(z1),lambda,mu,sigma)
+#       currz1 = zzsamp[,1]
+#       currz2 = zzsamp[,2]
+#       # plot(currz1,currz2,xlim=c(-5,15),ylim=c(-5,15),
+#       #    main=paste(format(zcor1,digits = 3),
+#       #               format(zcor,digits = 3),sep=","));abline(0,1)
+#       # plot(z1,z2,xlim=c(-5,15),ylim=c(-5,15));abline(0,1)
+#       currz1_m = znormix_compute_fdrs(currz1,z1_m[1:5])
+#       currz2_m = znormix_compute_fdrs(currz2,z2_m[1:5])
+#       currfdr1 = attr(currz1_m,"lfdr")
+#       currfdr2 = attr(currz2_m,"lfdr")
+# 
+#       currstat = sum((1-currfdr1)*currfdr2)
+#       b_scores = c(b_scores,currstat)
+#       sum_b_greater = sum_b_greater + as.numeric(currstat > stat)
+#       emp_p = (1+sum_b_greater)/(1+length(b_scores))
+#       if(j > 20 && emp_p > 0.1){break}
+#     }
+#     return(emp_p)
+#   })
+#   return(1)
+# }
+# 
+
+
+#' #' Expectation Step of the EM Algorithm
+#' #'
+#' #' Calculate the posterior probabilities (soft labels) that each component
+#' #' has to each data point.
+#' #'
+#' #' @param sd.vector Vector containing the standard deviations of each component
+#' #' @param sd.vector Vector containing the mean of each component
+#' #' @param alpha.vector Vector containing the mixing weights  of each component
+#' #' @return Named list containing the loglik and posterior.df
+#' e_step <- function(x, mu.vector, sd.vector, alpha.vector) {
+#'   comp_prods = c()
+#'   for(j in 1:length(mu.vector)){
+#'     comp_prods = cbind(comp_prods,
+#'                        dnorm(x, mu.vector[j], sd.vector[j]) * alpha.vector[j])
+#'   }
+#'   sum.of.comps <- rowSums(comp_prods)
+#'   comp_posts = c()
+#'   for(j in 1:length(mu.vector)){
+#'     comp_posts = cbind(comp_posts,
+#'                        comp_prods[,j]/sum.of.comps)
+#'   }
+#'   
+#'   sum.of.comps.ln <- log(sum.of.comps, base = exp(1))
+#'   sum.of.comps.ln.sum <- sum(sum.of.comps.ln)
+#'   
+#'   list("loglik" = sum.of.comps.ln.sum,
+#'        "posterior.df" = comp_posts)
+#' }
+#' 
+#' #' Maximization Step of the EM Algorithm
+#' #'
+#' #' Update the Component Parameters
+#' #'
+#' #' @param x Input data.
+#' #' @param posterior.df Posterior probability data.frame.
+#' #' @return Named list containing the mean (mu), variance (var), and mixing
+#' #'   weights (alpha) for each component.
+#' m_step <- function(x, posterior.df) {
+#'   comp.n = c()
+#'   comp.mu = c()
+#'   comp.var = c()
+#'   comp.alpha = c()
+#'   for(j in 1:ncol(posterior.df)){
+#'     comp.n = c(comp.n,sum(posterior.df[,j]))
+#'     comp.mu = c(comp.mu,1/comp.n[j]* sum(posterior.df[, j] * x))
+#'     comp.var = c(comp.var,sum(posterior.df[, j] * (x - comp.mu[j])^2) * 1/comp.n[j])
+#'     comp.alpha = c(comp.alpha,comp.n[j] / length(x))
+#'   }
+#'   # comp1.n <- sum(posterior.df[, 1])
+#'   # comp1.mu <- 1/comp1.n * sum(posterior.df[, 1] * x)
+#'   # comp1.var <- sum(posterior.df[, 1] * (x - comp1.mu)^2) * 1/comp1.n
+#'   # comp1.alpha <- comp1.n / length(x)
+#'   
+#'   list("mu" = comp.mu,
+#'        "var" = comp.var,
+#'        "alpha" = comp.alpha)
+#' }
+#' 
+#' emFixedMeans<-function(x,maxiter = 100,mu,eps=1e-06){
+#'   k = length(mu)
+#'   for (i in 1:maxiter) {
+#'     if (i == 1) {
+#'       # Initialization via hard clustering
+#'       initial_diffs = c()
+#'       for(j in 1:k){
+#'         initial_diffs = cbind(initial_diffs,abs(x - mu[j]))
+#'       }
+#'       initial_clusters = apply(initial_diffs,1,function(y)which(y==min(y))[1])
+#'       # make sure each cluster is there
+#'       initial_sds = c();initial_lambdas=c()
+#'       for(j in 1:k){
+#'         currinds = initial_clusters==j
+#'         if(sum(currinds)<5){
+#'           currsamp = sample(1:length(initial_clusters))[1:5]
+#'           initial_clusters[currsamp]=j
+#'           currinds[currsamp] = T
+#'         }
+#'         initial_sds[j] = sd(x[currinds])
+#'         initial_lambdas[j] = sum(currinds)/length(currinds)
+#'       }
+#'       initial_lambdas = initial_lambdas/sum(initial_lambdas)
+#'       e.step <- e_step(x, mu, initial_sds,initial_lambdas)
+#'       m.step <- m_step(x, e.step[["posterior.df"]])
+#'       cur.loglik <- e.step[["loglik"]]
+#'       loglik.vector <- e.step[["loglik"]]
+#'     } else {
+#'       # Repeat E and M steps till convergence
+#'       e.step <- e_step(x, mu, sqrt(m.step[["var"]]), 
+#'                        m.step[["alpha"]])
+#'       m.step <- m_step(x, e.step[["posterior.df"]])
+#'       loglik.vector <- c(loglik.vector, e.step[["loglik"]])
+#'       
+#'       loglik.diff <- abs((cur.loglik - e.step[["loglik"]]))
+#'       if(loglik.diff < eps) {
+#'         break
+#'       } else {
+#'         cur.loglik <- e.step[["loglik"]]
+#'       }
+#'     }
+#'   }
+#'   return(list(
+#'     loglik.vector = loglik.vector,
+#'     loglik = cur.loglik,
+#'     mu=mu,sd = sqrt(m.step[["var"]]),lambda = m.step[["alpha"]],
+#'     posterior = e.step[["posterior.df"]]
+#'   ))
+#' }
+

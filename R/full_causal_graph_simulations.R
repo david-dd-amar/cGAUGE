@@ -482,7 +482,7 @@ real_G_vt = abs(t(B[phenos,ivs])>0)
 
 if(edgeSepRun=="1"){
   edge_sep_results_statTest1 = EdgeSepTest(GWAS_Ps,G_t,trait_pair_pvals,text_col_name=1,
-                                           test = univar_mixtools_em)
+                                           test = grid_ms_test)
   edge_sep_results_statTest1 = add_distances(edge_sep_results_statTest1,
                                             B_distances,newcolname = "KnownDistance")
   edge_sep_results_statTest2 = EdgeSepTest(GWAS_Ps,G_t,trait_pair_pvals,text_col_name=1,

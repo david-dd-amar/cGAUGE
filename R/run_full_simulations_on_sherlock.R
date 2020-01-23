@@ -45,9 +45,9 @@ exec_cmd_on_sherlock<-function(cmd,jobname,out_path){
 ###################################################################################
 # Set the WD and number of repeats
 reps = 40
-WD = "/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/simulations_uniqueiv2/"
+WD = "/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/simulations_uniqueiv_minIV3/"
 try(system(paste("mkdir",WD)))
-MAX_JOBS = 400
+MAX_JOBS = 500
 # Set the simulation parameters
 tested_p1 = c(1e-02,1e-03,1e-04,1e-05)
 tested_p2_factors = c(1,10,100)
@@ -88,7 +88,7 @@ for(p1 in tested_p1){
           
           curr_out_file = paste(curr_folder,"sim_rep",i,".RData",sep="")
           if(file.exists(curr_out_file)){
-            print(paste("results for rep",i,"exist,skipping"))
+            # print(paste("results for rep",i,"exists,skipping"))
             next
           }
           cmd = paste(
