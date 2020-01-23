@@ -301,7 +301,7 @@ mvnormix_e_step <- function(x, mu,covs, lambda) {
   comp_prods = c()
   for(j in 1:nrow(mu)){
     comp_prods = cbind(comp_prods,
-                       dmvnorm(x, mu[j,], covs[[j]]) * lambda[j])
+                       mclust::dmvnorm(x, mu[j,], covs[[j]]) * lambda[j])
   }
   sum.of.comps <- rowSums(comp_prods)
   comp_posts = c()

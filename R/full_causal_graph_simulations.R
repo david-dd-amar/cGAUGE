@@ -1,9 +1,8 @@
 ###################################################################################
 
 # Set the session
-required_libs = c("igraph","bnlearn","MRPRESSO",
-                  "optparse","limma","MendelianRandomization",
-                  "mixtools")
+required_libs = c("igraph","bnlearn","MRPRESSO","mixtools","mclust",
+                  "optparse","limma","MendelianRandomization")
 lib_loc = "~/R/packages3.5"
 lib_loc = c(lib_loc,.libPaths())
 for (lib_name in required_libs){
