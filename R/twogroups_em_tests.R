@@ -369,7 +369,7 @@ grid_bivar_normix_fixed_marginals<-function(z1,z2,z1_m,z2_m,cor_ranges = seq(0.5
         )
         null_lambda = c(0.8,0.1,0.1)
         est_lambda = lambda_em(zz,mu[-4,],curr_covs,null_lambda)
-        curr_null_estep = mvnormix_e_step(x,mu[-4,],curr_covs,est_lambda)
+        curr_null_estep = mvnormix_e_step(zz,mu[-4,],curr_covs,est_lambda)
         null_models_loglik[curr_null_name] = curr_null_estep$loglik
         
         for(r10 in cor_ranges){
@@ -383,7 +383,7 @@ grid_bivar_normix_fixed_marginals<-function(z1,z2,z1_m,z2_m,cor_ranges = seq(0.5
           )
           alt_initial_lambda = c(0.8,rep(0.2/3,3))
           alt_est_lambda = lambda_em(zz,mu,curr_alt_covs,alt_initial_lambda)
-          curr_alt_estep = mvnormix_e_step(x,mu,curr_alt_covs,alt_est_lambda)
+          curr_alt_estep = mvnormix_e_step(zz,mu,curr_alt_covs,alt_est_lambda)
           alt_models_loglik[curr_alt_name] = curr_alt_estep$loglik
         }
       }
