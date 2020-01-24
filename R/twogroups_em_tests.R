@@ -247,61 +247,26 @@ univar_mixtools_em<-function(p1,p2,zthr = 10,return_models=F,...){
   return(1)
 }
 
-# # Some tests
-# setwd("~/Desktop/causal_inference_projects/ms3/edge_sep_em/")
-# load("./Lipoprotein_A_LDL_direct_input.RData")
-# load("./Lipoprotein_A_LDL_direct_edgesep_em_output.RData")
-# prlist = read.delim("./plink.prune.in",stringsAsFactors = F)[,1]
-# prlist = intersect(rownames(ps),prlist)
-# p1 = ps[prlist,1];p2 = ps[prlist,2]
-# grid_ms_test(p1,p2)
 
-# allfiles = list.files("./")
-# res_vs_sum = c()
-# for(f in allfiles){
-#   if(!grepl("_input.RData",f)){next}
-#   currn = gsub("_input.RData","",f)
-#   load(f)
-#   load(paste(currn,"_edgesep_em_output.RData",sep=""))
-#   p1 = ps[prlist,1];p2 = ps[prlist,2]
-#   currs = sum(p1 < 1e-04 & p2>0.01,na.rm=T)
-#   inds = !is.na(p1) & !is.na(p2)
-#   p1 = p1[inds];p2 = p2[inds]
-#   res_vs_sum = rbind(res_vs_sum,c(res,currs))
-#   if(length(res)==0){next}
-#   if(res<1e-10){
-#     if(currs == 0){
-#       print(f)
-#     }
-#   }
-# }
-
-# inds = !is.na(p1) & !is.na(p2)
-# p1 = p1[inds];p2 = p2[inds]
-# z1 = c(-qnorm(p1))
-# z1 = fix_inf_z(z1)
-# z2 = c(-qnorm(p2))
-# z2 = fix_inf_z(z2)
-# plot(z1,z2)
-# univar_mixtools_em(p1,p2,reps=10)
-
-# univar_mixtools_em(
-#   c(runif(10000),runif(1000)/1000000000),
-#   c(runif(10000),runif(1000)/1000000)
-# )
-# 
-# p1 = c(runif(10000),runif(1000)/10000)
-# p2 = c(runif(10000),runif(950)/10000,runif(50))
-# z1 = c(-qnorm(p1))
-# z2 = c(-qnorm(p2))
-# plot(z1,z2)
-# univar_mixtools_em(p1,p2)
-
+naive_dmvrnorm<-function(x,mu,sigma){
+  prec = solve(sigma)
+  detS = det(sigma)
+  k = nrow(sigma)
+  fact = sqrt((2*pi)^k * detS)
+  res = apply(x,1,naive_dmvrnorm_helper,mu=mu,prec=prec,fact=fact)
+  res
+}
+naive_dmvrnorm_helper<-function(y,mu,prec,fact){
+  y = t(y-mu) # row vector
+  return(
+    (exp(-0.5*(y%*%prec%*%t(y))))/fact
+  )
+}
 mvnormix_e_step <- function(x, mu,covs, lambda) {
   comp_prods = c()
   for(j in 1:nrow(mu)){
     comp_prods = cbind(comp_prods,
-                       mclust::dmvnorm(x, mu[j,], covs[[j]]) * lambda[j])
+                       mixtools::dmvnorm(x, mu[j,], covs[[j]]) * lambda[j])
   }
   sum.of.comps <- rowSums(comp_prods)
   comp_posts = c()
@@ -321,7 +286,12 @@ mvnormix_lambda_m_step <- function(x, posterior.df) {
   return(colSums(posterior.df) / nrow(x))
 }
 
-lambda_em<-function(x,mu,cov,initial,maxiter=100,eps = 1e-03){
+lambda_em<-function(x,mu,cov,initial,maxiter=100,eps = 1e-03,sampSize=5000){
+  if(!is.null(sampSize)){
+    sampSize = min(sampSize,nrow(x))
+    inds = sample(1:nrow(x))[1:sampSize]
+    x = x[inds,]
+  }
   e_step = mvnormix_e_step(x,mu,cov,initial)
   newl = mvnormix_lambda_m_step(x,e_step$posterior)
   mem = initial
@@ -337,7 +307,9 @@ lambda_em<-function(x,mu,cov,initial,maxiter=100,eps = 1e-03){
   return(newl)
 }
 
-grid_bivar_normix_fixed_marginals<-function(z1,z2,z1_m,z2_m,cor_ranges = seq(0.5,0.9,0.1)){
+grid_bivar_normix_fixed_marginals<-function(z1,z2,z1_m,z2_m,
+                                            cor_ranges1 = seq(0.5,0.9,0.1),
+                                            cor_ranges2 = seq(0,0.9,0.1)){
   # define the mus
   zz = cbind(z1,z2)
   mu = rbind(
@@ -346,41 +318,37 @@ grid_bivar_normix_fixed_marginals<-function(z1,z2,z1_m,z2_m,cor_ranges = seq(0.5
     c(z1_m[4],z2_m[4]),
     c(z1_m[4],z2_m[2])
   )
-  covs = list(
-    rbind(c(z1_m[3],NA),c(NA,z2_m[3])),
-    rbind(c(z1_m[3],NA),c(NA,z2_m[5])),
-    rbind(c(z1_m[5],NA),c(NA,z2_m[5])),
-    rbind(c(z1_m[5],NA),c(NA,z2_m[3]))
-  )
   
   null_models_loglik = c()
   alt_models_loglik = c()
-  for(r00 in cor_ranges){
-    cov00 = r00 * z1_m[3]*z2_m[3]
-    for(r01 in cor_ranges){
-      cov01 = r01 *z1_m[3]*z2_m[5]
-      for(r11 in cor_ranges){
-        cov11 = r11 *z1_m[5]*z2_m[5]
+  best_null = NULL;best_alt = NULL
+  for(r00 in cor_ranges1){
+    cov00 = round(r00 * z1_m[3]*z2_m[3],digits = 5)
+    for(r01 in cor_ranges2){
+      cov01 = round(r01 *z1_m[3]*z2_m[5],digits = 5)
+      for(r11 in cor_ranges1){
+        cov11 = round(r11 *z1_m[5]*z2_m[5],digits = 5)
         curr_null_name = paste(r00,r01,r11,sep=",")
         curr_covs = list(
-          rbind(c(z1_m[3],cov00),c(cov00,z2_m[3])),
-          rbind(c(z1_m[3],cov01),c(cov01,z2_m[5])),
-          rbind(c(z1_m[5],cov11),c(cov11,z2_m[5]))
+          rbind(c(z1_m[3]^2,cov00),c(cov00,z2_m[3]^2)),
+          rbind(c(z1_m[3]^2,cov01),c(cov01,z2_m[5]^2)),
+          rbind(c(z1_m[5]^2,cov11),c(cov11,z2_m[5]^2))
         )
+        curr_covs = lapply(curr_covs,function(x){colnames(x)=NULL;x})
         null_lambda = c(0.8,0.1,0.1)
         est_lambda = lambda_em(zz,mu[-4,],curr_covs,null_lambda)
         curr_null_estep = mvnormix_e_step(zz,mu[-4,],curr_covs,est_lambda)
         null_models_loglik[curr_null_name] = curr_null_estep$loglik
-        
-        for(r10 in cor_ranges){
-          cov10 = r10 *z1_m[5]*z2_m[3]
+        for(r10 in cor_ranges2){
+          cov10 = round(r10 *z1_m[5]*z2_m[3],digits = 5)
           curr_alt_name = paste(r00,r01,r11,r10,sep=",")
           curr_alt_covs = list(
-            rbind(c(z1_m[3],cov00),c(cov00,z2_m[3])),
-            rbind(c(z1_m[3],cov01),c(cov01,z2_m[5])),
-            rbind(c(z1_m[5],cov11),c(cov11,z2_m[5])),
-            rbind(c(z1_m[5],cov10),c(cov10,z2_m[3]))
+            rbind(c(z1_m[3]^2,cov00),c(cov00,z2_m[3]^2)),
+            rbind(c(z1_m[3]^2,cov01),c(cov01,z2_m[5]^2)),
+            rbind(c(z1_m[5]^2,cov11),c(cov11,z2_m[5]^2)),
+            rbind(c(z1_m[5]^2,cov10),c(cov10,z2_m[3]^2))
           )
+          curr_alt_covs = lapply(curr_alt_covs,function(x){colnames(x)=NULL;x})
           alt_initial_lambda = c(0.8,rep(0.2/3,3))
           alt_est_lambda = lambda_em(zz,mu,curr_alt_covs,alt_initial_lambda)
           curr_alt_estep = mvnormix_e_step(zz,mu,curr_alt_covs,alt_est_lambda)
@@ -423,10 +391,42 @@ grid_ms_test<-function(p1,p2,zthr=10,marginal_em_reps = 20){
   return(l_diff_p)
 }
 
-tr1 = "T4"
-tr2 = "T7"
+tr1 = "T1"
+tr2 = "T4"
 p1 = GWAS_Ps[,tr2]
 p2 = trait_pair_pvals[[tr2]][[tr1]][,1]
+grid_ms_test(p1,p2)
+
+# Some tests
+setwd("~/Desktop/causal_inference_projects/ms3/edge_sep_em/")
+load("./Lipoprotein_A_LDL_direct_input.RData")
+load("./Lipoprotein_A_LDL_direct_edgesep_em_output.RData")
+prlist = read.delim("./plink.prune.in",stringsAsFactors = F)[,1]
+prlist = intersect(rownames(ps),prlist)
+p1 = ps[prlist,1];p2 = ps[prlist,2]
+grid_ms_test(p1,p2)
+
+allfiles = list.files("./")
+res_vs_sum = c()
+for(f in allfiles){
+  if(!grepl("_input.RData",f)){next}
+  currn = gsub("_input.RData","",f)
+  load(f)
+  load(paste(currn,"_edgesep_em_output.RData",sep=""))
+  p1 = ps[prlist,1];p2 = ps[prlist,2]
+  currs = sum(p1 < 1e-04 & p2>0.01,na.rm=T)
+  inds = !is.na(p1) & !is.na(p2)
+  p1 = p1[inds];p2 = p2[inds]
+  res_vs_sum = rbind(res_vs_sum,c(res,currs))
+  if(length(res)==0){next}
+  if(res<1e-10){
+    if(currs == 0){
+      print(f)
+      print(grid_ms_test(p1,p2))
+    }
+  }
+}
+
 
 # library(MASS)
 # rmvn_mix<-function(n,lambda,mu,sigma){
