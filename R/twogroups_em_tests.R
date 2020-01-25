@@ -185,10 +185,10 @@ simple_lfdr_test<-function(p1,p2,zthr = 10){
   z2[z2 > zthr]  = zthr
   z2[z2 < -zthr]  = -zthr
   
-  z1_m = znormix_wrapper(p=NULL,z=z1,theoretical_null = T,
-                         min_mean_z1 = 1,min_sd1 = 0.25,reps = 50)
-  z2_m = znormix_wrapper(p=NULL,z=z2,theoretical_null = T,
-                         min_mean_z1 = 1,min_sd1 = 0.25,reps = 50)
+  z1_m = znormix_wrapper(p=NULL,z=z1,theoretical_null = F,
+                         min_mean_z1 = 3,min_sd1 = 0.25,reps = 20)
+  z2_m = znormix_wrapper(p=NULL,z=z2,theoretical_null = F,
+                         min_mean_z1 = 3,min_sd1 = 0.25,reps = 20)
   # print(cbind(z1_m[1:5],z2_m[1:5]))
   fdr1 = attr(z1_m,"lfdr")
   fdr2 = attr(z2_m,"lfdr")
@@ -219,9 +219,9 @@ univar_mixtools_em<-function(p1,p2,zthr = 10,return_models=F,...){
   z2[z2 < -zthr]  = -zthr
   
   z1_m = znormix_wrapper(p=NULL,z=z1,theoretical_null = F,
-                         min_mean_z1 = 1,min_sd1 = 0.25,reps = 50)
+                         min_mean_z1 = 3,min_sd1 = 0.25,reps = 50)
   z2_m = znormix_wrapper(p=NULL,z=z2,theoretical_null = F,
-                         min_mean_z1 = 1,min_sd1 = 0.25,reps = 50)
+                         min_mean_z1 = 3,min_sd1 = 0.25,reps = 50)
 
   # define the differences
   zz = z1-z2
@@ -230,7 +230,7 @@ univar_mixtools_em<-function(p1,p2,zthr = 10,return_models=F,...){
     alt_prior = c(0.8,rep(0.2/3,3))
     alt_m = normalmixEM_wrapper(zz,lambda = alt_prior,
                                 mean.constr = possible_means[1:4],k=4,...)
-    alt_m = emFixedMeans(zz,mu=possible_means)
+    # alt_m = emFixedMeans(zz,mu=possible_means)
     null_prior = c(0.8,rep(0.2/2,2))
     null_m = normalmixEM_wrapper(zz,lambda = null_prior,
                                  mean.constr = possible_means[1:3],k=3,...)
@@ -308,7 +308,7 @@ lambda_em<-function(x,mu,cov,initial,maxiter=100,eps = 1e-03,sampSize=5000){
 }
 
 grid_bivar_normix_fixed_marginals<-function(z1,z2,z1_m,z2_m,
-                                            cor_ranges1 = seq(0.5,0.9,0.1),
+                                            cor_ranges1 = seq(0,0.9,0.1),
                                             cor_ranges2 = seq(0,0.9,0.1)){
   # define the mus
   zz = cbind(z1,z2)
@@ -357,15 +357,12 @@ grid_bivar_normix_fixed_marginals<-function(z1,z2,z1_m,z2_m,
       }
     }
   }
-  
   liks = list(
     null_models_loglik = null_models_loglik,
     alt_models_loglik = alt_models_loglik
   )
-  
   return(liks)
 }
-
 
 grid_ms_test<-function(p1,p2,zthr=10,marginal_em_reps = 20){
   inds = !is.na(p1) & !is.na(p2)
@@ -379,9 +376,9 @@ grid_ms_test<-function(p1,p2,zthr=10,marginal_em_reps = 20){
   z2[z2 > zthr]  = zthr
   z2[z2 < -zthr]  = -zthr
   z1_m = znormix_wrapper(p=NULL,z=z1,theoretical_null = F,
-                         min_mean_z1 = 1,min_sd1 = 0.25,reps = marginal_em_reps)
+                         min_mean_z1 = 3,min_sd1 = 0.25,reps = marginal_em_reps)
   z2_m = znormix_wrapper(p=NULL,z=z2,theoretical_null = F,
-                         min_mean_z1 = 1,min_sd1 = 0.25,reps = marginal_em_reps)
+                         min_mean_z1 = 3,min_sd1 = 0.25,reps = marginal_em_reps)
   
   liks = grid_bivar_normix_fixed_marginals(z1,z2,z1_m,z2_m)
   l_diff = max(liks$alt_models_loglik,na.rm = T) - 
@@ -391,41 +388,43 @@ grid_ms_test<-function(p1,p2,zthr=10,marginal_em_reps = 20){
   return(l_diff_p)
 }
 
-tr1 = "T1"
-tr2 = "T4"
-p1 = GWAS_Ps[,tr2]
-p2 = trait_pair_pvals[[tr2]][[tr1]][,1]
-grid_ms_test(p1,p2)
-
-# Some tests
-setwd("~/Desktop/causal_inference_projects/ms3/edge_sep_em/")
-load("./Lipoprotein_A_LDL_direct_input.RData")
-load("./Lipoprotein_A_LDL_direct_edgesep_em_output.RData")
-prlist = read.delim("./plink.prune.in",stringsAsFactors = F)[,1]
-prlist = intersect(rownames(ps),prlist)
-p1 = ps[prlist,1];p2 = ps[prlist,2]
-grid_ms_test(p1,p2)
-
-allfiles = list.files("./")
-res_vs_sum = c()
-for(f in allfiles){
-  if(!grepl("_input.RData",f)){next}
-  currn = gsub("_input.RData","",f)
-  load(f)
-  load(paste(currn,"_edgesep_em_output.RData",sep=""))
-  p1 = ps[prlist,1];p2 = ps[prlist,2]
-  currs = sum(p1 < 1e-04 & p2>0.01,na.rm=T)
-  inds = !is.na(p1) & !is.na(p2)
-  p1 = p1[inds];p2 = p2[inds]
-  res_vs_sum = rbind(res_vs_sum,c(res,currs))
-  if(length(res)==0){next}
-  if(res<1e-10){
-    if(currs == 0){
-      print(f)
-      print(grid_ms_test(p1,p2))
-    }
-  }
-}
+# tr1 = "T3"
+# tr2 = "T7"
+# p1 = GWAS_Ps[,tr2]
+# p2 = trait_pair_pvals[[tr2]][[tr1]][,1]
+# grid_ms_test(p1,p2)
+# 
+# # Some tests
+# setwd("~/Desktop/causal_inference_projects/ms3/edge_sep_em/")
+# load("./Lipoprotein_A_LDL_direct_input.RData")
+# load("./Lipoprotein_A_LDL_direct_edgesep_em_output.RData")
+# prlist = read.delim("./plink.prune.in",stringsAsFactors = F)[,1]
+# prlist = intersect(rownames(ps),prlist)
+# p1 = ps[prlist,1];p2 = ps[prlist,2]
+# grid_ms_test(p1,p2)
+# 
+# allfiles = list.files("./")
+# res_vs_sum = c()
+# for(f in allfiles){
+#   if(!grepl("_input.RData",f)){next}
+#   currn = gsub("_input.RData","",f)
+#   load(f)
+#   load(paste(currn,"_edgesep_em_output.RData",sep=""))
+#   p1 = ps[prlist,1];p2 = ps[prlist,2]
+#   currs = sum(p1 < 1e-04 & p2>0.01,na.rm=T)
+#   inds = !is.na(p1) & !is.na(p2)
+#   p1 = p1[inds];p2 = p2[inds]
+#   res_vs_sum = rbind(res_vs_sum,c(res,currs))
+#   if(length(res)==0){next}
+#   if(res<1e-10){
+#     if(currs == 0){
+#       print(f)
+#       print(simple_lfdr_test(p1,p2))
+#       print(univar_mixtools_em(p1,p2))
+#       print(grid_ms_test(p1,p2))
+#     }
+#   }
+# }
 
 
 # library(MASS)

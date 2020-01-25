@@ -159,7 +159,7 @@ EdgeSepTest<-function(GWAS_Ps,G_t,trait_pair_pvals,text_col_name="test3",
         ps_with_tr2_cond_tr1 = trait_pair_pvals[[tr2]][[tr1]][rownames(GWAS_Ps),text_col_name]
       }
       test1 = test_func(p1,ps_with_tr2_cond_tr1,...)
-      print(c(tr1,tr2,test1))
+      # print(c(tr1,tr2,test1))
       edge_sep_tests = rbind(edge_sep_tests,c(tr1,tr2,test1))
     }
   }

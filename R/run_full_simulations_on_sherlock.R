@@ -274,7 +274,16 @@ save(
 ###################################################################################
 ###################################################################################
 # Analysis of the edge sep tests
-reps = 50
+WD = "/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/simulations_ms_test/"
+try(system(paste("mkdir",WD)))
+MAX_JOBS = 400
+# Set the simulation parameters
+tested_p1 = c(1e-02,1e-03,1e-04,1e-05)
+tested_p2_factors = c(1,10,100)
+tested_pleio_levels = c(0,0.1,0.2,0.3,0.4)
+tested_degrees = c(1,1.25,1.5,1.75,2)
+
+reps = 40
 
 reps*length(tested_p1)*length(tested_pleio_levels)*length(tested_degrees)
 # Run with the edge sep tests only (no need for p2)
@@ -358,13 +367,13 @@ for(p1 in tested_p1){
         errs["edge_sep_test1"] = sum(!is_causal(edge_sep_results_statTest1$KnownDistance))
         preds["edge_sep_test1"] = nrow(edge_sep_results_statTest1)
         
-        # EdgeSepTest 2
-        edge_sep_results_statTest2 = 
-          edge_sep_results_statTest2[
-            p.adjust(edge_sep_results_statTest2$`pval:trait1->trait2`,method=FDR_method)<FDR,]
-        errs["edge_sep_test2"] = sum(!is_causal(edge_sep_results_statTest2$KnownDistance))
-        preds["edge_sep_test2"] = nrow(edge_sep_results_statTest2)
-          
+        # # EdgeSepTest 2
+        # edge_sep_results_statTest2 = 
+        #   edge_sep_results_statTest2[
+        #     p.adjust(edge_sep_results_statTest2$`pval:trait1->trait2`,method=FDR_method)<FDR,]
+        # errs["edge_sep_test2"] = sum(!is_causal(edge_sep_results_statTest2$KnownDistance))
+        # preds["edge_sep_test2"] = nrow(edge_sep_results_statTest2)
+        
         method2num_discoveries = rbind(method2num_discoveries,preds)
         method2false_discoveries = rbind(method2false_discoveries,errs)
           
@@ -390,18 +399,17 @@ for(p1 in tested_p1){
 colinds = 1:2 
 
 mean_errs = aggregate(all_sim_results_errs[,colinds],
-                      by=list(p1=all_sim_results_errs$p1,
-                      deg = all_sim_results_errs$deg,prob_pleio = all_sim_results_errs$prob_pleio),
-                      FUN=mean)
-
+                    by=list(p1=all_sim_results_errs$p1,
+                    deg = all_sim_results_errs$deg,prob_pleio = all_sim_results_errs$prob_pleio),
+                    FUN=mean)
 sd_errs = aggregate(all_sim_results_errs[,colinds],
                     by=list(p1=all_sim_results_errs$p1,
                     deg = all_sim_results_errs$deg,prob_pleio = all_sim_results_errs$prob_pleio),
                     FUN=sd)
 mean_num_discoveries = aggregate(all_sim_results_preds[,colinds],
-                     by=list(p1=all_sim_results_errs$p1,
-                     deg = all_sim_results_errs$deg,prob_pleio = all_sim_results_errs$prob_pleio),
-                     FUN=mean)
+                    by=list(p1=all_sim_results_errs$p1,
+                    deg = all_sim_results_errs$deg,prob_pleio = all_sim_results_errs$prob_pleio),
+                    FUN=mean)
 
 all_sim_results_fdrs = (all_sim_results_errs/all_sim_results_preds)[,colinds]
 all_sim_results_fdrs[is.nan(as.matrix(all_sim_results_fdrs))] = 0
