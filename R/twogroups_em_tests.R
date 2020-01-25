@@ -388,10 +388,11 @@ grid_ms_test<-function(p1,p2,zthr=10,marginal_em_reps = 20){
   return(l_diff_p)
 }
 
-# tr1 = "T3"
-# tr2 = "T7"
+# tr1 = "T15"
+# tr2 = "T3"
 # p1 = GWAS_Ps[,tr2]
 # p2 = trait_pair_pvals[[tr2]][[tr1]][,1]
+# table(p1<1e-05,p2>0.01)
 # grid_ms_test(p1,p2)
 # 
 # # Some tests
