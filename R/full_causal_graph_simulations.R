@@ -499,14 +499,14 @@ if(edgeSepRun=="1"){
   )
   
   edge_sep_results_statTest1 = edge_sep_results_statTest1[
-    p.adjust(edge_sep_results_statTest1$`pval:trait1->trait2`)<0.1,]
+    p.adjust(edge_sep_results_statTest1$`pval:trait1->trait2`,method="BY")<0.1,]
   print("EdgeSepTest1, Bonf correction (0.1), FDR and num discoveries:")
   print(paste(
     sum(edge_sep_results_statTest1$KnownDistance==-1)/nrow(edge_sep_results_statTest1),
     nrow(edge_sep_results_statTest1)))
 
   edge_sep_results_statTest2 = edge_sep_results_statTest2[
-    p.adjust(edge_sep_results_statTest2$`pval:trait1->trait2`)<0.1,]
+    p.adjust(edge_sep_results_statTest2$`pval:trait1->trait2`,method="BY")<0.1,]
   print("EdgeSepTest1, Bonf correction (0.1), FDR and num discoveries:")
   print(paste(
     sum(edge_sep_results_statTest2$KnownDistance==-1)/nrow(edge_sep_results_statTest2),

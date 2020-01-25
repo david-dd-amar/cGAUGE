@@ -308,7 +308,7 @@ lambda_em<-function(x,mu,cov,initial,maxiter=100,eps = 1e-03,sampSize=5000){
 }
 
 grid_bivar_normix_fixed_marginals<-function(z1,z2,z1_m,z2_m,
-                                            cor_ranges1 = seq(0,0.9,0.1),
+                                            cor_ranges1 = seq(0.5,0.9,0.1),
                                             cor_ranges2 = seq(0,0.9,0.1)){
   # define the mus
   zz = cbind(z1,z2)
