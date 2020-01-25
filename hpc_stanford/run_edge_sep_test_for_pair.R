@@ -26,7 +26,7 @@ option_list <- list(
   make_option(c("--file"), action="store", default="",type="character",
               help="RData file with a matrix with two columns: first for associations of genetic variables with Y, second is the same as the first but with X added to the conditioned set"),
   make_option(c( "--testName"), action="store", default="em",type="character",
-              help="either lfdr or em"),
+              help="either grid or em"),
   make_option(c( "--out"), action="store", default="",type="character",
               help="name of output file")
 )
@@ -42,11 +42,11 @@ ps = get(load(rdata_path))
 p1 = ps[,1]
 p2 = ps[,2]
 res = NULL
+if(testName == "grid"){
+  res = grid_ms_test(p1,p2)
+}
 if(testName == "em"){
   res = univar_mixtools_em(p1,p2)
-}
-if(testName == "lfdr"){
-  res = simple_lfdr_test(p1,p2)
 }
 print(res)
 save(res,file = out_file)
