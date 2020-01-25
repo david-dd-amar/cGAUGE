@@ -50,9 +50,14 @@ genetic_ci_tests_plink_path = "/oak/stanford/groups/mrivas/users/davidama/april2
 #' maximal p-values for each pair (overl all tests)
 #' a matrix with all potential separating sets (p>1e-10) for each pair
 skeleton_file = "/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/Gs_skeleton.RData"
-#' This is a prefix of the frq and bim files that contain the MAFs and SNP ids and locations
-#' These are used to filter out low MAF SNPs and the MHC region
-geno_data_path = "/oak/stanford/groups/mrivas/users/davidama/april2019_traits_genotypes/all_genotypes"
+#' This is a firectory with the following files:
+#'    all_genotypes.frq
+#'    all_genotypes.bim
+#'    plink.prune.in 
+#'    the first two files contain the MAFs, SNP ids, and locations and are used to remove low maf SNPs and MHC snps
+#'    the last file containes the list of independent snps of the all_genotypes bfile and it is used only for
+#'    the MS test analysis (see hpc_stanford/run_all_edge_sep_pair_tests.R)
+geno_data_path = "/oak/stanford/groups/mrivas/users/davidama/april2019_traits_genotypes/"
 #' This RData file contains the standard (marginal) GWAS results,
 #' adjusted for sex, age, and PCs
 gwas_res_data = "/oak/stanford/groups/mrivas/users/davidama/april2019_causal_analysis_flow_input.RData"
@@ -122,13 +127,14 @@ icd2name[missing_names2] = missing_names2
 save(pheno_names,icd2name,rivaslab_codes,file=
        paste(out_path,"all_pheno_name_metadata.RData",sep=""))
 
+# Define the GWAS results
 # Select SNPs by their MAF
 pruned_snp_list = cl_unified_list
 pruned_snp_lists = code2clumped_list
 MAF = 0.01
-maf_file = paste(geno_data_path,".frq",sep="")
+maf_file = paste(geno_data_path,"all_genotypes.frq",sep="")
 mafs = read.table(maf_file,stringsAsFactors = F,header=T)
-bim = read.table(paste(geno_data_path,".bim",sep=""),stringsAsFactors = F)
+bim = read.table(paste(geno_data_path,"all_genotypes.bim",sep=""),stringsAsFactors = F)
 mhc_snps = bim[bim[,1]==6 & bim[,4]>23000000 & bim[,4]<35000000,2]
 our_snps = mafs$SNP[mafs$MAF >= MAF]
 pruned_snp_list = intersect(pruned_snp_list,our_snps)

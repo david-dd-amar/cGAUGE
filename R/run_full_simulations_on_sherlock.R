@@ -327,7 +327,7 @@ for(p1 in tested_p1){
 }
 
 # Read and save the simulation results 
-FDR = 0.1
+FDR = 0.01
 FDR_method = "BY"
 is_causal<-function(dists){
   return(dists>0 )
@@ -368,7 +368,7 @@ for(p1 in tested_p1){
         preds["edge_sep_test1"] = nrow(edge_sep_results_statTest1)
         
         # # EdgeSepTest 2
-        # edge_sep_results_statTest2 = 
+        # edge_sep_results_statTest2 =
         #   edge_sep_results_statTest2[
         #     p.adjust(edge_sep_results_statTest2$`pval:trait1->trait2`,method=FDR_method)<FDR,]
         # errs["edge_sep_test2"] = sum(!is_causal(edge_sep_results_statTest2$KnownDistance))
@@ -431,7 +431,7 @@ save(
   all_sim_results_fdrs,
   mean_errs,sd_errs,mean_num_discoveries,
   mean_fdrs,sd_fdrs,
-  file = paste(WD,"/simulation_summ_stats.RData",sep="")
+  file = paste(WD,"/simulation_summ_stats_",FDR,"FDR.RData",sep="")
 )
 
 ##############################################################

@@ -492,8 +492,8 @@ if(edgeSepRun=="1"){
   save(
     opt, # input parameters
     B,Bg,simulated_data,B_distances, # simulated data
-    edge_sep_results_statTest1, # EdgeSepStatTest1
-    # edge_sep_results_statTest2, # EdgeSepStatTest2
+    edge_sep_results_statTest1, # EdgeSepStatTest1 - grid based
+    edge_sep_results_statTest2, # EdgeSepStatTest2 - lfdr based
     G_it,G_vt,G_t, # Skeletons
     file = outfile
   )
@@ -514,7 +514,6 @@ if(edgeSepRun=="1"){
   
   q(save = "no",status = 0)
 }
-
 
 # Get new instrument sets after the cGAUGE filter
 iv_sets = list()

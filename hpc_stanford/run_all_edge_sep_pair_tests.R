@@ -1,6 +1,6 @@
 ##############################################################
 # Helper functions for running the analysis
-get_sh_prefix<-function(err="",log="",time="5:00:00"){
+get_sh_prefix<-function(err="",log="",time="1:00:00"){
   return(
     c(
       "#!/bin/bash",
@@ -35,12 +35,12 @@ exec_cmd_on_sherlock<-function(cmd,jobname,out_path){
   system(paste("sbatch",curr_sh_file,'&'))
 }
 
-MAX_JOBS = 300
+MAX_JOBS = 400
 ##############################################################
 # Input data - files
 genetic_ci_tests_plink_path = "/oak/stanford/groups/mrivas/users/davidama/april2019_traits_causal_analysis_flow_results/genetic_CI_tests_results.RData"
 skeleton_file = "/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/Gs_skeleton.RData"
-geno_data_path = "/oak/stanford/groups/mrivas/users/davidama/april2019_traits_genotypes/all_genotypes"
+geno_data_path = "/oak/stanford/groups/mrivas/users/davidama/april2019_traits_genotypes/"
 gwas_res_data = "/oak/stanford/groups/mrivas/users/davidama/april2019_causal_analysis_flow_input.RData"
 gwas_res_path = "/oak/stanford/groups/mrivas/users/davidama/gwas_res/"
 out_path = "/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/ukbb_res/em_edge_sep_jobs/"
@@ -57,9 +57,9 @@ p1 = 1e-05
 pruned_snp_list = cl_unified_list
 pruned_snp_lists = code2clumped_list
 MAF = 0.01
-maf_file = paste(geno_data_path,".frq",sep="")
+maf_file = paste(geno_data_path,"all_genotypes.frq",sep="")
 mafs = read.table(maf_file,stringsAsFactors = F,header=T)
-bim = read.table(paste(geno_data_path,".bim",sep=""),stringsAsFactors = F)
+bim = read.table(paste(geno_data_path,"all_genotypes.bim",sep=""),stringsAsFactors = F)
 mhc_snps = bim[bim[,1]==6 & bim[,4]>23000000 & bim[,4]<35000000,2]
 our_snps = mafs$SNP[mafs$MAF >= MAF]
 pruned_snp_list = intersect(pruned_snp_list,our_snps)
@@ -71,6 +71,11 @@ for(nn in names(pruned_snp_lists)){
 iv2trait_p = snp_matrix[pruned_snp_list,]
 maf_as_weights = mafs$MAF;names(maf_as_weights) = mafs$SNP
 GWAS_Ps = iv2trait_p[pruned_snp_list,]
+
+# Get the overall pruned snp list
+prlist = read.delim(paste(geno_data_path,"/plink.prune.in",sep=""),stringsAsFactors = F)[,1]
+prlist = intersect(rownames(GWAS_Ps),prlist)
+GWAS_Ps = GWAS_Ps[prlist,]
 
 # define the skeleton using p1
 G_t = skeleton_pmax < p1
@@ -93,13 +98,14 @@ for(tr1 in colnames(GWAS_Ps)){
     out_name = paste(out_path,out_name,sep="")
     
     # save the data of the current pair
-    # ps1 = GWAS_Ps[,tr2]
-    # ps_with_tr2_cond_tr1 = trait_pair_pvals[[tr2]][[tr1]][rownames(GWAS_Ps),"test3"]
-    # ps = cbind(ps1,ps_with_tr2_cond_tr1)
-    # save(ps,file=rdata_name)
+    ps1 = GWAS_Ps[,tr2]
+    ps_with_tr2_cond_tr1 = trait_pair_pvals[[tr2]][[tr1]][rownames(GWAS_Ps),"test3"]
+    ps = cbind(ps1,ps_with_tr2_cond_tr1)
+    save(ps,file=rdata_name)
     cmd = paste(
       "~/repos/cGAUGE/hpc_stanford/run_edge_sep_test_for_pair.R",
       "--file",rdata_name,
+      "--testName grid",
       "--out",out_name
     )
     exec_cmd_on_sherlock(cmd,jobname = job_name,out_path = out_path)
