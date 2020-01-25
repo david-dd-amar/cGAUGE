@@ -274,7 +274,7 @@ save(
 ###################################################################################
 ###################################################################################
 # Analysis of the edge sep tests
-WD = "/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/simulations_ms_test/"
+WD = "/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/simulations_ms_test_minMu1_3/"
 try(system(paste("mkdir",WD)))
 MAX_JOBS = 400
 # Set the simulation parameters
