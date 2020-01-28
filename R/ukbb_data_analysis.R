@@ -229,9 +229,7 @@ save(p12G_t,file = paste(out_path,"p12G_t.RData",sep=""))
 # }
 # 
 # edge_sep_results_statTest2 = EdgeSepTest(NonNA_GWAS_Ps,G_t,trait_pair_pvals,
-#                                          text_col_name="test3",test = simple_lfdr_test)
-# edge_sep_results_statTest1 = EdgeSepTest(NonNA_GWAS_Ps,G_t,trait_pair_pvals,
-#                                          text_col_name="test3",test = univar_mixtools_em)
+#                                          text_col_name="test3",test = grid_ms_test)
 
 # Load the EdgeSep results, create output files and networks
 load(paste(out_path,"p12G_t.RData",sep=""))
@@ -527,6 +525,9 @@ P2s = c(0.01,0.001)
 setwd(supp_path)
 sheet_ind = 8;sheet_ind_sdata = 1
 captions = c()
+mr_results = c()
+unique_ms_test_results = c()
+params2pairs_mr = list()
 for(p1 in P1s){
   for (p2 in P2s){
     load(paste(out_path,"cgauge_res_",p1,"_",p2,".RData",sep=""))
@@ -588,36 +589,22 @@ for(p1 in P1s){
     table(cgauge_inf_results$direction_ivw,cgauge_inf_results$direction_mrpresso)
     table(cgauge_inf_results$numIVs>10)
     
+    ms_test_results = (!is.na(cgauge_inf_results$MS_test) & p.adjust(cgauge_inf_results$MS_test,method = "BY") < 0.01)
     selected_results = 
-      (!is.na(cgauge_inf_results$qvalue_ivw) & cgauge_inf_results$qvalue_ivw < 0.1) | 
-      (!is.na(cgauge_inf_results$qvalue_mrpresso) & cgauge_inf_results$qvalue_mrpresso < 0.1) | 
-      (!is.na(cgauge_inf_results$MS_test) & cgauge_inf_results$MS_test < 1e-10)
+      (!is.na(cgauge_inf_results$qvalue_mrpresso) & cgauge_inf_results$qvalue_mrpresso < 0.1)
     selected_results = selected_results & cgauge_inf_results$pi1 > 0.25
     
+    cgauge_inf_results$p1 = p1
+    cgauge_inf_results$p2 = p2
     cgauge_selected_results = cgauge_inf_results[selected_results,]
+    curr_ms_unique_test_results = cgauge_inf_results[ms_test_results & (!selected_results),]
+    mr_results = rbind(mr_results,cgauge_selected_results)
+    unique_ms_test_results = rbind(unique_ms_test_results,curr_ms_unique_test_results)
 
-    # write.table(cgauge_inf_results[grepl("cancer",cgauge_inf_results[,2]),],quote=F,sep="\t")
-    # write.table(cgauge_selected_results[grepl("cancer",cgauge_selected_results[,2]),],quote=F,sep="\t")
-    # write.table(cgauge_selected_results[grepl("LDL",cgauge_selected_results[,1]),],quote=F,sep="\t")
-    # write.table(cgauge_selected_results[grepl("HDL",cgauge_selected_results[,1]),],quote=F,sep="\t")
-    # write.table(cgauge_inf_results[grepl("Baso",cgauge_inf_results[,1]) & 
-    #               grepl("cancer",cgauge_inf_results[,2]),
-    #               c("tr2","pi1","qvalue_ivw","qvalue_mrpresso","numIVs")],quote=F,sep="\t")
-    # write.table(cgauge_selected_results[grepl("depre",cgauge_selected_results[,1]),],quote=F,sep="\t")
-    # write.table(cgauge_selected_results[grepl("Sleep",cgauge_selected_results[,1]),],quote=F,sep="\t")
-    # write.table(cgauge_selected_results[grepl("Mood",cgauge_selected_results[,1]),],quote=F,sep="\t")
-    
-    write.table(cgauge_selected_results,
-                file=paste("ST",sheet_ind,".txt",sep=""),row.names=F,sep="\t",quote = F,col.names = T)
     write.table(cgauge_inf_results,
                 file= paste("SD",sheet_ind_sdata,".txt",sep=""),row.names=F,sep="\t",quote = F,col.names = T)
     captions = c(captions,
-                 paste("ST",sheet_ind," selected causal inference results after the uniqueIV filter with p1=",p1, "and p2=",p2,sep=""))
-    captions = c(captions,
                  paste("SD",sheet_ind_sdata," all causal inference results after the uniqueIV filter with p1=",p1, "and p2=",p2,sep=""))
-    
-    sheet_ind = sheet_ind+1
-    sheet_ind_sdata = sheet_ind_sdata+1
     
     # get reduced data for figures
     #   remove edges out of diseases
@@ -631,6 +618,18 @@ for(p1 in P1s){
     
     write.table(cgauge_for_fig_results,
                 file=paste("cgauge_for_fig_results_p1",p1,"_p2",p2,".txt",sep=""),
+                row.names=F,sep="\t",quote = F,col.names = T)
+    
+    ms_test_res_for_fig = curr_ms_unique_test_results[
+      ! curr_ms_unique_test_results[,1] %in% diseases,
+      ]
+    # remove edges into biomarkers
+    ms_test_res_for_fig = ms_test_res_for_fig[
+      ! ms_test_res_for_fig[,2] %in% biomarkers,
+      ]
+    
+    write.table(ms_test_res_for_fig,
+                file=paste("mstest_for_fig_results_p1",p1,"_p2",p2,".txt",sep=""),
                 row.names=F,sep="\t",quote = F,col.names = T)
     
     curr_cancer_results = cgauge_inf_results[
@@ -649,12 +648,59 @@ for(p1 in P1s){
                 file=paste("cgauge_cancer_results_p1",p1,"_p2",p2,".txt",sep=""),
                 row.names=F,sep="\t",quote = F,col.names = T)
     
-    write.table(curr_cancer_results,quote=F,sep="\t")
+    # write.table(curr_cancer_results,quote=F,sep="\t")
     
   }
 }
 write(captions,file = "./captions.txt")
 
+table(mr_results$p1,mr_results$p2)
+table(unique_ms_test_results$p1,unique_ms_test_results$p2)
+write.table(mr_results,
+            file= paste("ST",sheet_ind,".txt",sep=""),
+            row.names=F,sep="\t",quote = F,col.names = T)
+captions = c(captions,
+             paste("ST",sheet_ind,
+              " selected MR results after the uniqueIV filter, with 10 FDR adjustment and pi1>0.25",sep=""))
+write.table(unique_ms_test_results,
+            file= paste("ST",sheet_ind+1,".txt",sep=""),
+            row.names=F,sep="\t",quote = F,col.names = T)
+captions = c(captions,
+             paste("ST",sheet_ind+1,
+             "MS test results not in the MR results",sep=""))
+
+params2pairs_mr = list()
+params2pairs_ms = list()
+for(p1 in P1s){
+  for (p2 in P2s){
+    m = mr_results[mr_results$p1==p1 & mr_results$p2==p2,]
+    params2pairs_mr[[paste("p1_",p1,",","p2_",p2,sep="")]] = paste(m[,1],m[,2],sep="->")
+    
+    m = unique_ms_test_results[mr_results$p1==p1 & mr_results$p2==p2,]
+    params2pairs_ms[[paste("p1_",p1,",","p2_",p2,sep="")]] = paste(m[,1],m[,2],sep="->")
+  }
+}
+mr_res_overlap = matrix(0,length(params2pairs_mr),length(params2pairs_mr),
+                        dimnames = list(names(params2pairs_mr),names(params2pairs_mr)))
+mr_res_union = matrix(0,length(params2pairs_mr),length(params2pairs_mr),
+                        dimnames = list(names(params2pairs_mr),names(params2pairs_mr)))
+for(i in 2:length(params2pairs_mr)){
+  for(j in 1:(i-1)){
+    mr_res_overlap[i,j] = length(intersect(params2pairs_mr[[i]],params2pairs_mr[[j]]))
+    mr_res_overlap[j,i] = mr_res_overlap[i,j]
+    mr_res_union[i,j] = length(union(params2pairs_mr[[i]],params2pairs_mr[[j]]))
+    mr_res_union[j,i] = mr_res_union[i,j]
+  }
+}
+mr_res_J = mr_res_overlap/mr_res_union
+diag(mr_res_J) = 1
+
+write.table(mr_res_J,
+            file= paste("ST",sheet_ind+2,".txt",sep=""),
+            row.names=F,sep="\t",quote = F,col.names = T)
+captions = c(captions,
+             paste("ST",sheet_ind+2,
+                   "MR results overlap Jaccard matrix",sep=""))
 
 replace_names<-function(l,x){
   newl = list()
@@ -696,28 +742,35 @@ dir.create(uniqueivs_txt_path)
 for(p1 in P1s){
   for (p2 in P2s){
     load(paste(out_path,"cgauge_res_",p1,"_",p2,".RData",sep=""))
-    uniquivs  = iv_lists_to_mat(iv_sets_thm22,pheno_names,T)
-    for(tr in unique(uniquivs[,1])){
-      ivs = uniquivs[uniquivs[,1]==tr,2]
+    tr2iv_mat_df = c()
+    for(tr in colnames(GWAS_Ps)){
+      ivs = iv_sets_thm22[[tr]][[1]]
       ivs = as.character(ivs)
-      suppressWarnings({iv_df = data.frame(rsID = ivs,"P-value"=p1,"P-value2"=p2,check.names = F)})
-      tr = gsub(" ","_",tr)
-      write.table(iv_df,file = paste(uniqueivs_txt_path,tr,"_p1",p2,"_p2",p2,".txt",sep=""),row.names = F,sep=" ")
+      if(length(ivs)==0){next}
+      beta = sum_stat_matrix[ivs,tr]
+      se = sum_stat_se_matrix[ivs,tr]
+      pvals = GWAS_Ps[ivs,tr]
+      suppressWarnings({iv_df = data.frame(traitID = tr,traitName=pheno_names[tr],
+                                           rsID = ivs,beta=beta,se=se,"P-value"=pvals,
+                                           "cGAUGE_p1"=p1,"cGAUGE_p2"=p2,check.names = F)})
+      tr2iv_mat_df = rbind(tr2iv_mat_df,iv_df)
     }
+    write.table(tr2iv_mat_df,file = paste(uniqueivs_txt_path,"UniqueIV_output_p1",p2,"_p2",p2,".txt",sep=""),
+                row.names = F,sep=" ")
   }
 }
 
-# Print G_T to a text file
-G_t_edges = c()
-for(i in 2:nrow(G_t)){
-  for(j in 1:(i-1)){
-    if(!is.na(G_t[i,j]) && G_t[i,j]>0){
-      G_t_edges = rbind(G_t_edges,c(pheno_names[colnames(G_t)[i]],pheno_names[colnames(G_t)[j]]))
-    }
-  }
-}
-write.table(G_t_edges,file=paste(out_path,"G_t_edges","p1_",p1,".txt",sep=""),sep="\t",
-            row.names = F,col.names = F,quote = F)
+# # Print G_T to a text file
+# G_t_edges = c()
+# for(i in 2:nrow(G_t)){
+#   for(j in 1:(i-1)){
+#     if(!is.na(G_t[i,j]) && G_t[i,j]>0){
+#       G_t_edges = rbind(G_t_edges,c(pheno_names[colnames(G_t)[i]],pheno_names[colnames(G_t)[j]]))
+#     }
+#   }
+# }
+# write.table(G_t_edges,file=paste(out_path,"G_t_edges","p1_",p1,".txt",sep=""),sep="\t",
+#             row.names = F,col.names = F,quote = F)
 
 ################################################################
 ################################################################

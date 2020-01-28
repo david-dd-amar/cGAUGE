@@ -46,6 +46,7 @@ exec_cmd_on_sherlock<-function(cmd,jobname,out_path){
 # Set the WD and number of repeats
 reps = 40
 WD = "/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/simulations_uniqueiv_minIV3/"
+WD = "/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/simulations_default/"
 try(system(paste("mkdir",WD)))
 MAX_JOBS = 500
 # Set the simulation parameters
@@ -190,19 +191,10 @@ for(p1 in tested_p1){
           errs["edge_sep"] = sum(!is_causal(edge_sep_results$real_distance))
           preds["edge_sep"] = nrow(edge_sep_results)
           
-          # EdgeSepTest 1
-          edge_sep_results_statTest1 = 
-            edge_sep_results_statTest1[
-              p.adjust(edge_sep_results_statTest1$`pval:trait1->trait2`,method=FDR_method)<FDR,]
-          errs["edge_sep_test1"] = sum(!is_causal(edge_sep_results_statTest1$KnownDistance))
-          preds["edge_sep_test1"] = nrow(edge_sep_results_statTest1)
-          
-          # EdgeSepTest 2
-          edge_sep_results_statTest2 = 
-            edge_sep_results_statTest2[
-              p.adjust(edge_sep_results_statTest2$`pval:trait1->trait2`,method=FDR_method)<FDR,]
-          errs["edge_sep_test2"] = sum(!is_causal(edge_sep_results_statTest2$KnownDistance))
-          preds["edge_sep_test2"] = nrow(edge_sep_results_statTest2)
+          # EdgeSep count with 5
+          edge_sep_results = edge_sep_results[edge_sep_results$num_edgesep > 4,]
+          errs["edge_sep_count5"] = sum(!is_causal(edge_sep_results$real_distance))
+          preds["edge_sep_count5"] = nrow(edge_sep_results)
           
           method2num_discoveries = rbind(method2num_discoveries,preds)
           method2false_discoveries = rbind(method2false_discoveries,errs)
@@ -266,7 +258,7 @@ save(
   all_sim_results_fdrs,
   mean_errs,sd_errs,mean_num_discoveries,
   mean_fdrs,sd_fdrs,
-  file = paste(WD,"/simulation_summ_stats.RData",sep="")
+  file = paste(WD,"/simulation_summ_stats_FDR",FDR,".RData",sep="")
 )
 
 
@@ -327,7 +319,7 @@ for(p1 in tested_p1){
 }
 
 # Read and save the simulation results 
-FDR = 0.01
+FDR = 0.1
 FDR_method = "BY"
 is_causal<-function(dists){
   return(dists>0 )
@@ -431,7 +423,7 @@ save(
   all_sim_results_fdrs,
   mean_errs,sd_errs,mean_num_discoveries,
   mean_fdrs,sd_fdrs,
-  file = paste(WD,"/simulation_summ_stats_",FDR,"FDR.RData",sep="")
+  file = paste(WD,"/simulation_summ_stats_FDR",FDR,".RData",sep="")
 )
 
 ##############################################################
@@ -441,7 +433,8 @@ save(
 ##############################################################
 # WD = "/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/simulations_uniqueivs/"
 # WD = "/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/simulations_default/"
-WD = "/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/simulations_uniqueiv2/"
+# WD = "/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/simulations_uniqueiv2/"
+WD = "/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/simulations_uniqueiv_minIV3/"
 setwd(WD)
 # Go over all RData files in WD and add their pi1_estimates
 wd_folders = list.files(WD,full.names = T)
@@ -608,11 +601,11 @@ library("xlsx",lib.loc = "~/R/packages3.5")
 
 supp_readme = c()
 
-load("simulations_default/simulation_summ_stats.RData")
+load("simulations_default/simulation_summ_stats_FDR0.1.RData")
 mean_fdrs_thm21 = mean_fdrs
 sd_fdrs_thm21 = sd_fdrs
 mean_num_discoveries_thm21 = mean_num_discoveries
-load("simulations_uniqueiv2/simulation_summ_stats.RData")
+load("simulations_uniqueiv_minIV3/simulation_summ_stats_FDR0.1.RData")
 mean_fdrs_thm22 = mean_fdrs
 sd_fdrs_thm22 = sd_fdrs
 mean_num_discoveries_thm22 = mean_num_discoveries
@@ -641,7 +634,12 @@ j=12
 exsep = format(mean_fdrs_thm21[,j],digits=3)
 exsep = paste(exsep," (",format(sd_fdrs_thm21[,j],digits=3),")",sep="")
 mr_fdr_simulations_supp_table = cbind(mr_fdr_simulations_supp_table,exsep)
-colnames(mr_fdr_simulations_supp_table)[ncol(mr_fdr_simulations_supp_table)] = "ExSep, Naive"
+colnames(mr_fdr_simulations_supp_table)[ncol(mr_fdr_simulations_supp_table)] = "ExSep, Naive count>2"
+j=13
+exsep = format(mean_fdrs_thm21[,j],digits=3)
+exsep = paste(exsep," (",format(sd_fdrs_thm21[,j],digits=3),")",sep="")
+mr_fdr_simulations_supp_table = cbind(mr_fdr_simulations_supp_table,exsep)
+colnames(mr_fdr_simulations_supp_table)[ncol(mr_fdr_simulations_supp_table)] = "ExSep, Naive count>44"
 write.xlsx2(mr_fdr_simulations_supp_table,file="./supp_tables/Supplementary_Tables.xlsx",
             sheetName = "ST1",row.names=F)
 supp_readme = c(supp_readme,
@@ -667,27 +665,31 @@ for(j in c(5,7,9)){
 j=12
 exsep = format(mean_num_discoveries_thm21[,j],digits=3)
 mr_N_simulations_supp_table = cbind(mr_N_simulations_supp_table,exsep)
-colnames(mr_N_simulations_supp_table)[ncol(mr_N_simulations_supp_table)] = "ExSep, Naive"
+colnames(mr_N_simulations_supp_table)[ncol(mr_N_simulations_supp_table)] = "ExSep, Naive>2"
+j=13
+exsep = format(mean_num_discoveries_thm21[,j],digits=3)
+mr_N_simulations_supp_table = cbind(mr_N_simulations_supp_table,exsep)
+colnames(mr_N_simulations_supp_table)[ncol(mr_N_simulations_supp_table)] = "ExSep, Naive>4"
 write.xlsx2(mr_N_simulations_supp_table,file="./supp_tables/Supplementary_Tables.xlsx",
             sheetName = "ST2",row.names=F,append=T)
 supp_readme = c(supp_readme,
                 "ST2: Number of discoveries of the MR and the naive ExSep methods")
 
-load("./simulations_edgesep/simulation_summ_stats.RData")
+load("./simulations_ms_test_minMu1_3/simulation_summ_stats.RData")
 edesep_fdr_simulations_supp_table = mean_fdrs[,1:3]
-for(j in c(4,5)){
+for(j in c(4)){
   x1 = format(mean_fdrs[,j],digits=3)
   x1 = paste(x1," (",format(sd_fdrs[,j],digits=3),")",sep="")
   edesep_fdr_simulations_supp_table = cbind(edesep_fdr_simulations_supp_table,x1)
 }
-colnames(edesep_fdr_simulations_supp_table)[4:5] = c("MS test","TDR test")
+colnames(edesep_fdr_simulations_supp_table)[4] = c("MS test")
 
 edgesep_N_simulations_supp_table = mean_num_discoveries[,1:3]
-for(j in c(4,5)){
+for(j in c(4)){
   x1 = format(mean_num_discoveries[,j],digits=3)
   edgesep_N_simulations_supp_table = cbind(edgesep_N_simulations_supp_table,x1)
 }
-colnames(edgesep_N_simulations_supp_table)[4:5] = c("MS test","TDR test")
+colnames(edgesep_N_simulations_supp_table)[4] = c("MS test")
 
 write.xlsx2(edesep_fdr_simulations_supp_table,
             file="./supp_tables/Supplementary_Tables.xlsx",
@@ -708,7 +710,7 @@ sd_fdrs_thm21 = sd_fdrs
 mean_fprs_thm21 = mean_fprs
 sd_fprs_thm21 = sd_fprs
 mean_num_discoveries_thm21 = mean_num_discoveries
-load("simulations_uniqueiv2/simulation_pi1_summ_stats.RData")
+load("simulations_uniqueiv_minIV3/simulation_pi1_summ_stats.RData")
 mean_fdrs_thm22 = mean_fdrs
 sd_fdrs_thm22 = sd_fdrs
 mean_fprs_thm22 = mean_fprs
@@ -935,9 +937,9 @@ inds = resultsdf$deg==deg & resultsdf$p1 == p1 & resultsdf$p2==p2
 df1 = resultsdf[inds,c("prob_pleio","edge_sep")]
 resultsdf = mean_num_discoveries
 inds = resultsdf$deg==deg & resultsdf$p1 == p1 
-df2 = resultsdf[inds,c("prob_pleio","edge_sep_test1","edge_sep_test2")]
+df2 = resultsdf[inds,c("prob_pleio","edge_sep_test1")]
 if(all(df1[,1]==df2[,1])){
-  df1 = cbind(df1,df2[,-1])
+  df1$edge_sep_test1 = df2$edge_sep_test1
 }
 rownames(df1) = df1[,1]
 df1 = df1[,-1]
@@ -958,9 +960,9 @@ inds = resultsdf$deg==deg & resultsdf$p1 == p1 & resultsdf$p2==p2
 df1 = resultsdf[inds,c("prob_pleio","edge_sep")]
 resultsdf = mean_fdrs
 inds = resultsdf$deg==deg & resultsdf$p1 == p1 
-df2 = resultsdf[inds,c("prob_pleio","edge_sep_test1","edge_sep_test2")]
+df2 = resultsdf[inds,c("prob_pleio","edge_sep_test1")]
 if(all(df1[,1]==df2[,1])){
-  df1 = cbind(df1,df2[,-1])
+  df1$edge_sep_test1 = df2$edge_sep_test1
 }
 rownames(df1) = df1[,1]
 df1 = df1[,-1]
@@ -978,7 +980,7 @@ text(0,0,"FDR",cex = 1.2,font = 2)
 dev.off()
 par(mar = c(5,5,5,5))
 plot(c(2,2))
-legend(x="top",c("Naive count","MS test","TDR test"),fill = cols,ncol = 1,border=F,cex=2)
+legend(x="top",c("Naive count","MS test"),fill = cols,ncol = 1,border=F,cex=2)
 
 #######
 # Look at the Pi1 results
