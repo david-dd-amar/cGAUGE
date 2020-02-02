@@ -147,6 +147,10 @@ iv2trait_p = snp_matrix[pruned_snp_list,]
 maf_as_weights = mafs$MAF;names(maf_as_weights) = mafs$SNP
 GWAS_Ps = iv2trait_p[pruned_snp_list,]
 
+save(GWAS_Ps,sum_stat_matrix,sum_stat_se_matrix,pheno_names,pmax_network,
+     pruned_snp_lists,
+     file = paste(out_path,"mr_input_data.RData",sep=""))
+
 ###################################################################################
 ###################################################################################
 ###################################################################################
@@ -462,14 +466,6 @@ for(p1 in P1s){
     presso_thm22_res[,1] = pheno_names[presso_thm22_res[,1]]
     presso_thm22_res[,2] = pheno_names[presso_thm22_res[,2]]
     
-    # write.table(presso_thm22_res,file=paste(out_path,
-    #                                  "mr_thm22_res_mrpresso_",p1,"_",p2,".txt",sep=""),
-    #             quote=F,row.names = F,col.names = T,sep="\t")
-    # presso_thm22_res2 = presso_thm22_res[as.numeric(presso_thm22_res[,"numIVs"])>9,]
-    # write.table(presso_thm22_res2,file=paste(out_path,
-    #                                   "mr_thm22_res_mrpresso_atleast_10_ivs_",p1,"_",p2,".txt",sep=""),
-    #             quote=F,row.names = F,col.names = T,sep="\t")
-    
     write.table(presso_thm22_res[grepl("cancer",presso_thm22_res[,2]),c(1:5)],quote=F,sep="\t")
     write.table(presso_thm22_res[grepl("LDL",presso_thm22_res[,1]),c(2:5,9:10)],quote=F,sep="\t")
     write.table(presso_thm22_res[grepl("HDL",presso_thm22_res[,1]),c(2:5,9:10)],quote=F,sep="\t")
@@ -519,6 +515,12 @@ load(paste(out_path,"all_pheno_name_metadata.RData",sep=""))
 load(paste(out_path,"p12G_t.RData",sep=""))
 load("/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/ukbb_res/em_edge_sep_jobs/edge_sep_em_res.RData")
 
+# these are the individual-level phenotypes, used here just for extracting the 
+# exposure standard deviation (we report est and est*sd)
+load("/oak/stanford/groups/mrivas/users/davidama/april2019_traits.RData")
+pheno_sds =  sapply(code2phe_data,sd,na.rm=T)
+names(pheno_sds) = pheno_names[names(pheno_sds)]
+
 P1s = c(1e-6,1e-7,1e-08)
 P2s = c(0.01,0.001)
 
@@ -556,11 +558,13 @@ for(p1 in P1s){
     # initialize the MR columns
     cgauge_inf_results$qvalue_ivw = NA
     cgauge_inf_results$Est_ivw = NA
+    cgauge_inf_results$Est_by_sd_ivw = NA
     cgauge_inf_results$direction_ivw = NA
     cgauge_inf_results[["log10p_ivw"]] = NA
     cgauge_inf_results$p_het_ivw = NA
     cgauge_inf_results$qvalue_mrpresso = NA
     cgauge_inf_results$Est_mrpresso = NA
+    cgauge_inf_results$Est_by_sd_mrpresso = NA
     cgauge_inf_results$direction_mrpresso = NA
     cgauge_inf_results[["log10p_mrpresso"]] = NA
     cgauge_inf_results$mrpresso_globaltest = NA
@@ -584,12 +588,16 @@ for(p1 in P1s){
     rownames(cgauge_inf_results) = NULL
     colnames(cgauge_inf_results)[6] = "MS_test"
     
-    # some comparisons
-    table(cgauge_inf_results$qvalue_ivw < 0.1, cgauge_inf_results$qvalue_mrpresso < 0.1)
-    table(cgauge_inf_results$direction_ivw,cgauge_inf_results$direction_mrpresso)
-    table(cgauge_inf_results$numIVs>10)
+    cgauge_inf_results$Est_by_sd_ivw = cgauge_inf_results$Est_ivw / pheno_sds[cgauge_inf_results[,1]]
+    cgauge_inf_results$Est_by_sd_mrpresso = cgauge_inf_results$Est_mrpresso / pheno_sds[cgauge_inf_results[,1]]
     
-    ms_test_results = (!is.na(cgauge_inf_results$MS_test) & p.adjust(cgauge_inf_results$MS_test,method = "BY") < 0.01)
+    # # some comparisons
+    # table(cgauge_inf_results$qvalue_ivw < 0.1, cgauge_inf_results$qvalue_mrpresso < 0.1)
+    # table(cgauge_inf_results$direction_ivw,cgauge_inf_results$direction_mrpresso)
+    # table(cgauge_inf_results$numIVs>10)
+    
+    ms_test_results = 
+      (!is.na(cgauge_inf_results$MS_test) & p.adjust(cgauge_inf_results$MS_test,method = "BY") < 0.01)
     selected_results = 
       (!is.na(cgauge_inf_results$qvalue_mrpresso) & cgauge_inf_results$qvalue_mrpresso < 0.1)
     selected_results = selected_results & cgauge_inf_results$pi1 > 0.25
@@ -649,13 +657,17 @@ for(p1 in P1s){
                 row.names=F,sep="\t",quote = F,col.names = T)
     
     # write.table(curr_cancer_results,quote=F,sep="\t")
+    sheet_ind_sdata = sheet_ind_sdata+1
     
   }
 }
 write(captions,file = "./captions.txt")
 
-table(mr_results$p1,mr_results$p2)
-table(unique_ms_test_results$p1,unique_ms_test_results$p2)
+mr_results[grepl("LDL",mr_results[,1]) & grepl("Angina",mr_results[,2]),]
+mr_results[grepl("Lipo",mr_results[,1]) & grepl("infar",mr_results[,2]),]
+
+# table(mr_results$p1,mr_results$p2)
+# table(unique_ms_test_results$p1,unique_ms_test_results$p2)
 write.table(mr_results,
             file= paste("ST",sheet_ind,".txt",sep=""),
             row.names=F,sep="\t",quote = F,col.names = T)
@@ -676,7 +688,7 @@ for(p1 in P1s){
     m = mr_results[mr_results$p1==p1 & mr_results$p2==p2,]
     params2pairs_mr[[paste("p1_",p1,",","p2_",p2,sep="")]] = paste(m[,1],m[,2],sep="->")
     
-    m = unique_ms_test_results[mr_results$p1==p1 & mr_results$p2==p2,]
+    m = unique_ms_test_results[unique_ms_test_results$p1==p1 & unique_ms_test_results$p2==p2,]
     params2pairs_ms[[paste("p1_",p1,",","p2_",p2,sep="")]] = paste(m[,1],m[,2],sep="->")
   }
 }
@@ -813,16 +825,16 @@ parse_mrpresso_list<-function(l,pheno_names=NULL){
   return(m)
 }
 
-for(p1 in P1s){
-  presso0 = mrpresso_wo_filters[[as.character(p1)]]
+for(P1 in P1s){
+  presso0 = mrpresso_wo_filters[[as.character(P1)]]
   presso0 = parse_mrpresso_list(presso0,pheno_names)
-  ivw0 = other_mr_wo_filters[[as.character(p1)]][["IVW"]]
+  ivw0 = other_mr_wo_filters[[as.character(P1)]][["IVW"]]
   colnames(ivw0) = c("tr1","tr2","p","p_het","est","het_q","numIVs")
   ivw0[,1] = pheno_names[ivw0[,1]]
   ivw0[,2] = pheno_names[ivw0[,2]]
   rownames(ivw0) = paste(ivw0[,1],ivw0[,2],sep="->")
-  for (p2 in P2s){
-    load(paste(out_path,"cgauge_res_",p1,"_",p2,".RData",sep=""))
+  for (P2 in P2s){
+    load(paste(out_path,"cgauge_res_",P1,"_",P2,".RData",sep=""))
     ivw1 = ivw_res_thm22
     ivw1[,1] = pheno_names[as.character(ivw1[,1])]
     ivw1[,2] = pheno_names[as.character(ivw1[,2])]
@@ -870,19 +882,6 @@ for(p1 in P1s){
     
   }
 }
-
-################################################################
-################################################################
-################################################################
-################################################################
-# Examine specific cases
-################################################################
-################################################################
-################################################################
-################################################################
-
-
-
 
 ################################################################
 ################################################################
@@ -939,5 +938,70 @@ meta_anal_res_thm22[grepl("INI30160",shared) & grepl("cancer1044",shared),]
 ivw1 = ivw_res_thm22
 rownames(ivw1) = paste(ivw1[,1],ivw1[,2],sep="->")
 ivw1[grepl("INI30160",rownames(ivw1)) & grepl("cancer1044",rownames(ivw1)),]
+
+################################################################
+################################################################
+################################################################
+################################################################
+# Figures - locally
+################################################################
+################################################################
+################################################################
+################################################################
+
+# Overlap of mr-presso output as a function of p1 and p2
+setwd("~/Desktop/causal_inference_projects/ms3/supp_tables/")
+presso_overlaps = read.delim("./ST10.txt",check.names = F)
+rownames(presso_overlaps) = colnames(presso_overlaps)
+library(ggcorrplot)
+ggcorrplot(presso_overlaps,hc.order = T)
+library(corrplot)
+corrplot(as.matrix(presso_overlaps))
+
+
+# effects of filters on mr plots
+setwd("~/Desktop/causal_inference_projects/ms3/rdata/")
+library(MendelianRandomization)
+load("./mr_input_data.RData")
+p1 = 1e-07
+p2 = 0.001
+load(paste("cgauge_res_",p1,"_",p2,".RData",sep=""))
+
+# LDL vs. MI
+tr1 = "LDL_direct"
+tr2 = "HC326"
+
+# smoking and lung cancer
+tr1 = "smoking_current"
+tr2 = "cancer1001"
+pheno_names[tr2]
+
+# coffee vs. height
+tr1 = "INI1498"
+tr2 = "INI50"
+
+pmax_network[tr1,tr2]
+mrpresso_thm22_res_raw[mrpresso_thm22_res_raw[,1]==tr1 && mrpresso_thm22_res_raw[,2]==tr2,]
+
+raw_ivs = rownames(GWAS_Ps)[GWAS_Ps[,tr1]<p1]
+raw_ivs = intersect(raw_ivs,pruned_snp_lists[[tr1]])
+uniqueivs = iv_sets_thm22[[tr1]][[tr2]]
+
+ivs = raw_ivs
+mr_in = mr_input(sum_stat_matrix[ivs,tr1],
+                 sum_stat_se_matrix[ivs,tr1],
+                 sum_stat_matrix[ivs,tr2],
+                 sum_stat_se_matrix[ivs,tr2],snps=ivs)
+mr_allmethods(mr_in)
+# mr_plot(mr_allmethods(mr_in,method="ivw",robust=T,penalized=F),error = F,interactive = F)
+mr_plot(mr_in,line="ivw",labels=F,interactive = F)
+ivs = uniqueivs
+mr_in = mr_input(sum_stat_matrix[ivs,tr1],
+                 sum_stat_se_matrix[ivs,tr1],
+                 sum_stat_matrix[ivs,tr2],
+                 sum_stat_se_matrix[ivs,tr2],snps=ivs)
+# mr_plot(mr_allmethods(mr_in,method="ivw",robust=T,penalized=F),error = F,interactive = F)
+mr_plot(mr_in,line="ivw",labels=F,interactive = F)
+mr_allmethods(mr_in)
 
 
