@@ -46,7 +46,7 @@ exec_cmd_on_sherlock<-function(cmd,jobname,out_path){
 # Set the WD and number of repeats
 reps = 40
 WD = "/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/simulations_uniqueiv_minIV3/"
-WD = "/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/simulations_default/"
+# WD = "/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/simulations_default/"
 try(system(paste("mkdir",WD)))
 MAX_JOBS = 500
 # Set the simulation parameters
@@ -639,12 +639,11 @@ j=13
 exsep = format(mean_fdrs_thm21[,j],digits=3)
 exsep = paste(exsep," (",format(sd_fdrs_thm21[,j],digits=3),")",sep="")
 mr_fdr_simulations_supp_table = cbind(mr_fdr_simulations_supp_table,exsep)
-colnames(mr_fdr_simulations_supp_table)[ncol(mr_fdr_simulations_supp_table)] = "ExSep, Naive count>44"
+colnames(mr_fdr_simulations_supp_table)[ncol(mr_fdr_simulations_supp_table)] = "ExSep, Naive count>4"
 write.xlsx2(mr_fdr_simulations_supp_table,file="./supp_tables/Supplementary_Tables.xlsx",
             sheetName = "ST1",row.names=F)
 supp_readme = c(supp_readme,
                 "ST1: Empirical FDRs of the MR and the naive ExSep methods")
-
 
 mr_N_simulations_supp_table = mean_num_discoveries_thm21[,1:4]
 for(j in c(5,7,9)){
@@ -732,13 +731,13 @@ colnames(mean_num_discoveries_thm21) = gsub(
   "raw ",replacement = "N,raw,pi1>",colnames(mean_num_discoveries_thm21)
 )
 colnames(mean_num_discoveries_thm21) = gsub(
-  "our ",replacement = "N,ImpIV,pi1<",colnames(mean_num_discoveries_thm21)
+  "our ",replacement = "N,UniqueIV,pi1<",colnames(mean_num_discoveries_thm21)
 )
 colnames(mean_fdrs_thm22) = gsub(
-  "our ",replacement = "FDR,ImpIV,pi1>",colnames(mean_fdrs_thm22)
+  "our ",replacement = "FDR,UniqueIV,pi1>",colnames(mean_fdrs_thm22)
 )
 colnames(mean_fprs_thm22) = gsub(
-  "our ",replacement = "FPR,ImpIV,pi1<",colnames(mean_fprs_thm22)
+  "our ",replacement = "FPR,UniqueIV,pi1<",colnames(mean_fprs_thm22)
 )
 colnames(mean_num_discoveries_thm22) = gsub(
   "our ",replacement = "N,UniqueIV,pi1>",colnames(mean_num_discoveries_thm22)
@@ -770,6 +769,11 @@ for(j in c(14:22)){
   pi1_fdr_fpr_supp_table = cbind(pi1_fdr_fpr_supp_table,m)
 }
 
+# simplify by excluding the impiv columns
+dim(pi1_fdr_fpr_supp_table)
+pi1_fdr_fpr_supp_table = pi1_fdr_fpr_supp_table[,!grepl("ImpIV",colnames(pi1_fdr_fpr_supp_table))]
+dim(pi1_fdr_fpr_supp_table)
+
 # Add the naive edge sep
 write.xlsx2(pi1_fdr_fpr_supp_table,file="./supp_tables/Supplementary_Tables.xlsx",
             sheetName = "ST5",row.names=F,append=T)
@@ -789,6 +793,12 @@ for(j in c(14:22)){
   colnames(pi1_N_simulations_supp_table)[ncol(pi1_N_simulations_supp_table)] = 
     colnames(mean_num_discoveries_thm22)[j]
 }
+
+# simplify by excluding the impiv columns
+dim(pi1_N_simulations_supp_table)
+pi1_N_simulations_supp_table = pi1_N_simulations_supp_table[,!grepl("ImpIV",colnames(pi1_N_simulations_supp_table))]
+pi1_N_simulations_supp_table = pi1_N_simulations_supp_table[,!grepl("<",colnames(pi1_N_simulations_supp_table))]
+dim(pi1_N_simulations_supp_table)
 
 write.xlsx2(pi1_N_simulations_supp_table,
             file="./supp_tables/Supplementary_Tables.xlsx",
@@ -982,7 +992,7 @@ df1 = rbind(max(df1),df1)
 axslabs = round(seq(min(df1),max(df1),length.out = 6),digits = ndigits)
 axslabs = round(seq(min(df1),max(df1),length.out = 6),digits = ndigits)
 cols = method2col[rownames(df1)[-c(1:2)]]
-radarchart(df1,axistype=1,seg=4,plwd=2,
+radarchart(df1,axistype=1,seg=5,plwd=2,
            caxislabels=axslabs,pcol=cols,plty=5,vlcex = 1.5,calcex=1.5)
 text(0,0,"N",cex = 1.5,font = 2)
 
@@ -1004,7 +1014,7 @@ df1 = as.data.frame(df1)
 # df1 = rbind(min(0.1,min(df1)),df1)
 # df1 = rbind(max(df1),df1)
 df1 = rbind(0,df1)
-df1 = rbind(0.24,df1)
+df1 = rbind(0.32,df1)
 axslabs = round(seq(min(df1),max(df1),length.out = 6),digits = ndigits)
 cols = method2col[rownames(df1)[-c(1:2)]]
 radarchart(df1,axistype=1,seg=5,plwd=2,caxislabels=axslabs,pcol=cols,plty=5,vlcex = 1.5,calcex=1.5)
