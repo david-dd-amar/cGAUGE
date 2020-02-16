@@ -1,6 +1,26 @@
-library("igraph")
-library("MRPRESSO")
-
+# Set the session
+required_libs = c("igraph","bnlearn","MRPRESSO","mixtools","mclust",
+                  "optparse","limma","MendelianRandomization")
+lib_loc = "~/R/packages3.5"
+lib_loc = c(lib_loc,.libPaths())
+for (lib_name in required_libs){
+  tryCatch({library(lib_name,character.only = T,lib.loc = lib_loc)},
+           error = function(e) {
+             print(paste("Cannot load",lib_name,", please install"))
+           })
+}
+run_lm<-function(x,y,z,df){
+  if(is.null(z)){
+    df = data.frame(x=df[,x],y=df[,y])
+  }
+  else{
+    df = data.frame(x=df[,x],y=df[,y],df[,z])
+  }
+  model = lm(x~.,data=df)
+  coefs = summary(model)$coefficients
+  return(coefs[2,])
+}
+source("~/Desktop/repos/cGAUGE/R/cGAUGE.R")
 N = 2000
 minBeta = 0.1
 maxBeta = 0.9
@@ -8,9 +28,11 @@ minMAF = 0.05
 maxMAF = 0.4
 p=3
 p1 = 1e-4
+p2 = 0.001
 
 all_mr_res = list()
 for(rep in 1:100){
+  print(rep)
   # We simulate from a mixture of real instruments and confounder instruments
   # traits graph: U->X and U->Y
   # instruments of X: G->X
@@ -86,6 +108,7 @@ for(rep in 1:100){
   )
   # Add MRPRESSO
   mrpresso_res = c()
+  cgauge_mrpresso_res = c()
   try({
     for(tr1 in phenos){
       currivs = rownames(GWAS_Ps)[G_it[,tr1]]
@@ -134,9 +157,6 @@ for(rep in 1:100){
   }
   G_vt = extract_skeleton_G_VT(GWAS_Ps,trait_pair_pvals,P1=p1,P2=p2,test_columns = 1)[[1]]
   G_t = matrix(T,2,2,dimnames = list(phenos,phenos))
-  # edge_sep_results_statTest1 = EdgeSepTest(GWAS_Ps[,phenos],G_t,
-  #                                          trait_pair_pvals,text_col_name=1,
-  #                                          test = univar_mixtools_em)
   iv_sets = list()
   uniquely_mapped_ivs = rownames(G_vt)[rowSums(G_vt)==1]
   for(tr1 in phenos){
@@ -154,7 +174,6 @@ for(rep in 1:100){
                                                   func=mr_ivw,robust=T)
   )
   
-  cgauge_mrpresso_res = c()
   try({
     # Add MRPRESSO
     for(tr1 in phenos){
@@ -181,12 +200,12 @@ for(rep in 1:100){
         })
       }
     }
-    if(!is.null(dim(cgauge_mrpresso_res))){
-      cgauge_mrpresso_res = as.data.frame(cgauge_mrpresso_res)
-      for(j in 3:ncol(cgauge_mrpresso_res)){
-        cgauge_mrpresso_res[[j]] = as.numeric(as.character(cgauge_mrpresso_res[[j]]))
-      }
-    }
+    # if(!is.null(dim(cgauge_mrpresso_res))){
+    #   cgauge_mrpresso_res = as.data.frame(cgauge_mrpresso_res)
+    #   for(j in 3:ncol(cgauge_mrpresso_res)){
+    #     cgauge_mrpresso_res[[j]] = as.numeric(as.character(cgauge_mrpresso_res[[j]]))
+    #   }
+    # }
   })
   
   # Add the current results to our data matrix
@@ -199,9 +218,9 @@ for(rep in 1:100){
   all_mr_res[["egger"]] = rbind(all_mr_res[["egger"]],mr_anal_res$Egger)
   all_mr_res[["ivw"]] = rbind(all_mr_res[["ivw"]],mr_anal_res$IVW)
   all_mr_res[["mrpresso"]] = rbind(all_mr_res[["mrpresso"]],mrpresso_res)
-  all_mr_res[["c_egger"]] = rbind(all_mr_res[["c_egger"]],cgauge_mr_anal_res$Egger)
-  all_mr_res[["c_ivw"]] = rbind(all_mr_res[["c_ivw"]],cgauge_mr_anal_res$IVW)
-  all_mr_res[["c_mrpresso"]] = rbind(all_mr_res[["c_mrpresso"]],cgauge_mrpresso_res)
+  try({all_mr_res[["c_egger"]] = rbind(all_mr_res[["c_egger"]],cgauge_mr_anal_res$Egger)})
+  try({all_mr_res[["c_ivw"]] = rbind(all_mr_res[["c_ivw"]],cgauge_mr_anal_res$IVW)})
+  try({all_mr_res[["c_mrpresso"]] = rbind(all_mr_res[["c_mrpresso"]],cgauge_mrpresso_res)})
 }
 
 # Put the -log10 p-value results in a single data frame
@@ -241,6 +260,12 @@ ggplot(mr_res_p_df, aes(x=name, y=log10p)) +
   geom_boxplot(notch=TRUE)+ coord_flip() + 
   ylab("-log10 P-value") + xlab("") + 
   geom_hline(yintercept = 2, linetype="dotted",color = "red", size=1.5) +
-  theme_grey(base_size = 16)
-boxplot(log10p ~ name, data = mr_res_p_df,ylim = c(0,20))
+  theme_bw() +
+  theme(
+    axis.title.x = element_text(size = 16),
+    axis.text.y = element_text(size = 16),
+    axis.text.x = element_text(size=14)
+  )
+
+save.image(file = "~/Desktop/causal_inference_projects/ms3/fig2a_session.R")
 

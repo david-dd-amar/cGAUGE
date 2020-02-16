@@ -514,6 +514,7 @@ supp_path = paste(out_path,"../supp_tables/",sep="")
 load(paste(out_path,"all_pheno_name_metadata.RData",sep=""))
 load(paste(out_path,"p12G_t.RData",sep=""))
 load("/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/ukbb_res/em_edge_sep_jobs/edge_sep_em_res.RData")
+load(gwas_res_data)
 
 # these are the individual-level phenotypes, used here just for extracting the 
 # exposure standard deviation (we report est and est*sd)
@@ -751,7 +752,7 @@ iv_lists_to_mat<-function(l,x,isuniqueiv = F){
 # Save the uniqueIV sets in single text files for analysis (e.g., in FUMA)
 uniqueivs_txt_path = paste(supp_path,"uniqueiv_out/",sep="")
 dir.create(uniqueivs_txt_path)
-for(p1 in P1s){
+for(p1 in c(1e-07)){
   for (p2 in P2s){
     load(paste(out_path,"cgauge_res_",p1,"_",p2,".RData",sep=""))
     tr2iv_mat_df = c()
@@ -767,8 +768,8 @@ for(p1 in P1s){
                                            "cGAUGE_p1"=p1,"cGAUGE_p2"=p2,check.names = F)})
       tr2iv_mat_df = rbind(tr2iv_mat_df,iv_df)
     }
-    write.table(tr2iv_mat_df,file = paste(uniqueivs_txt_path,"UniqueIV_output_p1",p2,"_p2",p2,".txt",sep=""),
-                row.names = F,sep=" ")
+    write.table(tr2iv_mat_df,file = paste(uniqueivs_txt_path,"UniqueIV_output_p1",p1,"_p2",p2,".txt",sep=""),
+                row.names = F,sep="\t",quote=F)
   }
 }
 
