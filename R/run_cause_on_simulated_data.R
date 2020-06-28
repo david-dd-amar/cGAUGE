@@ -24,7 +24,13 @@ run_cause_on_tr1_ivs <- function(tr1,phenos,G_it,GWAS_effects,GWAS_ses,B_distanc
   cause_res = c()
   for(tr2 in phenos){
     if(tr1==tr2){next}
-    ivs = rownames(G_it)[G_it[,tr1]]
+    if(is.null(G_it)){
+      ivs = rownames(GWAS_effects)
+    }
+    else{
+      ivs = rownames(G_it)[G_it[,tr1]]
+    }
+    
     X = cbind(
       GWAS_effects[ivs,tr1],GWAS_ses[ivs,tr1],
       GWAS_effects[ivs,tr2],GWAS_ses[ivs,tr2]
@@ -47,8 +53,8 @@ run_cause_on_tr1_ivs <- function(tr1,phenos,G_it,GWAS_effects,GWAS_ses,B_distanc
 
 #setwd("~/Desktop/causal_inference_projects/ms3/simulations_default/simulations_default/")
 setwd("/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/simulations_default/")
-degs = c(1.5,1)
-pleios = c(0.3,0)
+degs = c(1.5)
+pleios = c(0.4,0.3,0)
 p1s = c(0.001)
 for(deg in degs){
   for(pleio in pleios){
@@ -58,7 +64,15 @@ for(deg in degs){
       rdata_files = rdata_files[grepl("rdata",rdata_files,ignore.case = T)]
       rdata_files = rdata_files[1:20]
       file2res = list()
+      rdata_out = paste0("cause_results_pleio",pleio,"_deg",deg,"_p1",p1,"_all_instruments.RData")
+      try(load(rdata_out))
       for(rdata in rdata_files){
+        
+        if(rdata %in% names(file2res)){
+          print(paste("rdata already analyzed:",rdata,"skipping"))
+          next
+        }
+        
         load(rdata)
         
         # Create the input for cGAUGE and MR
@@ -83,17 +97,18 @@ for(deg in degs){
         
         # use G_it to get instruments and run cause
         cause_res = mclapply(phenos,run_cause_on_tr1_ivs,
-              phenos=phenos,G_it=G_it,GWAS_effects=GWAS_effects,GWAS_ses=GWAS_ses,
+              phenos=phenos,G_it=NULL,GWAS_effects=GWAS_effects,GWAS_ses=GWAS_ses,
               B_distances = B_distances,
               mc.cores = 15)
         file2res[[rdata]] = cause_res
-        save(file2res,file=paste0("cause_results_pleio",pleio,"_deg",deg,"_p1",p1,".RData"))
+        save(file2res,file=rdata_out)
       }
     }
   }
 }
 
 
+############################################################################################
 # Check performance
 get_distance_based_metrics<-function(arc_dists){
   arc_dists = as.numeric(arc_dists)
@@ -102,38 +117,168 @@ get_distance_based_metrics<-function(arc_dists){
   ntp = sum(arc_dists>0)
   return(c(fdr,fpr,ntp))
 }
-
-load("/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/simulations_default/cause_results_pleio0.3_deg1.5_p10.001.RData")
-#load("/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/simulations_default/cause_results_pleio0_deg1.5_p10.001.RData")
-all_perf = c()
-for(l in file2res){
-  m = c()
-  for(tr in l){
-    m = rbind(m,tr)
+get_cause_perf_tables_by_fdr<-function(file2res,thr=0.1){
+  all_perf = c()
+  for(l in file2res){
+    m = c()
+    for(tr in l){
+      if(length(tr)==1){next}
+      m = rbind(m,tr)
+    }
+    m = data.frame(m,stringsAsFactors = F)
+    for(j in 3:ncol(m)){
+      m[[j]] = as.numeric(as.character(m[[j]]))
+    }
+    m$fdr = p.adjust(m[[3]],method="fdr")
+    m = m[!is.na(m$fdr),]
+    sub_m = m[m$fdr < thr,]
+    all_perf = rbind(all_perf,
+                     get_distance_based_metrics(sub_m[,"X6"]))
   }
-  m = data.frame(m,stringsAsFactors = F)
-  for(j in 3:ncol(m)){
-    m[[j]] = as.numeric(as.character(m[[j]]))
-  }
-  m$fdr = p.adjust(m[[3]],method="fdr")
-  m = m[!is.na(m$fdr),]
-  sub_m = m[m$fdr < 0.1,]
-  all_perf = rbind(all_perf,
-                   get_distance_based_metrics(sub_m[,"X6"]))
+  summ_stats = rbind(
+    median=apply(all_perf,2,median,na.rm=T),
+    mean=apply(all_perf,2,mean,na.rm=T),
+    max=apply(all_perf,2,max,na.rm=T),
+    min=apply(all_perf,2,min,na.rm=T)
+  )
+  colnames(summ_stats) = c("FDR","TDR","N")
+  return(summ_stats)
 }
-all_perf
-apply(all_perf,2,median,na.rm=T)
 
-# as a reference for comparison
+get_other_methods_perf<-function(res,methodreg = "^c",pleio=0.3){
+  for_comp = res
+  x = for_comp[
+    all_sim_results_fdrs$prob_pleio == pleio & all_sim_results_fdrs$deg == 1.5 &
+      all_sim_results_fdrs$p2 == 0.01,
+    ]
+  p1_ind = which(names(x)=="p1")
+  p1_ind = p1_ind[length(p1_ind)]
+  x = x[x[[p1_ind]] == 0.001,]
+  x = x[,!grepl("lcv|egger",colnames(x))]
+  x = x[,!grepl("^p",colnames(x),perl=T)]
+  x = x[,!grepl("^deg",colnames(x),perl=T)]
+  x = x[,!grepl("^edge",colnames(x),perl=T)]
+  x = x[,grepl(methodreg,colnames(x),perl=T)]
+  
+  summ_stats = rbind(
+    median=apply(x,2,median,na.rm=T),
+    mean=apply(x,2,mean,na.rm=T),
+    max=apply(x,2,max,na.rm=T),
+    min=apply(x,2,min,na.rm=T)
+  )
+  return(summ_stats)
+}
+
+setwd("/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/simulations_default/")
+result_rdata_files = list.files(".")
+result_rdata_files = result_rdata_files[grepl(".RData",result_rdata_files,ignore.case = T)]
+
+cause_comparison_summary_fdr = c()
+cause_comparison_summary_n = c()
+
+# pleio=0
+load("cause_results_pleio0_deg1.5_p10.001_all_instruments.RData")
+cause_fdrs = get_cause_perf_tables_by_fdr(file2res,0.1)[,1]
 load("../simulations_uniqueiv_minIV3/simulation_summ_stats_FDR0.1.RData")
-for_comp = all_sim_results_fdrs
-for_comp = all_sim_results_preds
-x = for_comp[
-  all_sim_results_fdrs$prob_pleio == 0 & all_sim_results_fdrs$deg == 1.5 &
-     all_sim_results_fdrs$p2 == 0.01,
-]
-p1_ind = which(names(x)=="p1")
-p1_ind = p1_ind[length(p1_ind)]
-x = x[x[[p1_ind]] == 0.001,]
-apply(x,2,median,na.rm=T)
+other_fdrs = get_other_methods_perf(all_sim_results_fdrs,"",0)
+all_fdrs = cbind(other_fdrs,cause_fdrs)
+colnames(all_fdrs)[ncol(all_fdrs)] = "cause"
+all_fdrs
+cause_n = get_cause_perf_tables_by_fdr(file2res,0.1)[,3]
+other_n = get_other_methods_perf(all_sim_results_preds,"",0)
+all_n = cbind(other_n,cause_n)
+colnames(all_n)[ncol(all_n)] = "cause"
+all_n
+
+
+# pleio=0.3
+load("cause_results_pleio0.3_deg1.5_p10.001_all_instruments.RData")
+cause_fdrs = get_cause_perf_tables_by_fdr(file2res,0.1)[,1]
+load("../simulations_uniqueiv_minIV3/simulation_summ_stats_FDR0.1.RData")
+other_fdrs = get_other_methods_perf(all_sim_results_fdrs,"",0.3)
+all_fdrs = cbind(other_fdrs,cause_fdrs)
+colnames(all_fdrs)[ncol(all_fdrs)] = "cause"
+all_fdrs
+cause_n = get_cause_perf_tables_by_fdr(file2res,0.1)[,3]
+other_n = get_other_methods_perf(all_sim_results_preds,"",0.3)
+all_n = cbind(other_n,cause_n)
+colnames(all_n)[ncol(all_n)] = "cause"
+all_n
+
+# pleio=0.3
+load("cause_results_pleio0.4_deg1.5_p10.001_all_instruments.RData")
+cause_fdrs = get_cause_perf_tables_by_fdr(file2res,0.1)[,1]
+load("../simulations_uniqueiv_minIV3/simulation_summ_stats_FDR0.1.RData")
+other_fdrs = get_other_methods_perf(all_sim_results_fdrs,"",0.4)
+all_fdrs = cbind(other_fdrs,cause_fdrs)
+colnames(all_fdrs)[ncol(all_fdrs)] = "cause"
+all_fdrs
+cause_n = get_cause_perf_tables_by_fdr(file2res,0.1)[,3]
+other_n = get_other_methods_perf(all_sim_results_preds,"",0.4)
+all_n = cbind(other_n,cause_n)
+colnames(all_n)[ncol(all_n)] = "cause"
+all_n
+
+
+###########
+# Same as before but with FDR = 0.01
+load("cause_results_pleio0_deg1.5_p10.001_all_instruments.RData")
+cause_fdrs = get_cause_perf_tables_by_fdr(file2res,0.01)[,1]
+load("../simulations_uniqueiv_minIV3/simulation_summ_stats_FDR0.01.RData")
+other_fdrs = get_other_methods_perf(all_sim_results_fdrs,"",0)
+all_fdrs = cbind(other_fdrs,cause_fdrs)
+colnames(all_fdrs)[ncol(all_fdrs)] = "cause"
+all_fdrs
+cause_n = get_cause_perf_tables_by_fdr(file2res,0.01)[,3]
+other_n = get_other_methods_perf(all_sim_results_preds,"",0)
+all_n = cbind(other_n,cause_n)
+colnames(all_n)[ncol(all_n)] = "cause"
+all_n
+
+# pleio=0.3
+load("cause_results_pleio0.3_deg1.5_p10.001_all_instruments.RData")
+cause_fdrs = get_cause_perf_tables_by_fdr(file2res,0.01)[,1]
+load("../simulations_uniqueiv_minIV3/simulation_summ_stats_FDR0.01.RData")
+other_fdrs = get_other_methods_perf(all_sim_results_fdrs,"",0.3)
+all_fdrs = cbind(other_fdrs,cause_fdrs)
+colnames(all_fdrs)[ncol(all_fdrs)] = "cause"
+all_fdrs
+cause_n = get_cause_perf_tables_by_fdr(file2res,0.1)[,3]
+other_n = get_other_methods_perf(all_sim_results_preds,"",0.3)
+all_n = cbind(other_n,cause_n)
+colnames(all_n)[ncol(all_n)] = "cause"
+all_n
+
+###########
+# Same as before but with FDR = 0.2 for CAUSE
+load("cause_results_pleio0_deg1.5_p10.001_all_instruments.RData")
+cause_fdrs = get_cause_perf_tables_by_fdr(file2res,0.2)[,1]
+load("../simulations_uniqueiv_minIV3/simulation_summ_stats_FDR0.1.RData")
+other_fdrs = get_other_methods_perf(all_sim_results_fdrs,"",0)
+all_fdrs = cbind(other_fdrs,cause_fdrs)
+colnames(all_fdrs)[ncol(all_fdrs)] = "cause"
+all_fdrs
+cause_n = get_cause_perf_tables_by_fdr(file2res,0.2)[,3]
+other_n = get_other_methods_perf(all_sim_results_preds,"",0)
+all_n = cbind(other_n,cause_n)
+colnames(all_n)[ncol(all_n)] = "cause"
+all_n
+
+
+# pleio=0.3
+load("cause_results_pleio0.3_deg1.5_p10.001_all_instruments.RData")
+cause_fdrs = get_cause_perf_tables_by_fdr(file2res,0.2)[,1]
+load("../simulations_uniqueiv_minIV3/simulation_summ_stats_FDR0.1.RData")
+other_fdrs = get_other_methods_perf(all_sim_results_fdrs,"",0.3)
+all_fdrs = cbind(other_fdrs,cause_fdrs)
+colnames(all_fdrs)[ncol(all_fdrs)] = "cause"
+all_fdrs
+cause_n = get_cause_perf_tables_by_fdr(file2res,0.2)[,3]
+other_n = get_other_methods_perf(all_sim_results_preds,"",0.3)
+all_n = cbind(other_n,cause_n)
+colnames(all_n)[ncol(all_n)] = "cause"
+all_n
+
+
+
 

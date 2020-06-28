@@ -1,6 +1,9 @@
-required_libs = c("igraph","limma","bnlearn","optparse","Matrix")
-lib_loc = "~/R/packages3.5"
-lib_loc = c(lib_loc,.libPaths())
+required_libs = c("igraph","limma","bnlearn","Matrix")
+# sherlock
+# lib_loc = "~/R/packages3.5"
+# lib_loc = c(lib_loc,.libPaths())
+# scg
+lib_loc = .libPaths()
 for (lib_name in required_libs){
   tryCatch({library(lib_name,character.only = T,lib.loc = lib_loc)},
            error = function(e) {
@@ -20,56 +23,53 @@ add_distances<-function(m,dists,newcolname = "KnownDistance"){
   colnames(m)[ncol(m)] = newcolname
   return(m)
 }
-get_distance_based_metrics<-function(arc_dists){
-  arc_dists = as.numeric(arc_dists)
+
+# arc_dists: output of get_bnlearn_results: arcs ordered by their
+# bootstrap proportion
+get_distance_based_metrics<-function(arc_dists,topK){
+  arc_dists = as.numeric(arc_dists[1:min(topK,length(arc_dists))])
   fdr = sum(arc_dists<0)/length(arc_dists)
-  fpr = sum(arc_dists>0)/length(arc_dists)
-  ntp = sum(arc_dists>0)
-  return(c(fdr,fpr,ntp))
+  return(c(fdr,length(arc_dists)))
 }
 
-get_bnlearn_results<-function(rdata,cut_breaks = 10,...){
+get_bnlearn_results<-function(rdata,cut_breaks = 5,boot.reps=100){
   load(rdata)
   insts = grepl("IV",colnames(simulated_data))
   bls = c()
   for(iv in colnames(simulated_data)[insts]){
     bls = rbind(bls,cbind(colnames(simulated_data)[!insts],iv))
   }
+  # bls = rbind(bls,
+  #   cbind(colnames(simulated_data)[insts],colnames(simulated_data)[insts]))
   m1 = apply(simulated_data[,!insts],2,cut,breaks=cut_breaks)
   m2 = simulated_data[,insts]
   df = as.data.frame(cbind(m1,m2))
-  
-  dag = hc(df, score = "bic",blacklist = bls,...) 
-  arcs = dag$arcs
-  arcs_t = arcs[
-    ! grepl("IV",arcs[,1]) & !grepl("IV",arcs[,2]),
-    ]
-  if(length(arcs_t)>0 && is.null(dim(arcs_t))){
-    arcs_t = matrix(arcs_t,nrow=1)
+  dags = list()
+  for(j in 1:boot.reps){
+    print(j)
+    samp = sample(1:nrow(df),replace = T)
+    dags[[j]] = hc(df[samp,], score = "bic",blacklist = bls)
   }
-  if(length(arcs_t) != 0 && nrow(arcs_t)>0 ){
-    arcs_t = add_distances(arcs_t,B_distances)
-    res_with_ivs = get_distance_based_metrics(arcs_t[,3])
+  t_arcs = c()
+  for(j in 1:boot.reps){
+    arcs = dags[[j]]$arcs
+    arcs_t = arcs[! grepl("IV",arcs[,1]) & !grepl("IV",arcs[,2]),]
+    arcs_string = apply(arcs_t,1,paste,collapse = "->")
+    t_arcs = c(t_arcs,arcs_string)
+  }
+  tb = table(t_arcs) / length(dags)
+  tb_n = sapply(names(tb),function(x)(strsplit(x,split="->")[[1]]))
+  m = cbind(t(tb_n),tb)
+  
+  if(length(m) != 0 && nrow(m)>0 ){
+    m = add_distances(m,B_distances)
+    ord = order(as.numeric(m[,3]),decreasing = T)
+    m = m[ord,]
+    return(m)
   }
   else{
-    res_with_ivs = c(0,0,0)
+    return(NULL)
   }
-  
-  df2 = as.data.frame(m1)
-  dag2 = hc(df2, score = "bic",...) 
-  arcs2 = dag2$arcs
-  if(length(arcs2)>0 && is.null(dim(arcs2))){
-    arcs2 = matrix(arcs2,nrow=1)
-  }
-  if(length(arcs2) != 0 && nrow(arcs2)>0){
-    arcs2 = add_distances(arcs2,B_distances)
-    res_without_ivs = get_distance_based_metrics(arcs2[,3])
-  }
-  else{
-    res_without_ivs = c(0,0,0)
-  }
-  
-  return(c(res_with_ivs,res_without_ivs))
 }
 
 
@@ -80,32 +80,38 @@ library(parallel)
 setwd("/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/simulations_default/")
 degs = c(1,1.5)
 pleios = c(0,0.3)
-p1s = c(0.001)
-p2 = 0.1
+ks = c(10,20)
 param2res = list()
 for(deg in degs){
   for(pleio in pleios){
-    for(p1 in p1s){
-      dir = paste0("deg",deg,"_pleio",pleio,"_p1",p1,"_p20.01/")
+      dir = paste0("deg",deg,"_pleio",pleio,"_p10.001_p20.01/")
       rdata_files = list.files(dir,full.names = T)
       rdata_files = rdata_files[grepl("rdata",rdata_files,ignore.case = T)]
+      rdata_files = rdata_files[1:20]
       
-      res = mclapply(rdata_files,get_bnlearn_results,restart=100,
-                     perturb=10,cut_breaks=5,mc.cores = 8)
-      res = t(sapply(res,function(x)x))
-      metric_names = c("FDR","TPR","N")
-      colnames(res)= c(paste("bl",metric_names,sep="_"),paste("all",metric_names,sep="_"))
-      print(apply(res,2,mean))
-      param2res[[paste0("deg",deg,"_pleio",pleio)]] = res
-      save(param2res,file="bnlearn_param2res_breaks5.RData")
-    }
+      res = mclapply(rdata_files,get_bnlearn_results,cut_breaks=5,mc.cores = 20,boot.reps=200)
+      
+      k2scores = list()
+      for(k in ks){
+        k2scores[[as.character(k)]] = c()
+        for(j in 1:length(res)){
+          m = res[[j]]
+          curr_scores = get_distance_based_metrics(as.numeric(m[,ncol(m)]),k)
+          k2scores[[as.character(k)]] = rbind(
+            k2scores[[as.character(k)]],curr_scores
+          )
+        }
+      }
+      param2res[[paste0("deg",deg,"_pleio",pleio)]] = list(res,k2scores)
+      save(res,param2res,file="bnlearn_boot_breaks5.RData")
   }
 }
 
+# Create some plots locally
+load("~/Desktop/causal_inference_projects/ms3/simulations_default/bnlearn_param2res_breaks5.RData")
+load("~/Desktop/causal_inference_projects/ms3/simulations_default/bnlearn_param2res.RData")
+sapply(param2res,function(x)apply(x,2,median))
 
 
-# for(rdata in rdata_files){
-#   #tmp = get_bnlearn_results(rdata)
-# }
-
+t(sapply(k2scores,function(x)apply(x,2,median)))
 
