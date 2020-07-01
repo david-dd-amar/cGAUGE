@@ -107,7 +107,7 @@ for(deg in degs){
       rdata_files = rdata_files[1:20]
       
       res = mclapply(rdata_files,get_bnlearn_results,cut_breaks=-1,
-                     mc.cores = 20,boot.reps=20,restart=100)
+                     mc.cores = 20,boot.reps=100,restart=50)
       names(res) = rdata_files
       
       k2scores = list()
@@ -122,7 +122,7 @@ for(deg in degs){
         }
       }
       param2res[[paste0("deg",deg,"_pleio",pleio)]] = list(res,k2scores)
-      save(param2res,file="bnlearn_boot_cg.RData")
+      save(param2res,file="bnlearn_boot_cg_B100.RData")
   }
 }
 
@@ -133,6 +133,8 @@ for(deg in degs){
 
 setwd("/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/simulations_default/")
 load("bnlearn_boot_breaks5.RData")
+load("bnlearn_boot_cg.RData")
+load("bnlearn_boot_cg_B100.RData")
 for(nn in names(param2res)){
   print(nn)
   k2scores = param2res[[nn]][[2]]

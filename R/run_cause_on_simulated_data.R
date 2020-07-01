@@ -205,7 +205,7 @@ all_n = cbind(other_n,cause_n)
 colnames(all_n)[ncol(all_n)] = "cause"
 all_n
 
-# pleio=0.3
+# pleio=0.4
 load("cause_results_pleio0.4_deg1.5_p10.001_all_instruments.RData")
 cause_fdrs = get_cause_perf_tables_by_fdr(file2res,0.1)[,1]
 load("../simulations_uniqueiv_minIV3/simulation_summ_stats_FDR0.1.RData")
