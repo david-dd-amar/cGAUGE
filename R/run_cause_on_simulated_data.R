@@ -53,7 +53,7 @@ run_cause_on_tr1_ivs <- function(tr1,phenos,G_it,GWAS_effects,GWAS_ses,B_distanc
 
 #setwd("~/Desktop/causal_inference_projects/ms3/simulations_default/simulations_default/")
 setwd("/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/simulations_default/")
-degs = c(1.5)
+degs = c(2,1,1.5)
 pleios = c(0.4,0.3,0)
 p1s = c(0.001)
 for(deg in degs){
@@ -62,7 +62,7 @@ for(deg in degs){
       dir = paste0("deg",deg,"_pleio",pleio,"_p1",p1,"_p20.01/")
       rdata_files = list.files(dir,full.names = T)
       rdata_files = rdata_files[grepl("rdata",rdata_files,ignore.case = T)]
-      rdata_files = rdata_files[1:20]
+      rdata_files = rdata_files
       file2res = list()
       rdata_out = paste0("cause_results_pleio",pleio,"_deg",deg,"_p1",p1,"_all_instruments.RData")
       try(load(rdata_out))
@@ -129,7 +129,7 @@ get_cause_perf_tables_by_fdr<-function(file2res,thr=0.1){
     for(j in 3:ncol(m)){
       m[[j]] = as.numeric(as.character(m[[j]]))
     }
-    m$fdr = p.adjust(m[[3]],method="fdr")
+    m$fdr = p.adjust(m[[3]],method="BY")
     m = m[!is.na(m$fdr),]
     sub_m = m[m$fdr < thr,]
     all_perf = rbind(all_perf,
@@ -145,15 +145,15 @@ get_cause_perf_tables_by_fdr<-function(file2res,thr=0.1){
   return(summ_stats)
 }
 
-get_other_methods_perf<-function(res,methodreg = "^c",pleio=0.3){
+get_other_methods_perf<-function(res,methodreg = "^c",pleio=0.3,p2=0.01,p1=0.001){
   for_comp = res
   x = for_comp[
     all_sim_results_fdrs$prob_pleio == pleio & all_sim_results_fdrs$deg == 1.5 &
-      all_sim_results_fdrs$p2 == 0.01,
+      all_sim_results_fdrs$p2 == p2,
     ]
   p1_ind = which(names(x)=="p1")
   p1_ind = p1_ind[length(p1_ind)]
-  x = x[x[[p1_ind]] == 0.001,]
+  x = x[x[[p1_ind]] == p1,]
   x = x[,!grepl("lcv|egger",colnames(x))]
   x = x[,!grepl("^p",colnames(x),perl=T)]
   x = x[,!grepl("^deg",colnames(x),perl=T)]
@@ -180,27 +180,26 @@ cause_comparison_summary_n = c()
 load("cause_results_pleio0_deg1.5_p10.001_all_instruments.RData")
 cause_fdrs = get_cause_perf_tables_by_fdr(file2res,0.1)[,1]
 load("../simulations_uniqueiv_minIV3/simulation_summ_stats_FDR0.1.RData")
-other_fdrs = get_other_methods_perf(all_sim_results_fdrs,"",0)
+other_fdrs = get_other_methods_perf(all_sim_results_fdrs,"",0,p1=1e-05,p2=0.001)
 all_fdrs = cbind(other_fdrs,cause_fdrs)
 colnames(all_fdrs)[ncol(all_fdrs)] = "cause"
 all_fdrs
 cause_n = get_cause_perf_tables_by_fdr(file2res,0.1)[,3]
-other_n = get_other_methods_perf(all_sim_results_preds,"",0)
+other_n = get_other_methods_perf(all_sim_results_preds,"",0,p1=1e-05,p2=0.001)
 all_n = cbind(other_n,cause_n)
 colnames(all_n)[ncol(all_n)] = "cause"
 all_n
-
 
 # pleio=0.3
 load("cause_results_pleio0.3_deg1.5_p10.001_all_instruments.RData")
 cause_fdrs = get_cause_perf_tables_by_fdr(file2res,0.1)[,1]
 load("../simulations_uniqueiv_minIV3/simulation_summ_stats_FDR0.1.RData")
-other_fdrs = get_other_methods_perf(all_sim_results_fdrs,"",0.3)
+other_fdrs = get_other_methods_perf(all_sim_results_fdrs,"",0.3,p1=1e-05,p2=0.001)
 all_fdrs = cbind(other_fdrs,cause_fdrs)
 colnames(all_fdrs)[ncol(all_fdrs)] = "cause"
 all_fdrs
 cause_n = get_cause_perf_tables_by_fdr(file2res,0.1)[,3]
-other_n = get_other_methods_perf(all_sim_results_preds,"",0.3)
+other_n = get_other_methods_perf(all_sim_results_preds,"",0.3,p1=1e-05,p2=0.001)
 all_n = cbind(other_n,cause_n)
 colnames(all_n)[ncol(all_n)] = "cause"
 all_n
@@ -209,12 +208,12 @@ all_n
 load("cause_results_pleio0.4_deg1.5_p10.001_all_instruments.RData")
 cause_fdrs = get_cause_perf_tables_by_fdr(file2res,0.1)[,1]
 load("../simulations_uniqueiv_minIV3/simulation_summ_stats_FDR0.1.RData")
-other_fdrs = get_other_methods_perf(all_sim_results_fdrs,"",0.4)
+other_fdrs = get_other_methods_perf(all_sim_results_fdrs,"",0.4,p1=1e-05,p2=0.001)
 all_fdrs = cbind(other_fdrs,cause_fdrs)
 colnames(all_fdrs)[ncol(all_fdrs)] = "cause"
 all_fdrs
 cause_n = get_cause_perf_tables_by_fdr(file2res,0.1)[,3]
-other_n = get_other_methods_perf(all_sim_results_preds,"",0.4)
+other_n = get_other_methods_perf(all_sim_results_preds,"",0.4,p1=1e-05,p2=0.001)
 all_n = cbind(other_n,cause_n)
 colnames(all_n)[ncol(all_n)] = "cause"
 all_n
