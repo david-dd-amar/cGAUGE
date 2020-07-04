@@ -224,12 +224,12 @@ all_n
 load("cause_results_pleio0_deg1.5_p10.001_all_instruments.RData")
 cause_fdrs = get_cause_perf_tables_by_fdr(file2res,0.01)[,1]
 load("../simulations_uniqueiv_minIV3/simulation_summ_stats_FDR0.01.RData")
-other_fdrs = get_other_methods_perf(all_sim_results_fdrs,"",0)
+other_fdrs = get_other_methods_perf(all_sim_results_fdrs,"",0,p1 = 1e-05,p2=0.001)
 all_fdrs = cbind(other_fdrs,cause_fdrs)
 colnames(all_fdrs)[ncol(all_fdrs)] = "cause"
 all_fdrs
 cause_n = get_cause_perf_tables_by_fdr(file2res,0.01)[,3]
-other_n = get_other_methods_perf(all_sim_results_preds,"",0)
+other_n = get_other_methods_perf(all_sim_results_preds,"",0,p1 = 1e-05,p2=0.001)
 all_n = cbind(other_n,cause_n)
 colnames(all_n)[ncol(all_n)] = "cause"
 all_n
@@ -238,12 +238,12 @@ all_n
 load("cause_results_pleio0.3_deg1.5_p10.001_all_instruments.RData")
 cause_fdrs = get_cause_perf_tables_by_fdr(file2res,0.01)[,1]
 load("../simulations_uniqueiv_minIV3/simulation_summ_stats_FDR0.01.RData")
-other_fdrs = get_other_methods_perf(all_sim_results_fdrs,"",0.3)
+other_fdrs = get_other_methods_perf(all_sim_results_fdrs,"",0.3,p1 = 1e-05,p2=0.001)
 all_fdrs = cbind(other_fdrs,cause_fdrs)
 colnames(all_fdrs)[ncol(all_fdrs)] = "cause"
 all_fdrs
 cause_n = get_cause_perf_tables_by_fdr(file2res,0.1)[,3]
-other_n = get_other_methods_perf(all_sim_results_preds,"",0.3)
+other_n = get_other_methods_perf(all_sim_results_preds,"",0.3,p1 = 1e-05,p2=0.001)
 all_n = cbind(other_n,cause_n)
 colnames(all_n)[ncol(all_n)] = "cause"
 all_n

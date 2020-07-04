@@ -1198,67 +1198,93 @@ get_ms_test_df_for_line_chart<-function(all_results,deg,p1,valuename="FDR"){
   return(df2)
 }
 
-deg = 1.5
-p1 = 0.001
-p2 = 0.01
+get_lines_figure_for_paper<-function(
+  plot_fdr=T,
+  uniqueiv_rd,impiv_rd,edgesep_rd,
+  deg,p1,p2,
+  methods_ord = c(
+    "IVW","ImpIV-IVW","UniqueIV-IVW",
+    "MRPRESSO","ImpIV-MRPRESSO","UniqueIV-MRPRESSO",
+    "Naive count","ExSep MS test"
+  ),
+  method_col = c(
+    "indianred1","firebrick1","red3",
+    "dodgerblue1","blue","dodgerblue4",
+    "gray47","gray14"
+  )
+){
+  load(uniqueiv_rd)
+  unique_df = get_df_for_line_chart(all_sim_results_fdrs,deg,p1,p2,cgsuge_name = "UniqueIV")
+  unique_df = unique_df[
+    grepl("IVW",unique_df$Method) | 
+      grepl("PRESSO",unique_df$Method) | grepl("COUNT",unique_df$Method),
+    ]
+  unique_df$Method[grepl("COUNT",unique_df$Method)] = "Naive count"
+  unique_df_N = get_df_for_line_chart(all_sim_results_preds,deg,p1,p2,cgsuge_name = "UniqueIV",valuename = "N")
+  unique_df_N$Method[grepl("COUNT",unique_df_N$Method)] = "Naive count"
+  unique_df_N = unique_df_N[unique_df_N$Method %in% unique_df$Method,]
+  
+  load(edgesep_rd)
+  ms_test = get_ms_test_df_for_line_chart(all_sim_results_fdrs,deg,p1)
+  ms_test_N = get_ms_test_df_for_line_chart(all_sim_results_preds,
+                                            deg,p1,valuename = "N")
+  
+  load(impiv_rd)
+  imp_df = get_df_for_line_chart(all_sim_results_fdrs,deg,p1,p2,
+                                 cgsuge_name = "ImpIV")
+  imp_df = imp_df[ grepl("ImpIV",imp_df$Method), ]
+  imp_df = imp_df[ !grepl("EGGER",imp_df$Method), ]
+  imp_df_N = get_df_for_line_chart(all_sim_results_preds,
+                                   deg,p1,p2,cgsuge_name = "ImpIV",valuename = "N")
+  imp_df_N = imp_df_N[imp_df_N$Method %in% imp_df$Method,]
+  
+  # merge
+  all_methods = rbind(imp_df,unique_df)
+  all_methods = rbind(all_methods,ms_test)
+  
+  all_methods_N = rbind(imp_df_N,unique_df_N)
+  all_methods_N = rbind(all_methods_N,ms_test_N)
+  all_methods$Method = factor(all_methods$Method,levels = methods_ord)
+  all_methods_N$Method = factor(all_methods_N$Method,levels = levels(all_methods$Method))
+  
+  if(plot_fdr){
+    p = ggplot(all_methods, 
+           aes(x=prob_pleio, y=FDR, group = Method, shape=Method, color=Method))+
+      geom_line() +
+      geom_point()+
+      labs(x="", y = "FDR") +
+      scale_shape_manual(values = rep(10:17, len = 8)) +
+      scale_colour_manual(values = method_col) + 
+      theme_classic()
+    plot(p)
+    return(all_methods)
+  }
+  else{
+    p = ggplot(all_methods_N, 
+           aes(x=prob_pleio, y=N, group = Method, shape=Method, color=Method))+
+      geom_line() +
+      geom_point()+
+      labs(x="", y = "Number of predictions") +
+      scale_colour_manual(values = method_col) + 
+      scale_shape_manual(values = rep(10:17, len = 8)) +
+      theme_classic()
+    plot(p)
+    return(all_methods_N)
+  }
+}
 
-# 0.1 FDR
-load("simulations_uniqueiv/simulation_summ_stats_FDR0.1.RData")
-unique_df = get_df_for_line_chart(all_sim_results_fdrs,deg,p1,p2,cgsuge_name = "UniqueIV")
-unique_df = unique_df[
-  grepl("IVW",unique_df$Method) | 
-    grepl("PRESSO",unique_df$Method) | grepl("COUNT",unique_df$Method),
-  ]
-unique_df$Method[grepl("COUNT",unique_df$Method)] = "Naive count"
-unique_df_N = get_df_for_line_chart(all_sim_results_preds,deg,p1,p2,cgsuge_name = "UniqueIV",valuename = "N")
-unique_df_N$Method[grepl("COUNT",unique_df_N$Method)] = "Naive count"
-unique_df_N = unique_df_N[unique_df_N$Method %in% unique_df$Method,]
-
-load("simulations_edgesep/simulation_summ_stats_FDR0.1.RData")
-ms_test = get_ms_test_df_for_line_chart(all_sim_results_fdrs,deg,p1)
-ms_test_N = get_ms_test_df_for_line_chart(all_sim_results_preds,deg,p1,valuename = "N")
-
-load("simulations_impiv/simulation_summ_stats_FDR0.1.RData")
-imp_df = get_df_for_line_chart(all_sim_results_fdrs,deg,p1,p2,cgsuge_name = "ImpIV")
-imp_df = imp_df[ grepl("ImpIV",imp_df$Method), ]
-imp_df = imp_df[ !grepl("EGGER",imp_df$Method), ]
-imp_df_N = get_df_for_line_chart(all_sim_results_preds,
-                                 deg,p1,p2,cgsuge_name = "ImpIV",valuename = "N")
-imp_df_N = imp_df_N[imp_df_N$Method %in% imp_df$Method,]
-
-# merge
-all_methods = rbind(imp_df,unique_df)
-all_methods = rbind(all_methods,ms_test)
-
-all_methods_N = rbind(imp_df_N,unique_df_N)
-all_methods_N = rbind(all_methods_N,ms_test_N)
-
-methods_ord = c(
-  "IVW","ImpIV-IVW","UniqueIV-IVW",
-  "MRPRESSO","ImpIV-MRPRESSO","UniqueIV-MRPRESSO",
-  "Naive count","ExSep MS test"
+get_lines_figure_for_paper(
+  plot_fdr=T,deg=1.5,p1=0.001,p2=0.01,
+  uniqueiv_rd="simulations_uniqueiv/simulation_summ_stats_FDR0.1.RData",
+  impiv_rd="simulations_impiv/simulation_summ_stats_FDR0.1.RData",
+  edgesep_rd="simulations_edgesep/simulation_summ_stats_FDR0.1.RData",
 )
-method_col = c(
-  "indianred1","firebrick1","red3",
-  "dodgerblue1","blue","dodgerblue4",
-  "gray47","gray14"
+get_lines_figure_for_paper(
+  plot_fdr=F,deg=1.5,p1=0.001,p2=0.01,
+  uniqueiv_rd="simulations_uniqueiv/simulation_summ_stats_FDR0.1.RData",
+  impiv_rd="simulations_impiv/simulation_summ_stats_FDR0.1.RData",
+  edgesep_rd="simulations_edgesep/simulation_summ_stats_FDR0.1.RData",
 )
-all_methods$Method = factor(all_methods$Method,levels = methods_ord)
-ggplot(all_methods, 
-       aes(x=prob_pleio, y=FDR, group = Method, shape=Method, color=Method))+
-  geom_line() +
-  geom_point()+
-  labs(x="p_pleio", y = "FDR") +
-  scale_shape_manual(values = rep(10:17, len = 8)) +
-  scale_colour_manual(values = method_col) + 
-  theme_classic()
-all_methods_N$Method = factor(all_methods_N$Method,levels = levels(all_methods$Method))
-ggplot(all_methods_N, 
-       aes(x=prob_pleio, y=N, group = Method, shape=Method, color=Method))+
-  geom_line() +
-  geom_point()+
-  labs(x="p_pleio", y = "Number of predictions") +
-  scale_colour_manual(values = method_col) + 
-  scale_shape_manual(values = rep(10:17, len = 8)) +
-  theme_classic()
+
+
 
