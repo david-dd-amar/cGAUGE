@@ -818,266 +818,264 @@ write(supp_readme,file = "./supp_tables/supp_readme.txt")
 
 ##############################################################
 ##############################################################
-# Locally - figures
+# Locally - figures using radial plots
 ##############################################################
 ##############################################################
-# install.packages("fmsb")
-setwd("~/Desktop/causal_inference_projects/ms3/")
-library(fmsb)
-get_radar_chart<-function(resultsdf,ndigits = 0,deg,p1,p2,curr_methods = c("prob_pleio","c-mrpresso","c-ivw"),
-                          method2col,minaxisval=NULL,maxaxisval=NULL,numseg = 5,
-                          ...){
-  inds = resultsdf$deg==deg & resultsdf$p1 == p1 & resultsdf$p2==p2
-  df1 = resultsdf[inds,curr_methods]
-  rownames(df1) = df1[,1]
-  df1 = df1[,-1]
-  df1 = t(df1)
-  df1 = as.data.frame(df1)
-  if(is.null(minaxisval)){
-    minaxisval = min(0.1,min(df1))
-  }
-  if(is.null(maxaxisval)){
-    maxaxisval = max(df1)
-  }
-  df1 = rbind(minaxisval,df1)
-  df1 = rbind(maxaxisval,df1)
-  axslabs = round(seq(minaxisval,maxaxisval,length.out = numseg+1),digits = ndigits)
-  cols = method2col[rownames(df1)[-c(1:2)]]
-  radarchart(df1,axistype=1,seg=numseg,plwd=2,
-             caxislabels=axslabs,pcol=cols,plty=5,vlcex = 1.5,calcex=1.5)
-  df1
-}
-
-
-deg = 1.5
-p1 = 1e-03
-p2 = 0.001
-
-#######
-# Figure 3A-B
-#######
-
-############################# A ################################
-method2col = c(hcl.colors(5)[c(1,4)],heat.colors(5)[c(1,4)],
-               rainbow(5)[1:2],"black","gray","blue")
-names(method2col) = c(
-  "mrpresso","c-mrpresso","ivw","c-ivw","egger","c-egger",
-  "edge_sep","edge_sep_test1","edge_sep_test2"
-)
-par(mfrow=c(1,2),mar=c(0,1,4,1),xpd=TRUE)
-
-load("simulations_impiv/simulation_summ_stats_FDR0.1.RData")
-get_radar_chart(mean_num_discoveries,0,deg,p1,p2,
-                c("prob_pleio","mrpresso","c-mrpresso","ivw","c-ivw"),
-                method2col=method2col,maxaxisval = 71)
-text(0,0,"N",cex = 1.5,font = 2)
-get_radar_chart(mean_fdrs,2,deg,p1,p2,
-                c("prob_pleio","mrpresso","c-mrpresso","ivw","c-ivw"),
-                method2col=method2col,maxaxisval = 0.32,minaxisval = 0)
-text(0,0,"FDR",cex = 1.2,font = 2)
-
-# plot the legend separately
-dev.off()
-par(mar = c(5,5,5,5))
-plot(c(2,2))
-legend(x="top",c("MRPRESSO","ImpIV+MRPRESSO","IVW","ImpIV+IVW"),
-       fill = method2col[1:4],ncol = 1,border = F,cex=2)
-
-############################# B ################################
-method2col = c(hcl.colors(5)[1:2],heat.colors(5)[1:2],
-               rainbow(5)[1:2],"black","gray","blue")
-names(method2col) = c(
-  "mrpresso","c-mrpresso","ivw","c-ivw","egger","c-egger",
-  "edge_sep","edge_sep_test1","edge_sep_test2"
-)
-
-par(mfrow=c(1,2),mar=c(0,1,4,1),xpd=TRUE)
-load("simulations_uniqueiv/simulation_summ_stats_FDR0.1.RData")
-get_radar_chart(mean_num_discoveries,0,deg,p1,p2,
-                c("prob_pleio","c-mrpresso","c-ivw"),
-                method2col=method2col,maxaxisval = 71)
-text(0,0,"N",cex = 1.5,font = 2)
-get_radar_chart(mean_fdrs,2,deg,p1,p2,
-                c("prob_pleio","c-mrpresso","c-ivw"),
-                method2col=method2col,maxaxisval = 0.32,minaxisval = 0)
-text(0,0,"FDR",cex = 1.2,font = 2)
-
-# plot the legend separately
-dev.off()
-par(mar = c(5,5,5,5))
-plot(c(2,2))
-legend(x="top",c("UnIV+MRPRESSO","UnIV+IVW"),
-       fill = method2col[c("c-mrpresso","c-ivw")],
-       ncol = 1,border = F,cex=2)
-
-#######
-# Supplementary Figure 2A-B
-#######
-
-############################# A ################################
-method2col = c(hcl.colors(5)[c(1,4)],heat.colors(5)[c(1,4)],
-               rainbow(5)[1:2],"black","gray","blue")
-names(method2col) = c(
-  "mrpresso","c-mrpresso","ivw","c-ivw","egger","c-egger",
-  "edge_sep","edge_sep_test1","edge_sep_test2"
-)
-par(mfrow=c(1,2),mar=c(0,1,4,1),xpd=TRUE)
-
-load("simulations_impiv/simulation_summ_stats_FDR0.01.RData")
-get_radar_chart(mean_num_discoveries,0,deg,p1,p2,
-                c("prob_pleio","mrpresso","c-mrpresso","ivw","c-ivw"),
-                method2col=method2col,maxaxisval = 50)
-text(0,0,"N",cex = 1.5,font = 2)
-get_radar_chart(mean_fdrs,2,deg,p1,p2,
-                c("prob_pleio","mrpresso","c-mrpresso","ivw","c-ivw"),
-                method2col=method2col,maxaxisval = 0.24,minaxisval = 0)
-text(0,0,"FDR",cex = 1.2,font = 2)
-
-# plot the legend separately
-dev.off()
-par(mar = c(5,5,5,5))
-plot(c(2,2))
-legend(x="top",c("MRPRESSO","ImpIV+MRPRESSO","IVW","ImpIV+IVW"),
-       fill = method2col[1:4],ncol = 1,border = F,cex=2)
-
-############################# B ################################
-method2col = c(hcl.colors(5)[1:2],heat.colors(5)[1:2],
-               rainbow(5)[1:2],"black","gray","blue")
-names(method2col) = c(
-  "mrpresso","c-mrpresso","ivw","c-ivw","egger","c-egger",
-  "edge_sep","edge_sep_test1","edge_sep_test2"
-)
-
-par(mfrow=c(1,2),mar=c(0,1,4,1),xpd=TRUE)
-
-load("simulations_uniqueiv/simulation_summ_stats_FDR0.01.RData")
-get_radar_chart(mean_num_discoveries,0,deg,p1,p2,
-                c("prob_pleio","c-mrpresso","c-ivw"),
-                method2col=method2col,maxaxisval = 50)
-text(0,0,"N",cex = 1.5,font = 2)
-get_radar_chart(mean_fdrs,2,deg,p1,p2,
-                c("prob_pleio","c-mrpresso","c-ivw"),
-                method2col=method2col,maxaxisval = 0.24,minaxisval = 0)
-text(0,0,"FDR",cex = 1.2,font = 2)
-
-# plot the legend separately
-dev.off()
-par(mar = c(5,5,5,5))
-plot(c(2,2))
-legend(x="top",c("UnIV+MRPRESSO","UnIV+IVW"),
-       fill = method2col[c("c-mrpresso","c-ivw")],
-       ncol = 1,border = F,cex=2)
-
-############################# Figure 3C ################################
-# Edge sep results: 
-# Take the naive analysis from the results above
-# Take the edge sep tests from their simulations
-load("simulations_impiv/simulation_summ_stats_FDR0.01.RData")
-naive_mean_fdrs = mean_fdrs
-naive_mean_num_discoveries = mean_num_discoveries
-load("simulations_edgesep/simulation_summ_stats_FDR0.1.RData")
-# Or fir Supp fig use:
-load("simulations_edgesep/simulation_summ_stats_0.01FDR.RData")
-
-par(mfrow=c(1,2),mar=c(0,1,4,1),xpd=TRUE)
-
-# Num discoveries
-ndigits = 0
-resultsdf = naive_mean_num_discoveries
-inds = resultsdf$deg==deg & resultsdf$p1 == p1 & resultsdf$p2==p2
-df1 = resultsdf[inds,c("prob_pleio","edge_sep")]
-resultsdf = mean_num_discoveries
-inds = resultsdf$deg==deg & resultsdf$p1 == p1 
-df2 = resultsdf[inds,c("prob_pleio","edge_sep_test1")]
-if(all(df1[,1]==df2[,1])){
-  df1$edge_sep_test1 = df2$edge_sep_test1
-}
-rownames(df1) = df1[,1]
-df1 = df1[,-1]
-df1 = t(df1)
-df1 = as.data.frame(df1)
-df1 = rbind(min(0.1,min(df1)),df1)
-df1 = rbind(max(df1),df1)
-axslabs = round(seq(min(df1),max(df1),length.out = 6),digits = ndigits)
-axslabs = round(seq(min(df1),max(df1),length.out = 6),digits = ndigits)
-cols = method2col[rownames(df1)[-c(1:2)]]
-radarchart(df1,axistype=1,seg=5,plwd=2,
-           caxislabels=axslabs,pcol=cols,plty=5,vlcex = 1.5,calcex=1.5)
-text(0,0,"N",cex = 1.5,font = 2)
-
-# FDR
-ndigits = 2
-resultsdf = naive_mean_fdrs
-inds = resultsdf$deg==deg & resultsdf$p1 == p1 & resultsdf$p2==p2
-df1 = resultsdf[inds,c("prob_pleio","edge_sep")]
-resultsdf = mean_fdrs
-inds = resultsdf$deg==deg & resultsdf$p1 == p1 
-df2 = resultsdf[inds,c("prob_pleio","edge_sep_test1")]
-if(all(df1[,1]==df2[,1])){
-  df1$edge_sep_test1 = df2$edge_sep_test1
-}
-rownames(df1) = df1[,1]
-df1 = df1[,-1]
-df1 = t(df1)
-df1 = as.data.frame(df1)
+# # install.packages("fmsb")
+# setwd("~/Desktop/causal_inference_projects/ms3/")
+# library(fmsb)
+# get_radar_chart<-function(resultsdf,ndigits = 0,deg,p1,p2,curr_methods = c("prob_pleio","c-mrpresso","c-ivw"),
+#                           method2col,minaxisval=NULL,maxaxisval=NULL,numseg = 5,
+#                           ...){
+#   inds = resultsdf$deg==deg & resultsdf$p1 == p1 & resultsdf$p2==p2
+#   df1 = resultsdf[inds,curr_methods]
+#   rownames(df1) = df1[,1]
+#   df1 = df1[,-1]
+#   df1 = t(df1)
+#   df1 = as.data.frame(df1)
+#   if(is.null(minaxisval)){
+#     minaxisval = min(0.1,min(df1))
+#   }
+#   if(is.null(maxaxisval)){
+#     maxaxisval = max(df1)
+#   }
+#   df1 = rbind(minaxisval,df1)
+#   df1 = rbind(maxaxisval,df1)
+#   axslabs = round(seq(minaxisval,maxaxisval,length.out = numseg+1),digits = ndigits)
+#   cols = method2col[rownames(df1)[-c(1:2)]]
+#   radarchart(df1,axistype=1,seg=numseg,plwd=2,
+#              caxislabels=axslabs,pcol=cols,plty=5,vlcex = 1.5,calcex=1.5)
+#   df1
+# }
+# 
+# 
+# deg = 1.5
+# p1 = 1e-03
+# p2 = 0.001
+# 
+# #######
+# # Figure 3A-B
+# #######
+# 
+# ############################# A ################################
+# method2col = c(hcl.colors(5)[c(1,4)],heat.colors(5)[c(1,4)],
+#                rainbow(5)[1:2],"black","gray","blue")
+# names(method2col) = c(
+#   "mrpresso","c-mrpresso","ivw","c-ivw","egger","c-egger",
+#   "edge_sep","edge_sep_test1","edge_sep_test2"
+# )
+# par(mfrow=c(1,2),mar=c(0,1,4,1),xpd=TRUE)
+# 
+# load("simulations_impiv/simulation_summ_stats_FDR0.1.RData")
+# get_radar_chart(mean_num_discoveries,0,deg,p1,p2,
+#                 c("prob_pleio","mrpresso","c-mrpresso","ivw","c-ivw"),
+#                 method2col=method2col,maxaxisval = 71)
+# text(0,0,"N",cex = 1.5,font = 2)
+# get_radar_chart(mean_fdrs,2,deg,p1,p2,
+#                 c("prob_pleio","mrpresso","c-mrpresso","ivw","c-ivw"),
+#                 method2col=method2col,maxaxisval = 0.32,minaxisval = 0)
+# text(0,0,"FDR",cex = 1.2,font = 2)
+# 
+# # plot the legend separately
+# dev.off()
+# par(mar = c(5,5,5,5))
+# plot(c(2,2))
+# legend(x="top",c("MRPRESSO","ImpIV+MRPRESSO","IVW","ImpIV+IVW"),
+#        fill = method2col[1:4],ncol = 1,border = F,cex=2)
+# 
+# ############################# B ################################
+# method2col = c(hcl.colors(5)[1:2],heat.colors(5)[1:2],
+#                rainbow(5)[1:2],"black","gray","blue")
+# names(method2col) = c(
+#   "mrpresso","c-mrpresso","ivw","c-ivw","egger","c-egger",
+#   "edge_sep","edge_sep_test1","edge_sep_test2"
+# )
+# 
+# par(mfrow=c(1,2),mar=c(0,1,4,1),xpd=TRUE)
+# load("simulations_uniqueiv/simulation_summ_stats_FDR0.1.RData")
+# get_radar_chart(mean_num_discoveries,0,deg,p1,p2,
+#                 c("prob_pleio","c-mrpresso","c-ivw"),
+#                 method2col=method2col,maxaxisval = 71)
+# text(0,0,"N",cex = 1.5,font = 2)
+# get_radar_chart(mean_fdrs,2,deg,p1,p2,
+#                 c("prob_pleio","c-mrpresso","c-ivw"),
+#                 method2col=method2col,maxaxisval = 0.32,minaxisval = 0)
+# text(0,0,"FDR",cex = 1.2,font = 2)
+# 
+# # plot the legend separately
+# dev.off()
+# par(mar = c(5,5,5,5))
+# plot(c(2,2))
+# legend(x="top",c("UnIV+MRPRESSO","UnIV+IVW"),
+#        fill = method2col[c("c-mrpresso","c-ivw")],
+#        ncol = 1,border = F,cex=2)
+# 
+# #######
+# # Supplementary Figure 2A-B
+# #######
+# 
+# ############################# A ################################
+# method2col = c(hcl.colors(5)[c(1,4)],heat.colors(5)[c(1,4)],
+#                rainbow(5)[1:2],"black","gray","blue")
+# names(method2col) = c(
+#   "mrpresso","c-mrpresso","ivw","c-ivw","egger","c-egger",
+#   "edge_sep","edge_sep_test1","edge_sep_test2"
+# )
+# par(mfrow=c(1,2),mar=c(0,1,4,1),xpd=TRUE)
+# 
+# load("simulations_impiv/simulation_summ_stats_FDR0.01.RData")
+# get_radar_chart(mean_num_discoveries,0,deg,p1,p2,
+#                 c("prob_pleio","mrpresso","c-mrpresso","ivw","c-ivw"),
+#                 method2col=method2col,maxaxisval = 50)
+# text(0,0,"N",cex = 1.5,font = 2)
+# get_radar_chart(mean_fdrs,2,deg,p1,p2,
+#                 c("prob_pleio","mrpresso","c-mrpresso","ivw","c-ivw"),
+#                 method2col=method2col,maxaxisval = 0.24,minaxisval = 0)
+# text(0,0,"FDR",cex = 1.2,font = 2)
+# 
+# # plot the legend separately
+# dev.off()
+# par(mar = c(5,5,5,5))
+# plot(c(2,2))
+# legend(x="top",c("MRPRESSO","ImpIV+MRPRESSO","IVW","ImpIV+IVW"),
+#        fill = method2col[1:4],ncol = 1,border = F,cex=2)
+# 
+# ############################# B ################################
+# method2col = c(hcl.colors(5)[1:2],heat.colors(5)[1:2],
+#                rainbow(5)[1:2],"black","gray","blue")
+# names(method2col) = c(
+#   "mrpresso","c-mrpresso","ivw","c-ivw","egger","c-egger",
+#   "edge_sep","edge_sep_test1","edge_sep_test2"
+# )
+# 
+# par(mfrow=c(1,2),mar=c(0,1,4,1),xpd=TRUE)
+# 
+# load("simulations_uniqueiv/simulation_summ_stats_FDR0.01.RData")
+# get_radar_chart(mean_num_discoveries,0,deg,p1,p2,
+#                 c("prob_pleio","c-mrpresso","c-ivw"),
+#                 method2col=method2col,maxaxisval = 50)
+# text(0,0,"N",cex = 1.5,font = 2)
+# get_radar_chart(mean_fdrs,2,deg,p1,p2,
+#                 c("prob_pleio","c-mrpresso","c-ivw"),
+#                 method2col=method2col,maxaxisval = 0.24,minaxisval = 0)
+# text(0,0,"FDR",cex = 1.2,font = 2)
+# 
+# # plot the legend separately
+# dev.off()
+# par(mar = c(5,5,5,5))
+# plot(c(2,2))
+# legend(x="top",c("UnIV+MRPRESSO","UnIV+IVW"),
+#        fill = method2col[c("c-mrpresso","c-ivw")],
+#        ncol = 1,border = F,cex=2)
+# 
+# ############################# Figure 3C ################################
+# # Edge sep results: 
+# # Take the naive analysis from the results above
+# # Take the edge sep tests from their simulations
+# load("simulations_impiv/simulation_summ_stats_FDR0.01.RData")
+# naive_mean_fdrs = mean_fdrs
+# naive_mean_num_discoveries = mean_num_discoveries
+# load("simulations_edgesep/simulation_summ_stats_FDR0.1.RData")
+# # Or fir Supp fig use:
+# load("simulations_edgesep/simulation_summ_stats_0.01FDR.RData")
+# 
+# par(mfrow=c(1,2),mar=c(0,1,4,1),xpd=TRUE)
+# 
+# # Num discoveries
+# ndigits = 0
+# resultsdf = naive_mean_num_discoveries
+# inds = resultsdf$deg==deg & resultsdf$p1 == p1 & resultsdf$p2==p2
+# df1 = resultsdf[inds,c("prob_pleio","edge_sep")]
+# resultsdf = mean_num_discoveries
+# inds = resultsdf$deg==deg & resultsdf$p1 == p1 
+# df2 = resultsdf[inds,c("prob_pleio","edge_sep_test1")]
+# if(all(df1[,1]==df2[,1])){
+#   df1$edge_sep_test1 = df2$edge_sep_test1
+# }
+# rownames(df1) = df1[,1]
+# df1 = df1[,-1]
+# df1 = t(df1)
+# df1 = as.data.frame(df1)
 # df1 = rbind(min(0.1,min(df1)),df1)
 # df1 = rbind(max(df1),df1)
-df1 = rbind(0,df1)
-df1 = rbind(0.32,df1)
-axslabs = round(seq(min(df1),max(df1),length.out = 6),digits = ndigits)
-cols = method2col[rownames(df1)[-c(1:2)]]
-radarchart(df1,axistype=1,seg=5,plwd=2,caxislabels=axslabs,pcol=cols,plty=5,vlcex = 1.5,calcex=1.5)
-text(0,0,"FDR",cex = 1.2,font = 2)
-
-# plot the legends separately
-dev.off()
-par(mar = c(5,5,5,5))
-plot(c(2,2))
-legend(x="top",c("Naive count","MS test"),fill = cols,ncol = 1,border=F,cex=2)
-
-
-#######
-# Look at the Pi1 results
-#######
-load("./simulations_strict/simulation_pi1_summ_stats.RData")
-
-# Num discoveries
-ndigits = 0
-resultsdf = mean_num_discoveries
-inds = resultsdf$deg==deg & resultsdf$p1 == p1 & resultsdf$p2==p2
-df1 = resultsdf[inds,c("prob_pleio","our 0.9","raw 0.9")]
-resultsdf = mean_num_discoveries
-rownames(df1) = df1[,1]
-df1 = df1[,-1]
-df1 = t(df1)
-df1 = as.data.frame(df1)
-df1 = rbind(min(0.1,min(df1)),df1)
-df1 = rbind(max(df1),df1)
-axslabs = round(seq(min(df1),max(df1),length.out = 6),digits = ndigits)
-cols = method2col[rownames(df1)[-c(1:2)]]
-radarchart(df1,axistype=1,seg=4,plwd=2,caxislabels=axslabs,plty=5,vlcex = 1.5,calcex=1.5)
-# legend(x=-1,y=1.8,c("Naive count","EM test","TDR test"),fill = cols,ncol = 2,border=F)
-text(0,0,"N",cex = 1.5,font = 2)
-
-# (D) IVW, MR-PRESSO: FDRs
-ndigits = 2
-resultsdf = mean_fprs
-inds = resultsdf$deg==deg & resultsdf$p1 == p1 & resultsdf$p2==p2
-df1 = resultsdf[inds,c("prob_pleio","our 0.1","raw 0.1")]
-resultsdf = mean_num_discoveries
-rownames(df1) = df1[,1]
-df1 = df1[,-1]
-df1 = t(df1)
-df1 = as.data.frame(df1)
-df1 = rbind(min(0.1,min(df1)),df1)
-df1 = rbind(max(df1),df1)
-axslabs = round(seq(min(df1),max(df1),length.out = 6),digits = ndigits)
-cols = method2col[rownames(df1)[-c(1:2)]]
-radarchart(df1,axistype=1,seg=4,plwd=2,caxislabels=axslabs,plty=5,vlcex = 1.5,calcex=1.5)
-# legend(x=-1,y=1.8,c("Naive count","EM test","TDR test"),fill = cols,ncol = 2,border=F
-text(0,0,"FDR",cex = 1.2,font = 2)
-
-
+# axslabs = round(seq(min(df1),max(df1),length.out = 6),digits = ndigits)
+# axslabs = round(seq(min(df1),max(df1),length.out = 6),digits = ndigits)
+# cols = method2col[rownames(df1)[-c(1:2)]]
+# radarchart(df1,axistype=1,seg=5,plwd=2,
+#            caxislabels=axslabs,pcol=cols,plty=5,vlcex = 1.5,calcex=1.5)
+# text(0,0,"N",cex = 1.5,font = 2)
+# 
+# # FDR
+# ndigits = 2
+# resultsdf = naive_mean_fdrs
+# inds = resultsdf$deg==deg & resultsdf$p1 == p1 & resultsdf$p2==p2
+# df1 = resultsdf[inds,c("prob_pleio","edge_sep")]
+# resultsdf = mean_fdrs
+# inds = resultsdf$deg==deg & resultsdf$p1 == p1 
+# df2 = resultsdf[inds,c("prob_pleio","edge_sep_test1")]
+# if(all(df1[,1]==df2[,1])){
+#   df1$edge_sep_test1 = df2$edge_sep_test1
+# }
+# rownames(df1) = df1[,1]
+# df1 = df1[,-1]
+# df1 = t(df1)
+# df1 = as.data.frame(df1)
+# # df1 = rbind(min(0.1,min(df1)),df1)
+# # df1 = rbind(max(df1),df1)
+# df1 = rbind(0,df1)
+# df1 = rbind(0.32,df1)
+# axslabs = round(seq(min(df1),max(df1),length.out = 6),digits = ndigits)
+# cols = method2col[rownames(df1)[-c(1:2)]]
+# radarchart(df1,axistype=1,seg=5,plwd=2,caxislabels=axslabs,pcol=cols,plty=5,vlcex = 1.5,calcex=1.5)
+# text(0,0,"FDR",cex = 1.2,font = 2)
+# 
+# # plot the legends separately
+# dev.off()
+# par(mar = c(5,5,5,5))
+# plot(c(2,2))
+# legend(x="top",c("Naive count","MS test"),fill = cols,ncol = 1,border=F,cex=2)
+# 
+# 
+# #######
+# # Look at the Pi1 results
+# #######
+# load("./simulations_strict/simulation_pi1_summ_stats.RData")
+# 
+# # Num discoveries
+# ndigits = 0
+# resultsdf = mean_num_discoveries
+# inds = resultsdf$deg==deg & resultsdf$p1 == p1 & resultsdf$p2==p2
+# df1 = resultsdf[inds,c("prob_pleio","our 0.9","raw 0.9")]
+# resultsdf = mean_num_discoveries
+# rownames(df1) = df1[,1]
+# df1 = df1[,-1]
+# df1 = t(df1)
+# df1 = as.data.frame(df1)
+# df1 = rbind(min(0.1,min(df1)),df1)
+# df1 = rbind(max(df1),df1)
+# axslabs = round(seq(min(df1),max(df1),length.out = 6),digits = ndigits)
+# cols = method2col[rownames(df1)[-c(1:2)]]
+# radarchart(df1,axistype=1,seg=4,plwd=2,caxislabels=axslabs,plty=5,vlcex = 1.5,calcex=1.5)
+# # legend(x=-1,y=1.8,c("Naive count","EM test","TDR test"),fill = cols,ncol = 2,border=F)
+# text(0,0,"N",cex = 1.5,font = 2)
+# 
+# # (D) IVW, MR-PRESSO: FDRs
+# ndigits = 2
+# resultsdf = mean_fprs
+# inds = resultsdf$deg==deg & resultsdf$p1 == p1 & resultsdf$p2==p2
+# df1 = resultsdf[inds,c("prob_pleio","our 0.1","raw 0.1")]
+# resultsdf = mean_num_discoveries
+# rownames(df1) = df1[,1]
+# df1 = df1[,-1]
+# df1 = t(df1)
+# df1 = as.data.frame(df1)
+# df1 = rbind(min(0.1,min(df1)),df1)
+# df1 = rbind(max(df1),df1)
+# axslabs = round(seq(min(df1),max(df1),length.out = 6),digits = ndigits)
+# cols = method2col[rownames(df1)[-c(1:2)]]
+# radarchart(df1,axistype=1,seg=4,plwd=2,caxislabels=axslabs,plty=5,vlcex = 1.5,calcex=1.5)
+# # legend(x=-1,y=1.8,c("Naive count","EM test","TDR test"),fill = cols,ncol = 2,border=F
+# text(0,0,"FDR",cex = 1.2,font = 2)
 
 # library(reshape2);library(ggplot2)
 # deg = 1.5
@@ -1140,7 +1138,12 @@ text(0,0,"FDR",cex = 1.2,font = 2)
 ###################################################################
 ###################################################################
 
-# Another viz: simple line charts:
+##############################################################
+##############################################################
+# Locally - figures using lines
+##############################################################
+##############################################################
+
 library(ggplot2);library(reshape2)
 get_df_for_line_chart<-function(all_results,deg,p1,p2,valuename="FDR",
                                 cgsuge_name = "ImpIV", fix_method_name = T,
