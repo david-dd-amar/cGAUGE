@@ -1199,7 +1199,7 @@ get_ms_test_df_for_line_chart<-function(all_results,deg,p1,valuename="FDR"){
 }
 
 get_lines_figure_for_paper<-function(
-  plot_fdr=T,
+  plot_fdr=T,method_inds = 1:9,
   uniqueiv_rd,impiv_rd,edgesep_rd,
   deg,p1,p2,
   methods_ord = c(
@@ -1247,15 +1247,22 @@ get_lines_figure_for_paper<-function(
   all_methods$Method = factor(all_methods$Method,levels = methods_ord)
   all_methods_N$Method = factor(all_methods_N$Method,levels = levels(all_methods$Method))
   
+  currinds = all_methods$Method %in% methods_ord[method_inds]
+  all_methods = all_methods[currinds,]
+  currinds = all_methods_N$Method %in% methods_ord[method_inds]
+  all_methods_N = all_methods_N[currinds,]
+  
   if(plot_fdr){
     p = ggplot(all_methods, 
            aes(x=prob_pleio, y=FDR, group = Method, shape=Method, color=Method))+
       geom_line() +
       geom_point()+
       labs(x="", y = "FDR") +
-      scale_shape_manual(values = rep(10:17, len = 8)) +
-      scale_colour_manual(values = method_col) + 
-      theme_classic()
+      scale_shape_manual(values = rep(10:17, len = 8)[method_inds]) +
+      scale_colour_manual(values = method_col[method_inds]) + 
+      theme_classic() + 
+      theme(legend.position="top") + 
+      guides(color = guide_legend(nrow = 3),shape = guide_legend(nrow = 3))
     plot(p)
     return(all_methods)
   }
@@ -1265,26 +1272,110 @@ get_lines_figure_for_paper<-function(
       geom_line() +
       geom_point()+
       labs(x="", y = "Number of predictions") +
-      scale_colour_manual(values = method_col) + 
-      scale_shape_manual(values = rep(10:17, len = 8)) +
-      theme_classic()
+      scale_colour_manual(values = method_col[method_inds]) + 
+      scale_shape_manual(values = rep(10:17, len = 8)[method_inds]) +
+      theme_classic() + 
+      theme(legend.position="top") + 
+      guides(color = guide_legend(nrow = 3),shape = guide_legend(nrow = 3))
     plot(p)
     return(all_methods_N)
   }
 }
 
+# New Figure 3
+par(mfrow=c(2,2))
+#pdf("3a_fdr1.pdf")
 get_lines_figure_for_paper(
   plot_fdr=T,deg=1.5,p1=0.001,p2=0.01,
+  method_inds = 1:6,
   uniqueiv_rd="simulations_uniqueiv/simulation_summ_stats_FDR0.1.RData",
   impiv_rd="simulations_impiv/simulation_summ_stats_FDR0.1.RData",
   edgesep_rd="simulations_edgesep/simulation_summ_stats_FDR0.1.RData",
 )
+#dev.off()
+#pdf("3a_n1.pdf")
 get_lines_figure_for_paper(
   plot_fdr=F,deg=1.5,p1=0.001,p2=0.01,
+  method_inds = 1:6,
   uniqueiv_rd="simulations_uniqueiv/simulation_summ_stats_FDR0.1.RData",
   impiv_rd="simulations_impiv/simulation_summ_stats_FDR0.1.RData",
   edgesep_rd="simulations_edgesep/simulation_summ_stats_FDR0.1.RData",
 )
+#dev.off()
+#pdf("3a_fdr2.pdf")
+get_lines_figure_for_paper(
+  plot_fdr=T,deg=1.5,p1=1e-05,p2=0.001,
+  method_inds = 1:6,
+  uniqueiv_rd="simulations_uniqueiv/simulation_summ_stats_FDR0.1.RData",
+  impiv_rd="simulations_impiv/simulation_summ_stats_FDR0.1.RData",
+  edgesep_rd="simulations_edgesep/simulation_summ_stats_FDR0.1.RData",
+)
+#dev.off()
+#pdf("3a_n2.pdf")
+get_lines_figure_for_paper(
+  plot_fdr=F,deg=1.5,p1=1e-05,p2=0.001,
+  method_inds = 1:6,
+  uniqueiv_rd="simulations_uniqueiv/simulation_summ_stats_FDR0.1.RData",
+  impiv_rd="simulations_impiv/simulation_summ_stats_FDR0.1.RData",
+  edgesep_rd="simulations_edgesep/simulation_summ_stats_FDR0.1.RData",
+)
+#dev.off()
+
+# Supp Fig 1
+
+get_lines_figure_for_paper(
+  plot_fdr=T,deg=1.5,p1=1e-05,p2=0.001,
+  method_inds = 7:8,
+  uniqueiv_rd="simulations_uniqueiv/simulation_summ_stats_FDR0.1.RData",
+  impiv_rd="simulations_impiv/simulation_summ_stats_FDR0.1.RData",
+  edgesep_rd="simulations_edgesep/simulation_summ_stats_FDR0.1.RData",
+)
+#dev.off()
+#pdf("3a_n2.pdf")
+get_lines_figure_for_paper(
+  plot_fdr=F,deg=1.5,p1=1e-05,p2=0.001,
+  method_inds = 7:8,
+  uniqueiv_rd="simulations_uniqueiv/simulation_summ_stats_FDR0.1.RData",
+  impiv_rd="simulations_impiv/simulation_summ_stats_FDR0.1.RData",
+  edgesep_rd="simulations_edgesep/simulation_summ_stats_FDR0.1.RData",
+)
+#dev.off()
 
 
+# New Supp Fig 2
+get_lines_figure_for_paper(
+  plot_fdr=T,deg=1.5,p1=0.001,p2=0.01,
+  method_inds = 1:6,
+  uniqueiv_rd="simulations_uniqueiv/simulation_summ_stats_FDR0.01.RData",
+  impiv_rd="simulations_impiv/simulation_summ_stats_FDR0.01.RData",
+  edgesep_rd="simulations_edgesep/simulation_summ_stats_0.01FDR.RData"
+)
+#dev.off()
+#pdf("3a_n1.pdf")
+get_lines_figure_for_paper(
+  plot_fdr=F,deg=1.5,p1=0.001,p2=0.01,
+  method_inds = 1:6,
+  uniqueiv_rd="simulations_uniqueiv/simulation_summ_stats_FDR0.01.RData",
+  impiv_rd="simulations_impiv/simulation_summ_stats_FDR0.01.RData",
+  edgesep_rd="simulations_edgesep/simulation_summ_stats_0.01FDR.RData"
+)
+#dev.off()
+#pdf("3a_fdr2.pdf")
+get_lines_figure_for_paper(
+  plot_fdr=T,deg=1.5,p1=1e-05,p2=0.001,
+  method_inds = 1:6,
+  uniqueiv_rd="simulations_uniqueiv/simulation_summ_stats_FDR0.01.RData",
+  impiv_rd="simulations_impiv/simulation_summ_stats_FDR0.01.RData",
+  edgesep_rd="simulations_edgesep/simulation_summ_stats_0.01FDR.RData"
+)
+#dev.off()
+#pdf("3a_n2.pdf")
+get_lines_figure_for_paper(
+  plot_fdr=F,deg=1.5,p1=1e-05,p2=0.001,
+  method_inds = 1:6,
+  uniqueiv_rd="simulations_uniqueiv/simulation_summ_stats_FDR0.01.RData",
+  impiv_rd="simulations_impiv/simulation_summ_stats_FDR0.01.RData",
+  edgesep_rd="simulations_edgesep/simulation_summ_stats_0.01FDR.RData"
+)
+#dev.off()
 
