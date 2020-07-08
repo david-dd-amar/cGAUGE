@@ -622,7 +622,7 @@ mean_num_discoveries_thm22 = mean_num_discoveries
 all(mean_fdrs_thm21[,1:4]==mean_fdrs_thm22[,1:4])
 mr_fdr_simulations_supp_table = mean_fdrs_thm21[,1:4]
 for(j in c(5,7,9)){
-  x1 = format(mean_fdrs_thm21[,j],digits=3)
+  x1 = format(mean_fdrs_thm22[,j],digits=3)
   x1 = paste(x1," (",format(sd_fdrs_thm21[,j],digits=3),")",sep="")
   x21 = format(mean_fdrs_thm21[,j+1],digits=3)
   x21 = paste(x21," (",format(sd_fdrs_thm21[,j+1],digits=3),")",sep="")
@@ -656,7 +656,7 @@ supp_readme = c(supp_readme,
 
 mr_N_simulations_supp_table = mean_num_discoveries_thm21[,1:4]
 for(j in c(5,7,9)){
-  x1 = format(mean_num_discoveries_thm21[,j],digits=3)
+  x1 = format(mean_num_discoveries_thm22[,j],digits=3)
   x21 = format(mean_num_discoveries_thm21[,j+1],digits=3)
   x22 = format(mean_num_discoveries_thm22[,j+1],digits=3)
   m = cbind(x1,x21,x22)
@@ -815,7 +815,7 @@ write.xlsx2(pi1_N_simulations_supp_table,
 supp_readme = c(supp_readme,
                 "ST6: Number of discoveries using the pi1 estimates (pi1>thr)")
 
-write(supp_readme,file = "./supp_tables/supp_readme.txt")
+write(supp_readme,file = "./supp_tables/supp_readme_v2.txt")
 
 ##############################################################
 ##############################################################
