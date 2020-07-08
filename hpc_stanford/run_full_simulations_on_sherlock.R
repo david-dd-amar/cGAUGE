@@ -119,10 +119,10 @@ FDR_method = "BY"
 is_causal<-function(dists){
   return(dists>0 )
 }
-tested_p1 = c(1e-03,1e-04,1e-05)
-tested_p2_factors = c(10,100)
-tested_pleio_levels = c(0,0.1,0.2,0.3,0.4)
-tested_degrees = c(1,1.5,2)
+# tested_p1 = c(1e-03,1e-04,1e-05)
+# tested_p2_factors = c(10,100)
+# tested_pleio_levels = c(0,0.1,0.2,0.3,0.4)
+# tested_degrees = c(1,1.5,2)
 
 all_sim_results_errs = c()
 all_sim_results_preds = c()
@@ -605,7 +605,8 @@ save(
 ##############################################################
 
 setwd("/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/")
-library("xlsx",lib.loc = "~/R/packages3.5")
+try({library("xlsx")})
+try({library("xlsx",lib.loc = "~/R/packages3.5")})
 
 supp_readme = c()
 
@@ -648,7 +649,7 @@ exsep = format(mean_fdrs_thm21[,j],digits=3)
 exsep = paste(exsep," (",format(sd_fdrs_thm21[,j],digits=3),")",sep="")
 mr_fdr_simulations_supp_table = cbind(mr_fdr_simulations_supp_table,exsep)
 colnames(mr_fdr_simulations_supp_table)[ncol(mr_fdr_simulations_supp_table)] = "ExSep, Naive count>4"
-write.xlsx2(mr_fdr_simulations_supp_table,file="./supp_tables/Supplementary_Tables.xlsx",
+write.xlsx2(mr_fdr_simulations_supp_table,file="./supp_tables/Supplementary_Tables_v2.xlsx",
             sheetName = "ST1",row.names=F)
 supp_readme = c(supp_readme,
                 "ST1: Empirical FDRs of the MR and the naive ExSep methods")
@@ -677,7 +678,7 @@ j=13
 exsep = format(mean_num_discoveries_thm21[,j],digits=3)
 mr_N_simulations_supp_table = cbind(mr_N_simulations_supp_table,exsep)
 colnames(mr_N_simulations_supp_table)[ncol(mr_N_simulations_supp_table)] = "ExSep, Naive>4"
-write.xlsx2(mr_N_simulations_supp_table,file="./supp_tables/Supplementary_Tables.xlsx",
+write.xlsx2(mr_N_simulations_supp_table,file="./supp_tables/Supplementary_Tables_v2.xlsx",
             sheetName = "ST2",row.names=F,append=T)
 supp_readme = c(supp_readme,
                 "ST2: Number of discoveries of the MR and the naive ExSep methods")
@@ -699,13 +700,13 @@ for(j in c(4)){
 colnames(edgesep_N_simulations_supp_table)[4] = c("MS test")
 
 write.xlsx2(edesep_fdr_simulations_supp_table,
-            file="./supp_tables/Supplementary_Tables.xlsx",
+            file="./supp_tables/Supplementary_Tables_v2.xlsx",
             sheetName = "ST3",row.names=F,append=T)
 supp_readme = c(supp_readme,
                 "ST3: Empirical FDRs of the ExSep tests")
 
 write.xlsx2(edgesep_N_simulations_supp_table,
-            file="./supp_tables/Supplementary_Tables.xlsx",
+            file="./supp_tables/Supplementary_Tables_v2.xlsx",
             sheetName = "ST4",row.names=F,append=T)
 supp_readme = c(supp_readme,
                 "ST4: Number of discoveries of the ExSep tests")
@@ -783,7 +784,7 @@ pi1_fdr_fpr_supp_table = pi1_fdr_fpr_supp_table[,!grepl("ImpIV",colnames(pi1_fdr
 dim(pi1_fdr_fpr_supp_table)
 
 # Add the naive edge sep
-write.xlsx2(pi1_fdr_fpr_supp_table,file="./supp_tables/Supplementary_Tables.xlsx",
+write.xlsx2(pi1_fdr_fpr_supp_table,file="./supp_tables/Supplementary_Tables_v2.xlsx",
             sheetName = "ST5",row.names=F,append=T)
 supp_readme = c(supp_readme,
                 "ST5: Empirical FDRs and FPRs using the pi1 estimates")
@@ -809,7 +810,7 @@ pi1_N_simulations_supp_table = pi1_N_simulations_supp_table[,!grepl("<",colnames
 dim(pi1_N_simulations_supp_table)
 
 write.xlsx2(pi1_N_simulations_supp_table,
-            file="./supp_tables/Supplementary_Tables.xlsx",
+            file="./supp_tables/Supplementary_Tables_v2.xlsx",
             sheetName = "ST6",row.names=F,append=T)
 supp_readme = c(supp_readme,
                 "ST6: Number of discoveries using the pi1 estimates (pi1>thr)")
@@ -1143,7 +1144,7 @@ write(supp_readme,file = "./supp_tables/supp_readme.txt")
 # Locally - figures using lines
 ##############################################################
 ##############################################################
-
+setwd("~/Desktop/causal_inference_projects/ms3/")
 library(ggplot2);library(reshape2)
 get_df_for_line_chart<-function(all_results,deg,p1,p2,valuename="FDR",
                                 cgsuge_name = "ImpIV", fix_method_name = T,
