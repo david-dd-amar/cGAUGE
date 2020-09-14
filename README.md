@@ -25,7 +25,7 @@ plink2 --bfile bed --logistic hide-covar firth-fallback \
   --out ${output_path_name}
 ```
 For linear regression we use `--linear hide-covar`.
-1. For analysis of small datasets without plink we provide a few useful functions in [R/](auxil_functions.R) including: `run_lm(x,y,z,df)` which computes the effect size, standard error, and p-value for x~y|z - i.e., the linear effect of y on x when conditioned on z when all variables are available in the data frame df. A more complex wrapper is called `run_ci_test_one_is_numeric(x,y,z,df)` that assumes that either x or y are numeric (or both) and internally decides how to use correlation analysis or linear regression to compute the p-value for x,y|z. Finally, `run_ci_logistic_test(x,y,z,df)` can be used to get the logistic p-value when x is a binary variable.
+1. For analysis of small datasets without plink we provide a few useful functions in [R/auxil_functions.R](R/auxil_functions.R) including: `run_lm(x,y,z,df)` which computes the effect size, standard error, and p-value for x~y|z - i.e., the linear effect of y on x when conditioned on z when all variables are available in the data frame df. A more complex wrapper is called `run_ci_test_one_is_numeric(x,y,z,df)` that assumes that either x or y are numeric (or both) and internally decides how to use correlation analysis or linear regression to compute the p-value for x,y|z. Finally, `run_ci_logistic_test(x,y,z,df)` can be used to get the logistic p-value when x is a binary variable.
 
 ## Input
 
