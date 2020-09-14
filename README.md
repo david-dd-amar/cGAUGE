@@ -16,7 +16,7 @@ We provide several tools for computing the preprocessing steps above, but any cu
 
 ## Preprocessing tools
 
-### GWAS and CI tests
+#### GWAS and CI tests
 
 For GWAS and CI tests on large-scale genetic data we use PLINK. Assume we have the following files: (1) pheno.phe: a phenotype file with a row per subject and three columns: family id (FID), individual id (IID), and the phenotype scores, which can be binary or continuous, (2) covars.phe: covariates file with a row per subject, the first two columns are FID and IID, and additional columns with covariates that we need to adjust for: sex, age, Array, and genetic principal components, and (3) a bed file with the individual-level genetic data. We then use the following command for logistic regression:
 ```
@@ -30,20 +30,18 @@ For linear regression we use `--linear hide-covar`. When running CI tests of ana
 
 For analysis of without plink (e.g., for smaller datasets) we provide a few useful functions in [R/auxil_functions.R](R/auxil_functions.R) including: `run_lm(x,y,z,df)` which computes the effect size, standard error, and p-value for x~y|z - i.e., the linear effect of y on x when conditioned on z when all variables are available in the data frame df. A more complex wrapper is called `run_ci_test_one_is_numeric(x,y,z,df)` that assumes that either x or y are numeric (or both) and internally decides how to use correlation analysis or linear regression to compute the p-value for x,y|z. Finally, `run_ci_logistic_test(x,y,z,df)` can be used to get the logistic p-value when x is a binary variable.
 
-### Skeletons
+#### Skeletons
 
 Skeletons can be computed using the [pcalg](https://cran.r-project.org/web/packages/pcalg/index.html) R package. Specifically, the `skeleton` function can be used to get the skeleton of all variables in a data frame. If you use this function make sure to use `m.max=2` to avoid an exponential running time by testing all possible sets (that are conditioned upon). Moreover, for speedups you can use the functions above as input e.g., `indepTest=run_lm` to use linear regression instead of discrete tests. Note that you can also increase `numCores` to run the tests in parallel. However, this is limited to the number of cores in the machine. To better utilize resources in an HPC, we provide a useful R script [hpc_stanford/analyze_trait_pair_for_skeleton.R](hpc_stanford/analyze_trait_pair_for_skeleton.R) that receives as input: (1) an RData file with a data frame that has all sample-level data, (2) the name of tr<sub>1</sub>, (3) the name of tr<sub>2</sub>, and (4) the maximal set cardinallity (equivalent to `m.max` above). Thus, this script can be used to get the CI result for a single trait pair, and thus can be run in parallel for many or all pairs. 
-
-For
 
 ## cGAUGE: Input
 
 cGAUGE takes as input a set of summary statistics of variants and traits. These are of three types: 
-(1) P-value, effect size, and effect size SE matrices from the standard GWAS results (variants as rows and traits are columns)
-(2) An object with the p-values of all conditional independence tests for each variant G vs. a trait X. We represent this object using a named list of lists in which element [[tr1]][[tr2]] is a matrix with the conditional independence results (p-values) for trait 1 conditioned on trait 2 (rows are variants).
-(3) A binary matrix that specifies the results for all trait-trait CI tests. 
+1. P-value, effect size, and effect size SE matrices from the standard GWAS results (variants as rows and traits are columns)
+2. An object with the p-values of all conditional independence tests for each variant G vs. a trait X. We represent this object using a named list of lists in which element [[tr1]][[tr2]] is a matrix with the conditional independence results (p-values) for trait 1 conditioned on trait 2 (rows are variants).
+3. A binary matrix that specifies the results for all trait-trait CI tests. 
 
-We generate 1-3 above using custom scripts that use R and PLINK. These are currently not available here, but will be added in the next version. Nevertheless, we provide our processed data (i.e., no individual level data) as RData files that can be used for further analysis, please see XX for details.
+Nevertheless, we provide our processed data (i.e., no individual level data) as RData files that can be used for further analysis, please see XX for details.
 
 ## Output
 
