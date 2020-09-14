@@ -30,6 +30,12 @@ For linear regression we use `--linear hide-covar`. When running CI tests of ana
 
 For analysis of without plink (e.g., for smaller datasets) we provide a few useful functions in [R/auxil_functions.R](R/auxil_functions.R) including: `run_lm(x,y,z,df)` which computes the effect size, standard error, and p-value for x~y|z - i.e., the linear effect of y on x when conditioned on z when all variables are available in the data frame df. A more complex wrapper is called `run_ci_test_one_is_numeric(x,y,z,df)` that assumes that either x or y are numeric (or both) and internally decides how to use correlation analysis or linear regression to compute the p-value for x,y|z. Finally, `run_ci_logistic_test(x,y,z,df)` can be used to get the logistic p-value when x is a binary variable.
 
+### Skeletons
+
+Skeletons can be computed using the [https://cran.r-project.org/web/packages/pcalg/index.html](pcalg) R package. Specifically, the `skeleton` function can be used to get the skeleton of all variables in a data frame. If you use this function make sure to use `m.max=2` to avoid an exponential running time by testing all possible sets (that are conditioned upon). Moreover, for speedups you can use the functions above as input e.g., `indepTest=run_lm` to use linear regression instead of discrete tests. Note that you can also increase `numCores` to run the tests in parallel. However, this is limited to the number of cores in the machine. To better utilize resources in an HPC, we provide a useful R script [hpc_stanford/analyze_trait_pair_for_skeleton.R](hpc_stanford/analyze_trait_pair_for_skeleton.R) that receives as input: (1) an RData file with a data frame that has all sample-level data, (2) the name of tr<sub>1</sub>, (3) the name of tr<sub>2</sub>, and (4) the maximal set cardinallity (equivalent to `m.max` above). Thus, this script can be used to get the CI result for a single trait pair, and thus can be run in parallel for many or all pairs. 
+
+For
+
 ## cGAUGE: Input
 
 cGAUGE takes as input a set of summary statistics of variants and traits. These are of three types: 
