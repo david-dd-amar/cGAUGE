@@ -40,7 +40,20 @@ For individual level data over a set of traits and a set of genetic variants you
 
 1. Numeric matrices with a row for each genetic variant and a column for each trait. For running both the cGAUGE filters and MR analysis you will need three matrices: (1) P-values, (2) effect sizes, and (3) effect size standard error. These are available for the UK-Biobank data in a single RData file [here](https://drive.google.com/file/d/1XNZSYlDnepnPdLgG5qBrtTHrlo2Yq7IG/view?usp=sharing).
 
-2. An object with the p-values of all conditional independence tests for each variant g in **G** vs. a trait x in **T**. We represent this object using a named list of lists in which element [[tr1]][[tr2]] is a matrix with the conditional independence results (p-values) for trait 1 conditioned on trait 2 (rows are variants). The results for the UK-Biobank data are available [here](https://drive.google.com/file/d/10nJEydJ_FpcRYzzZYq1xEWk8qtSlQl1X/view?usp=sharing)
+2. An object with the p-values of all conditional independence tests for each variant g in **G** vs. a trait x in **T**. We represent this object using a named list of lists in which element [[tr1]][[tr2]] is a matrix with the conditional independence results (p-values) for trait 1 conditioned on trait 2 (rows are variants). The results for the UK-Biobank data are available [here](https://drive.google.com/file/d/10nJEydJ_FpcRYzzZYq1xEWk8qtSlQl1X/view?usp=sharing). Here is an example code for using the provided results:
+```
+# useful objects in this:
+# code2gwas_res - a list with the GWAS results, limited to p < 1e-04
+# code2clumped_list - a list with the LD clump results per trait
+# cl_unified_list - the union of the LD clump sets (can be further pruned)
+# snp_P_matrix: a matrix of p-values (row per variant, column per trait)
+# sum_stat_matrix: a matrix of effect sizes (row per variant, column per trait)
+# sum_stat_se_matrix: a matrix of effect size standard error (row per variant, column per trait)
+# OPTIONAL
+# code2pruned_list - a list with the LD prune results per trait
+# pr_unified_list - the union of the LD prune sets (can be further pruned)
+load("single_gwas_res.RData")
+```
 
 3. A matrix that contains the skeleton analysis results [here](https://drive.google.com/file/d/1CGav4eGQLi-G1zCdqyrSXbGL8b_aseGM/view?usp=sharing). This link provides a square **|T|** X **|T|** matrix with the maximal p-value for each pair (tr<sub>1</sub>, tr<sub>2</sub>). That is, the maximal p-value obtained for the association of the pair (tr<sub>1</sub>, tr<sub>2</sub>) when trying to condition on another trait from **T**. Here is an example R code for loading this matrix and obtaining a skeleton graph:
 ```
