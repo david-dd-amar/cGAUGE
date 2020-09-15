@@ -62,9 +62,12 @@ FALSE  TRUE
 ## cGAUGE: Analysis and output
 
 
-### Additional tools and packages
+## Additional comments and contact info
 
 cGAUGE was developed and tested in R 3.4.0
-The scripts require the following packages: MendelianRandomization (v 0.4.1 or later), limma (v 3.38.0 or later), and MRPRESSO (v 1.0). Installation time is negligible once these are loaded. However, loading the RData files (processed input data) may take a while (up to 20min) as some are large. 
+
+The scripts require the following packages: MendelianRandomization (v 0.4.1 or later), limma (v 3.38.0 or later), and MRPRESSO (v 1.0).
+
+For suggestions please contact us at davidama AT stanford dot edu
 
 
