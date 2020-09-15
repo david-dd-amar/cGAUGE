@@ -3,14 +3,14 @@
 cGAUGE is a set of tools that utilize conditional independence (CI) tests for improving causal inference among traits using genetic variables. 
 
 There are three types of analyses that can be performed:
-1. <em>ImpIV</em>: Filter out improper genetic instruments before Mendelian Randomization (MR) analysis. 
+1. <em>ImpIV</em>: Filter out improper genetic instruments before Mendelian Randomization (MR) analysis between two traits. 
 1. <em>UniqueIV</em>: Obtain a set of proper genetic instruments for MR. However, this is limited to trait pairs that have limited (conditional) dependence.
 1. <em>ExSep</em>: Search for evidence for the exitence of a causal pathway between two traits.
 
-The analyses above require three preprocessing steps that can be done using external tools like PLINK or R:
-1. <em>GWAS</em>: Obtain genome-wide clumped or pruned association results for each trait.
-1. <em>Trait skeleton</em>: Compute a "skeleton" among the traits, witout using the genetic data. Skeleton graphs represents traits that cannot be rendered independent by conditioning on other traits.
-1. <em>CI tests</em>: For each significant variant obtained in the GWAS step at a significance level p<sub>1</sub> for a trait tr<sub>1</sub>, test if it is no longer significant with p>p<sub>2</sub> when conditioning on another trait tr<sub>2</sub>.
+The analyses above require three preprocessing steps that can be done using external tools like PLINK or R. For notation let **T** be the set of traits and **G** be the set of genetic variants (after LD clumping or pruning).
+1. <em>GWAS</em>: Obtain genome-wide association results for each genetic variable in **G** vs. every trait in **T**.
+1. <em>Trait skeleton</em>: Compute a "skeleton" among the traits witout using the genetic data. Skeletons are undirected graphs in which edges represent traits that cannot be rendered independent by conditioning on other traits.
+1. <em>CI tests</em>: For each significant variant obtained in the GWAS step at a significance level p<sub>1</sub> for a trait tr<sub>1</sub>, test if it is no longer significant with p>p<sub>2</sub> when conditioning on another trait tr<sub>2</sub>. Keep the results for every triplet (g in **G**, tr<sub>1</sub>, tr<sub>2</sub>).
 
 We provide several tools for computing the preprocessing steps above, but any custom scripts or tools can be used. Moreover, summary statistics from these steps can be used as well as input for cGAUGE. If such results are available you can skip the next section. 
 
@@ -36,14 +36,17 @@ Skeletons can be computed using the [pcalg](https://cran.r-project.org/web/packa
 
 ## cGAUGE: Input
 
-cGAUGE takes as input a set of summary statistics of variants and traits. These are of three types: 
-1. P-value, effect size, and effect size SE matrices from the standard GWAS results (variants as rows and traits are columns)
-2. An object with the p-values of all conditional independence tests for each variant G vs. a trait X. We represent this object using a named list of lists in which element [[tr1]][[tr2]] is a matrix with the conditional independence results (p-values) for trait 1 conditioned on trait 2 (rows are variants).
-3. A binary matrix that specifies the results for all trait-trait CI tests. 
+For individual level data over a set of traits and a set of genetic variants you can follow the preprocessing steps above to obtain all summary statistics that cGAUGE requires. We provide below these results for 96 traits and their genetics results from the UK-Biobank:
 
-Nevertheless, we provide our processed data (i.e., no individual level data) as RData files that can be used for further analysis, please see XX for details.
+1. Numeric matrices with a row for each genetic variant and a column for each trait. For running both the cGAUGE filters and MR analysis you will need three matrices: (1) P-values, (2) effect sizes, and (3) effect size standard error. These are available for the UK-Biobank data in a single RData file (https://drive.google.com/file/d/1XNZSYlDnepnPdLgG5qBrtTHrlo2Yq7IG/view?usp=sharing)[here].
 
-## Output
+2. An object with the p-values of all conditional independence tests for each variant g in **G** vs. a trait x in **T**. We represent this object using a named list of lists in which element [[tr1]][[tr2]] is a matrix with the conditional independence results (p-values) for trait 1 conditioned on trait 2 (rows are variants). The results for the UK-Biobank data are available (https://drive.google.com/file/d/10nJEydJ_FpcRYzzZYq1xEWk8qtSlQl1X/view?usp=sharing)[here]
+
+3. A matrix that contains the skeleton analysis results (https://drive.google.com/file/d/1CGav4eGQLi-G1zCdqyrSXbGL8b_aseGM/view?usp=sharing)[here]. This link provides a square **|T|** X **|T|** matrix with the maximal p-value for each pair (tr<sub>1</sub>, tr<sub>2</sub>). That is, the maximal p-value obtained for the association of the pair (tr<sub>1</sub>, tr<sub>2</sub>) when trying to condition on another trait from **T**. Given a p-value threshold p, you can extract the undirected skeleton graph as follows:
+
+
+## cGAUGE: Analysis and output
+
 
 ### Additional tools and packages
 
