@@ -38,9 +38,7 @@ Skeletons can be computed using the [pcalg](https://cran.r-project.org/web/packa
 
 For individual level data over a set of traits and a set of genetic variants you can follow the preprocessing steps above to obtain all summary statistics that cGAUGE requires. We provide below these results for 96 traits and their genetics results from the UK-Biobank:
 
-1. Numeric matrices with a row for each genetic variant and a column for each trait. For running both the cGAUGE filters and MR analysis you will need three matrices: (1) P-values, (2) effect sizes, and (3) effect size standard error. These are available for the UK-Biobank data in a single RData file [here](https://drive.google.com/file/d/1XNZSYlDnepnPdLgG5qBrtTHrlo2Yq7IG/view?usp=sharing).
-
-2. An object with the p-values of all conditional independence tests for each variant g in **G** vs. a trait x in **T**. We represent this object using a named list of lists in which element [[tr1]][[tr2]] is a matrix with the conditional independence results (p-values) for trait 1 conditioned on trait 2 (rows are variants). The results for the UK-Biobank data are available [here](https://drive.google.com/file/d/10nJEydJ_FpcRYzzZYq1xEWk8qtSlQl1X/view?usp=sharing). Here is an example code for using the provided results:
+1. An object with the p-values of all conditional independence tests for each variant g in **G** vs. a trait x in **T**. We represent this object using a named list of lists in which element [[tr1]][[tr2]] is a matrix with the conditional independence results (p-values) for trait 1 conditioned on trait 2 (rows are variants). The results for the UK-Biobank data are available [here](https://drive.google.com/file/d/10nJEydJ_FpcRYzzZYq1xEWk8qtSlQl1X/view?usp=sharing). Here is an example code for using the provided results:
 ```
 # useful objects in this:
 # code2gwas_res - a list with the GWAS results, limited to p < 1e-04
@@ -55,7 +53,7 @@ For individual level data over a set of traits and a set of genetic variants you
 load("single_gwas_res.RData")
 ```
 
-3. A matrix that contains the skeleton analysis results [here](https://drive.google.com/file/d/1CGav4eGQLi-G1zCdqyrSXbGL8b_aseGM/view?usp=sharing). This link provides a square **|T|** X **|T|** matrix with the maximal p-value for each pair (tr<sub>1</sub>, tr<sub>2</sub>). That is, the maximal p-value obtained for the association of the pair (tr<sub>1</sub>, tr<sub>2</sub>) when trying to condition on another trait from **T**. Here is an example R code for loading this matrix and obtaining a skeleton graph:
+2. A matrix that contains the skeleton analysis results [here](https://drive.google.com/file/d/1CGav4eGQLi-G1zCdqyrSXbGL8b_aseGM/view?usp=sharing). This link provides a square **|T|** X **|T|** matrix with the maximal p-value for each pair (tr<sub>1</sub>, tr<sub>2</sub>). That is, the maximal p-value obtained for the association of the pair (tr<sub>1</sub>, tr<sub>2</sub>) when trying to condition on another trait from **T**. Here is an example R code for loading this matrix and obtaining a skeleton graph:
 ```
 > load("Gs_skeleton.RData")
 > pmax_network[1:3,1:3]
@@ -70,6 +68,7 @@ Albumin                  2.132759e-05             6.701961e-01           NA
 FALSE  TRUE 
  4082   670 
 ```
+3. Numeric matrices with a row for each genetic variant and a column for each trait. For running both the cGAUGE filters and MR analysis you will need three matrices: (1) P-values, (2) effect sizes, and (3) effect size standard error. These are available for the UK-Biobank data in a single RData file [here](https://drive.google.com/file/d/1XNZSYlDnepnPdLgG5qBrtTHrlo2Yq7IG/view?usp=sharing).
 
 
 ## cGAUGE: Analysis and output
