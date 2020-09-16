@@ -94,7 +94,9 @@ plot(tr1_ps[shared_snps],tr1_given_tr2_p[shared_snps],pch=20,
      xlab = "Glucose p-values",ylab = "Glucose p-values, cond on Albumin")
 ```
 Which in this case, we see that there are only mild effect of conditioning on tr2 (Albumin):
-<img src="figures/gluc_cond_albumin.png" width="96">
+
+
+<img src="figures/gluc_cond_albumin.png" width="250">
 
 ## cGAUGE: Analysis and output
 
