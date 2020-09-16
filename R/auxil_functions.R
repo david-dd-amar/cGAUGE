@@ -1,4 +1,5 @@
 required_libs = c("speedglm","bnlearn","pcalg")
+
 lib_loc = "~/R/packages3.5"
 lib_loc = c(lib_loc,.libPaths())
 for (lib_name in required_libs){
@@ -8,90 +9,41 @@ for (lib_name in required_libs){
            })
 }
 
-get_sh_default_prefix<-function(err="",log="",time="10:00:00"){
-  return(
-    c(
-      "#!/bin/bash",
-      "#",
-      paste("#SBATCH --time=", time,sep=""),
-      "#SBATCH --partition=euan,mrivas,normal,owners",
-      "#SBATCH --nodes=1",
-      "#SBATCH --cpus-per-task=2",
-      "#SBATCH --mem=16000",
-      paste("#SBATCH --error",err),
-      paste("#SBATCH --out",log),
-      "",
-      "module load biology",
-      "module load plink/1.90b5.3"
-    )
-  )
+############################################
+############################################
+# Wrappers for association analysis
+############################################
+############################################
+
+#' Get the effect size, se, and p-value for x~y|z using linear regression
+#' 
+#' @param x a charachter with a name of a variable or an index
+#' @param y a charachter with a name of a variable or an index
+#' @param z a charachter vector with variable names or indices
+#' @param df a data frame 
+#' 
+#' @return the effect size, se, and p-value for x~y|z
+run_lm<-function(x,y,z,df){
+  if(is.null(z)){
+    df = data.frame(x=df[,x],y=df[,y])
+  }
+  else{
+    df = data.frame(x=df[,x],y=df[,y],df[,z])
+  }
+  model = lm(x~.,data=df)
+  coefs = summary(model)$coefficients
+  return(coefs[2,])
 }
 
-# plink2: plink/2.0a1
-get_sh_prefix_one_node_specify_cpu_and_mem<-function(
-  err="",log="",plink_pkg = "plink/1.90b5.3",Ncpu,mem_size,time="6:00:00"){
-  partition_line = "#SBATCH --partition=euan,mrivas,normal,owners"
-  if(mem_size>=256000){
-    partition_line = "#SBATCH --partition=bigmem,euan,mrivas"
-  }
-  return(
-    c(
-      "#!/bin/bash",
-      "#",
-      paste("#SBATCH --time=", time,sep=""),
-      partition_line,
-      "#SBATCH --nodes=1",
-      paste("#SBATCH -c",Ncpu),
-      paste("#SBATCH --mem=",mem_size,sep=""),
-      paste("#SBATCH --error",err),
-      paste("#SBATCH --out",log),
-      "",
-      "module load biology",
-      paste("module load",plink_pkg)
-    )
-  )
-}
-
-print_sh_file<-function(path,prefix,cmd){
-  cmd = c(prefix,cmd)
-  write.table(file=path,t(t(cmd)),row.names = F,col.names = F,quote = F)
-}
-
-
-disc_data_using_cut<-function(x,cuts=5,min_bin_size=10,useQuantiles=T){
-  y = NULL
-  if(!is.numeric(x)){y = factor(x)}
-  if(length(unique(x))<=cuts){y = factor(x)}
-  if(is.null(y)&&!useQuantiles){y=factor(cut(x,breaks=cuts, ordered_result=T))}
-  if(is.null(y)&&useQuantiles){y=factor(cut(x,breaks=quantile(x,probs=seq(from=0,to=1,length.out = cuts+1)), ordered_result=T))}
-  table_y = table(y)
-  while(any(table_y<min_bin_size) && !all(y==y[1],na.rm=T)){
-    curr_levels = levels(y)
-    j = which(table_y==min(table_y))[1]
-    ll = names(j)
-    j2 = j-1
-    if(j==1){j2=2}
-    ll2 = names(table_y)[j2]
-    new_levels=curr_levels
-    new_levels[j]=paste(ll2,ll,sep=",")
-    new_levels[j2]=paste(ll2,ll,sep=",")
-    levels(y) = new_levels
-    table_y = table(y)
-  }
-  return(y)
-}
-transform_to_column_name<-function(x,data){
-  if(is.numeric(x) && length(x) == 1){
-    x = names(data)[x];return(x)
-  }
-  z = x
-  if(is.numeric(z) && length(z)>0){
-    zz = c()
-    for(ii in z){zz = c(zz,names(data)[ii])}
-    z = zz
-  }
-  return(z)
-}
+#' A wrapper for bnlearn's conditional independence test
+#' 
+#' @param x a charachter with a name of a variable or an index
+#' @param y a charachter with a name of a variable or an index
+#' @param z a charachter vector with variable names or indices
+#' @param data a data frame 
+#' @param test a charachter with the name of the test, default is Pearson's x2 test.
+#' 
+#' @return the p-value for x~y|z
 run_discrete_ci_test<-function(x,y,z,data,test="x2",...){
   x = transform_to_column_name(x,data)
   y = transform_to_column_name(y,data)
@@ -107,9 +59,20 @@ run_discrete_ci_test<-function(x,y,z,data,test="x2",...){
   gc()
   return(testp)
 }
-run_discrete_ci_test_fast<-function(x,y,z,data,test="mc-mi",...){
+
+run_discrete_ci_test_fast<-function(x,y,z,data,...){
   return(run_discrete_ci_test(x,y,z,data,test="x2-adf"))
 }
+
+#' A wrapper for linear analysis when x or y or both are numeric
+#' 
+#' @param x a charachter with a name of a variable or an index
+#' @param y a charachter with a name of a variable or an index
+#' @param z a charachter vector with variable names or indices
+#' @param data a data frame 
+#' @param test a charachter with the name of the test, default is Pearson's x2 test.
+#' 
+#' @return the p-value for x~y|z
 run_ci_test_one_is_numeric<-function(x,y,z,data,...){
   x = transform_to_column_name(x,data)
   y = transform_to_column_name(y,data)
@@ -166,7 +129,16 @@ run_ci_test_one_is_numeric<-function(x,y,z,data,...){
   return(run_discrete_ci_test(x,y,z,data,...))
 }
 
-# assumes that x is binary and y is binary or linear
+#' A wrapper for logistic regression conditional independence test
+#' 
+#' @param x a charachter with a name of a variable or an index
+#' @param y a charachter with a name of a variable or an index
+#' @param z a charachter vector with variable names or indices
+#' @param data a data frame 
+#' @param usespeedglm binary, if TRUE use the speedglm package for fast logistic regression
+#' 
+#' @details  Assumes that x is binary and y is binary or linear
+#' @return the p-value for x~y|z
 run_ci_logistic_test<-function(x,y,z,data,usespeedglm=T,...){
   #print("in logistic")
   x = transform_to_column_name(x,data)
@@ -238,3 +210,101 @@ get_CI_pairwise_network<-function(Xs,Z,data,func=run_discrete_ci_test,...){
   }
   return(m)
 }
+
+# Some helper functions
+
+#' Transform variables to discrete factors in a data frame
+disc_data_using_cut<-function(x,cuts=5,min_bin_size=10,useQuantiles=T){
+  y = NULL
+  if(!is.numeric(x)){y = factor(x)}
+  if(length(unique(x))<=cuts){y = factor(x)}
+  if(is.null(y)&&!useQuantiles){y=factor(cut(x,breaks=cuts, ordered_result=T))}
+  if(is.null(y)&&useQuantiles){y=factor(cut(x,breaks=quantile(x,probs=seq(from=0,to=1,length.out = cuts+1)), ordered_result=T))}
+  table_y = table(y)
+  while(any(table_y<min_bin_size) && !all(y==y[1],na.rm=T)){
+    curr_levels = levels(y)
+    j = which(table_y==min(table_y))[1]
+    ll = names(j)
+    j2 = j-1
+    if(j==1){j2=2}
+    ll2 = names(table_y)[j2]
+    new_levels=curr_levels
+    new_levels[j]=paste(ll2,ll,sep=",")
+    new_levels[j2]=paste(ll2,ll,sep=",")
+    levels(y) = new_levels
+    table_y = table(y)
+  }
+  return(y)
+}
+
+#' Get the column name for an index set x in a data frame data
+transform_to_column_name<-function(x,data){
+  if(is.numeric(x) && length(x) == 1){
+    x = names(data)[x];return(x)
+  }
+  z = x
+  if(is.numeric(z) && length(z)>0){
+    zz = c()
+    for(ii in z){zz = c(zz,names(data)[ii])}
+    z = zz
+  }
+  return(z)
+}
+
+
+############################################
+############################################
+# Some additional wrappers for getting resources in a cluster using SLURM.
+############################################
+############################################
+
+get_sh_default_prefix<-function(err="",log="",time="10:00:00"){
+  return(
+    c(
+      "#!/bin/bash",
+      "#",
+      paste("#SBATCH --time=", time,sep=""),
+      "#SBATCH --partition=euan,mrivas,normal,owners",
+      "#SBATCH --nodes=1",
+      "#SBATCH --cpus-per-task=2",
+      "#SBATCH --mem=16000",
+      paste("#SBATCH --error",err),
+      paste("#SBATCH --out",log),
+      "",
+      "module load biology",
+      "module load plink/1.90b5.3"
+    )
+  )
+}
+
+# plink2: plink/2.0a1
+get_sh_prefix_one_node_specify_cpu_and_mem<-function(
+  err="",log="",plink_pkg = "plink/1.90b5.3",Ncpu,mem_size,time="6:00:00"){
+  partition_line = "#SBATCH --partition=euan,mrivas,normal,owners"
+  if(mem_size>=256000){
+    partition_line = "#SBATCH --partition=bigmem,euan,mrivas"
+  }
+  return(
+    c(
+      "#!/bin/bash",
+      "#",
+      paste("#SBATCH --time=", time,sep=""),
+      partition_line,
+      "#SBATCH --nodes=1",
+      paste("#SBATCH -c",Ncpu),
+      paste("#SBATCH --mem=",mem_size,sep=""),
+      paste("#SBATCH --error",err),
+      paste("#SBATCH --out",log),
+      "",
+      "module load biology",
+      paste("module load",plink_pkg)
+    )
+  )
+}
+
+print_sh_file<-function(path,prefix,cmd){
+  cmd = c(prefix,cmd)
+  write.table(file=path,t(t(cmd)),row.names = F,col.names = F,quote = F)
+}
+
+
