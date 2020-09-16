@@ -93,7 +93,8 @@ shared_snps = intersect(names(tr1_ps),names(tr1_given_tr2_p))
 plot(tr1_ps[shared_snps],tr1_given_tr2_p[shared_snps],pch=20,
      xlab = "Glucose p-values",ylab = "Glucose p-values, cond on Albumin")
 ```
-!(figures/gluc_cond_albumin.png)
+Which in this case, we see that there are only mild effect of conditioning on tr2 (Albumin):
+<img src="figures/gluc_cond_albumin.png" width="96">
 
 ## cGAUGE: Analysis and output
 
