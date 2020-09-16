@@ -38,7 +38,7 @@ Skeletons can be computed using the [pcalg](https://cran.r-project.org/web/packa
 
 For individual level data over a set of traits and a set of genetic variants you can follow the preprocessing steps above to obtain all summary statistics that cGAUGE requires. We provide below these results for 96 traits and their genetics results from the UK-Biobank:
 
-1. An object with the p-values of all conditional independence tests for each variant g in **G** vs. a trait x in **T**. We represent this object using a named list of lists in which element [[tr1]][[tr2]] is a matrix with the conditional independence results (p-values) for trait 1 conditioned on trait 2 (rows are variants). The results for the UK-Biobank data are available [here](https://drive.google.com/file/d/10nJEydJ_FpcRYzzZYq1xEWk8qtSlQl1X/view?usp=sharing). Here is an example code for using the provided results:
+1. An object with the p-values of all conditional independence tests for each variant g in **G** vs. a trait x in **T**. We represent this object using a named list of lists in which element [[tr1]][[tr2]] is a matrix with the conditional independence results (p-values) for trait 1 conditioned on trait 2 (rows are variants). The results for the UK-Biobank data are available [here](https://drive.google.com/file/d/1XNZSYlDnepnPdLgG5qBrtTHrlo2Yq7IG/view?usp=sharing). Here is an example code for using the provided results:
 ```
 # useful objects in this:
 # code2gwas_res - a list with the GWAS results, limited to p < 1e-04
@@ -51,6 +51,16 @@ For individual level data over a set of traits and a set of genetic variants you
 # code2pruned_list - a list with the LD prune results per trait
 # pr_unified_list - the union of the LD prune sets (can be further pruned)
 load("single_gwas_res.RData")
+> snp_P_matrix[1:3,1:3]
+                statins Alanine_aminotransferase   Albumin
+rs761193    3.63141e-05                 0.895412 0.5172800
+rs116112655 2.16605e-05                 0.241373 0.7728420
+rs115045185 4.19488e-05                 0.455153 0.0189549
+> sum_stat_matrix[1:3,1:3]
+              statins Alanine_aminotransferase     Albumin
+rs761193    0.9188275               -0.0132903  0.01290840
+rs116112655 1.0116227                0.1315650 -0.00641066
+rs115045185 1.0493625               -0.0928334 -0.05761930
 ```
 
 2. A matrix that contains the skeleton analysis results [here](https://drive.google.com/file/d/1CGav4eGQLi-G1zCdqyrSXbGL8b_aseGM/view?usp=sharing). This link provides a square **|T|** X **|T|** matrix with the maximal p-value for each pair (tr<sub>1</sub>, tr<sub>2</sub>). That is, the maximal p-value obtained for the association of the pair (tr<sub>1</sub>, tr<sub>2</sub>) when trying to condition on another trait from **T**. Here is an example R code for loading this matrix and obtaining a skeleton graph:
@@ -70,6 +80,20 @@ FALSE  TRUE
 ```
 3. Numeric matrices with a row for each genetic variant and a column for each trait. For running both the cGAUGE filters and MR analysis you will need three matrices: (1) P-values, (2) effect sizes, and (3) effect size standard error. These are available for the UK-Biobank data in a single RData file [here](https://drive.google.com/file/d/1XNZSYlDnepnPdLgG5qBrtTHrlo2Yq7IG/view?usp=sharing).
 
+```
+load("genetic_CI_tests_results.RData")
+tr1 = "Glucose"
+tr2 = "Albumin"
+tr1_given_tr2 = trait_pair_pvals[[tr1]][[tr2]]
+# take the last column - contains the tests with adjustment for covariats
+tr1_given_tr2_p = tr1_given_tr2[,ncol(tr1_given_tr2)]
+# for comparison, take the p-values of tr1 without conditioning on tr2
+tr1_ps = snp_P_matrix[,tr1]
+shared_snps = intersect(names(tr1_ps),names(tr1_given_tr2_p))
+plot(tr1_ps[shared_snps],tr1_given_tr2_p[shared_snps],pch=20,
+     xlab = "Glucose p-values",ylab = "Glucose p-values, cond on Albumin")
+```
+![https://drive.google.com/file/d/1GjHGEx3NfUuaUfU7wPwqaxbd_kuoWrYZ/view?usp=sharing](https://drive.google.com/file/d/1GjHGEx3NfUuaUfU7wPwqaxbd_kuoWrYZ/view?usp=sharing)
 
 ## cGAUGE: Analysis and output
 
