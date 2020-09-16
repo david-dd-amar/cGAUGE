@@ -36,7 +36,7 @@ Skeletons can be computed using the [pcalg](https://cran.r-project.org/web/packa
 
 ## cGAUGE: Input
 
-For individual level data over a set of traits and a set of genetic variants you can follow the preprocessing steps above to obtain all summary statistics that cGAUGE requires. We provide below these results for 96 traits and their genetics results from the UK-Biobank:
+For individual level data over a set of traits and a set of genetic variants you can follow the preprocessing steps above to obtain all summary statistics that cGAUGE requires. We provide below these results for 96 traits and their genetics results from the UK-Biobank. Note that the trait names in these datasets use the Rivaslab GBE codes, to map them to meaningful names use [this file](https://drive.google.com/file/d/1TveaMn38xAu-r7KKq4v2NtMl5u5LwWuI/view?usp=sharing).
 
 1. An object with the p-values of all conditional independence tests for each variant g in **G** vs. a trait x in **T**. We represent this object using a named list of lists in which element [[tr1]][[tr2]] is a matrix with the conditional independence results (p-values) for trait 1 conditioned on trait 2 (rows are variants). The results for the UK-Biobank data are available [here](https://drive.google.com/file/d/1XNZSYlDnepnPdLgG5qBrtTHrlo2Yq7IG/view?usp=sharing). Here is an example code for using the provided results:
 ```
@@ -95,8 +95,9 @@ plot(tr1_ps[shared_snps],tr1_given_tr2_p[shared_snps],pch=20,
 ```
 The resulting figure shows that there are only mild effects on the GWAS p-values of tr1 (Glucose) when conditioning on tr2 (Albumin):
 
-
 <img src="figures/gluc_cond_albumin.png" width="250">
+
+4. (Optional) Additional useful files/data can be the [minor allele frequencies[(https://drive.google.com/file/d/1uieq63XKxuCAKGRxaknm1bVWNvUiGLAY/view?usp=sharing) and the [positions of the variants](https://drive.google.com/file/d/1I9WqATOQ2SjEQDNSlvXvTi9wbXyZyTZl/view?usp=sharing).
 
 ## cGAUGE: Analysis and output
 
