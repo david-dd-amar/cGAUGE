@@ -93,12 +93,14 @@ shared_snps = intersect(names(tr1_ps),names(tr1_given_tr2_p))
 plot(tr1_ps[shared_snps],tr1_given_tr2_p[shared_snps],pch=20,
      xlab = "Glucose p-values",ylab = "Glucose p-values, cond on Albumin")
 ```
-Which in this case, we see that there are only mild effect of conditioning on tr2 (Albumin):
+The resulting figure shows that there are only mild effects on the GWAS p-values of tr1 (Glucose) when conditioning on tr2 (Albumin):
 
 
 <img src="figures/gluc_cond_albumin.png" width="250">
 
 ## cGAUGE: Analysis and output
+
+
 
 
 ## Additional comments and contact info
