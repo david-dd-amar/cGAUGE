@@ -93,7 +93,7 @@ shared_snps = intersect(names(tr1_ps),names(tr1_given_tr2_p))
 plot(tr1_ps[shared_snps],tr1_given_tr2_p[shared_snps],pch=20,
      xlab = "Glucose p-values",ylab = "Glucose p-values, cond on Albumin")
 ```
-![https://drive.google.com/file/d/1GjHGEx3NfUuaUfU7wPwqaxbd_kuoWrYZ/view?usp=sharing](https://drive.google.com/file/d/1GjHGEx3NfUuaUfU7wPwqaxbd_kuoWrYZ/view?usp=sharing)
+!(https://drive.google.com/file/d/1GjHGEx3NfUuaUfU7wPwqaxbd_kuoWrYZ/view?usp=sharing)
 
 ## cGAUGE: Analysis and output
 
