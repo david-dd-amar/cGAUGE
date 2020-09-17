@@ -63,8 +63,9 @@ rs116112655 1.0116227                0.1315650 -0.00641066
 rs115045185 1.0493625               -0.0928334 -0.05761930
 ```
 
-2. A matrix that contains the skeleton analysis results [here](https://drive.google.com/file/d/1CGav4eGQLi-G1zCdqyrSXbGL8b_aseGM/view?usp=sharing). This link provides a square **|T|** X **|T|** matrix with the maximal p-value for each pair (tr<sub>1</sub>, tr<sub>2</sub>). That is, the maximal p-value obtained for the association of the pair (tr<sub>1</sub>, tr<sub>2</sub>) when trying to condition on another trait from **T**. Here is an example R code for loading this matrix and obtaining a skeleton graph:
+2. The skeleton analysis results [here](https://drive.google.com/file/d/1CGav4eGQLi-G1zCdqyrSXbGL8b_aseGM/view?usp=sharing). This link provides: (1) a square **|T|** X **|T|** matrix with the maximal p-value for each pair (tr<sub>1</sub>, tr<sub>2</sub>). That is, the maximal p-value obtained for the association of the pair (tr<sub>1</sub>, tr<sub>2</sub>) when trying to condition on another trait from **T**. and (2) a list of lists that contain the traits that separated trait tr<sub>1</sub> from trait tr<sub>2</sub> (when the pair are not connected in the skeleton). Here is an example R code for loading this matrix and obtaining a skeleton graph:
 ```
+# This skeleton was computed using p=1e-07 as a threshold for the separating sets below.
 > load("Gs_skeleton.RData")
 > pmax_network[1:3,1:3]
                               statins Alanine_aminotransferase      Albumin
@@ -77,6 +78,10 @@ Albumin                  2.132759e-05             6.701961e-01           NA
 > table(skel[lower.tri(skel)])
 FALSE  TRUE 
  4082   670 
+ 
+# Another important object for cGAUGE is to keep the traits that separate skeleton non-edges. This is loaded as well here:
+> sepsets$statins$C_reactive_protein
+[1] "sex"                      "Alanine_aminotransferase"
 ```
 3. Numeric matrices with a row for each genetic variant and a column for each trait. For running both the cGAUGE filters and MR analysis you will need three matrices: (1) P-values, (2) effect sizes, and (3) effect size standard error. These are available for the UK-Biobank data in a single RData file [here](https://drive.google.com/file/d/1XNZSYlDnepnPdLgG5qBrtTHrlo2Yq7IG/view?usp=sharing).
 
@@ -97,9 +102,14 @@ The resulting figure shows that there are only mild effects on the GWAS p-values
 
 <img src="figures/gluc_cond_albumin.png" width="250">
 
-4. (Optional) Additional useful files/data can be the [minor allele frequencies[(https://drive.google.com/file/d/1uieq63XKxuCAKGRxaknm1bVWNvUiGLAY/view?usp=sharing) and the [positions of the variants](https://drive.google.com/file/d/1I9WqATOQ2SjEQDNSlvXvTi9wbXyZyTZl/view?usp=sharing).
+4. (Optional) Additional useful files/data can be the [minor allele frequencies](https://drive.google.com/file/d/1uieq63XKxuCAKGRxaknm1bVWNvUiGLAY/view?usp=sharing) and the [positions of the variants](https://drive.google.com/file/d/1I9WqATOQ2SjEQDNSlvXvTi9wbXyZyTZl/view?usp=sharing).
+
+In summary, these are the required objects for the analyses:
+1. 
 
 ## cGAUGE: Analysis and output
+
+Assuming all data objects above are now available in the R session, you can now extract cGAUGE's results and run downstream MR analyses.
 
 
 
