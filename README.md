@@ -4,21 +4,21 @@ cGAUGE is a set of tools that utilize conditional independence (CI) tests for im
 
 There are three types of analyses that can be performed:
 1. <em>ImpIV</em>: Filter out improper genetic instruments before Mendelian Randomization (MR) analysis between two traits. 
-1. <em>UniqueIV</em>: Obtain a set of proper genetic instruments for MR. However, this is limited to trait pairs that have limited (conditional) dependence.
+1. <em>UniqueIV</em>: Obtain a set of proper genetic instruments for MR. However, this is limited to trait pairs that have restricted (conditional) dependence.
 1. <em>ExSep</em>: Search for evidence for the exitence of a causal pathway between two traits.
 
 The analyses above require three preprocessing steps that can be done using external tools like PLINK or R. For notation let **T** be the set of traits and **G** be the set of genetic variants (after LD clumping or pruning).
 1. <em>GWAS</em>: Obtain genome-wide association results for each genetic variable in **G** vs. every trait in **T**.
-1. <em>Trait skeleton</em>: Compute a "skeleton" among the traits witout using the genetic data. Skeletons are undirected graphs in which edges represent traits that cannot be rendered independent by conditioning on other traits.
+1. <em>Trait skeleton</em>: Compute a "skeleton" among the traits without using the genetic data. Skeletons are undirected graphs in which edges represent traits that cannot be rendered independent by conditioning on other traits.
 1. <em>CI tests</em>: For each significant variant obtained in the GWAS step at a significance level p<sub>1</sub> for a trait tr<sub>1</sub>, test if it is no longer significant with p>p<sub>2</sub> when conditioning on another trait tr<sub>2</sub>. Keep the results for every triplet (g in **G**, tr<sub>1</sub>, tr<sub>2</sub>).
 
-We provide several tools for computing the preprocessing steps above, but any custom scripts or tools can be used. Moreover, summary statistics from these steps can be used as well as input for cGAUGE. If such results are available you can skip the next section. 
+We provide several tools for computing the preprocessing steps above, but any custom scripts or tools can be used. Moreover, summary statistics from these steps can be used as well as input for cGAUGE. If such results are available, or you wish to use the UK-Biobank results that we provide below, then you can skip the next section. 
 
 ## Preprocessing tools
 
 #### GWAS and CI tests
 
-For GWAS and CI tests on large-scale genetic data we use PLINK. Assume we have the following files: (1) pheno.phe: a phenotype file with a row per subject and three columns: family id (FID), individual id (IID), and the phenotype scores, which can be binary or continuous, (2) covars.phe: covariates file with a row per subject, the first two columns are FID and IID, and additional columns with covariates that we need to adjust for: sex, age, Array, and genetic principal components, and (3) a bed file with the individual-level genetic data. We then use the following command for logistic regression:
+For GWAS and CI tests on large-scale genetic data we use PLINK2. Assume we have the following files: (1) pheno.phe: a phenotype file with a row per subject and three columns: family id (FID), individual id (IID), and the phenotype scores, which can be binary or continuous, (2) covars.phe: covariates file with a row per subject, the first two columns are FID and IID, and additional columns with covariates that we need to adjust for: sex, age, Array, and genetic principal components, and (3) a bed file with the individual-level genetic data. We then use the following command for logistic regression:
 ```
 plink2 --bfile bed --logistic hide-covar firth-fallback \ 
   --pheno pheno.phe --covar covars.phe \
@@ -26,9 +26,9 @@ plink2 --bfile bed --logistic hide-covar firth-fallback \
   --chr 1-22 --maf 0.01 
   --out ${output_path_name}
 ```
-For linear regression we use `--linear hide-covar`. When running CI tests of analysis 3 above, make sure to add the name of tr<sub>2</sub>, that is use: `--covar-name sex,age,Array,PC1,PC2,PC3,PC4,PC5,tr_2_name`
+For linear regression we use `--linear hide-covar`. When running CI tests of analysis *3* above, make sure to add the name of tr<sub>2</sub> as a covarite. That is, use: `--covar-name sex,age,Array,PC1,PC2,PC3,PC4,PC5,tr_2_name`
 
-For analysis of without plink (e.g., for smaller datasets) we provide a few useful functions in [R/auxil_functions.R](R/auxil_functions.R) including: `run_lm(x,y,z,df)` which computes the effect size, standard error, and p-value for x~y|z - i.e., the linear effect of y on x when conditioned on z when all variables are available in the data frame df. A more complex wrapper is called `run_ci_test_one_is_numeric(x,y,z,df)` that assumes that either x or y are numeric (or both) and internally decides how to use correlation analysis or linear regression to compute the p-value for x,y|z. Finally, `run_ci_logistic_test(x,y,z,df)` can be used to get the logistic p-value when x is a binary variable.
+For analysis of without plink (e.g., for smaller datasets) we provide a few useful functions in [R/auxil_functions.R](R/auxil_functions.R) including: `run_lm(x,y,z,df)` which computes the effect size, standard error, and p-value for x~y|z - i.e., the linear effect of y on x when conditioned on z when all variables are available in the data frame df (rows are individuals). A more complex wrapper is called `run_ci_test_one_is_numeric(x,y,z,df)` that assumes that either x or y are numeric (or both) and internally decides how to use correlation analysis or linear regression to compute the p-value for x,y|z. Finally, `run_ci_logistic_test(x,y,z,df)` can be used to get the logistic p-value when x is a binary variable. For discrete data we also provide `run_discrete_ci_test(x,y,z,df,test)` where test is the test name (e.g., Pearson's Chi-square test), see the documentation for details. This is a wrapper of the [bnlearn](https://cran.r-project.org/web/packages/bnlearn/bnlearn.pdf) `ci.test` function that takes the same input as our functions above and returns a p-value. The functions that return p-values can be used in the next section as well (i.e., in addition for testing genetic instruments).
 
 #### Skeletons
 
@@ -36,7 +36,7 @@ Skeletons can be computed using the [pcalg](https://cran.r-project.org/web/packa
 
 ## cGAUGE: Input
 
-For individual level data over a set of traits and a set of genetic variants you can follow the preprocessing steps above to obtain all summary statistics that cGAUGE requires. We provide below these results for 96 traits and their genetics results from the UK-Biobank. Note that the trait names in these datasets use the Rivaslab GBE codes, to map them to meaningful names use [this file](https://drive.google.com/file/d/1TveaMn38xAu-r7KKq4v2NtMl5u5LwWuI/view?usp=sharing).
+For individual level data over a set of traits and a set of genetic variants you can follow the preprocessing steps above to obtain all summary statistics that cGAUGE requires. We provide below these results for 96 traits and their genetics results from the UK-Biobank. Note that the trait names in these datasets use the [Rivaslab GBE](https://biobankengine.stanford.edu/) codes, to map them to meaningful names use [this file](https://drive.google.com/file/d/1TveaMn38xAu-r7KKq4v2NtMl5u5LwWuI/view?usp=sharing).
 
 1. An object with the p-values of all conditional independence tests for each variant g in **G** vs. a trait x in **T**. We represent this object using a named list of lists in which element [[tr1]][[tr2]] is a matrix with the conditional independence results (p-values) for trait 1 conditioned on trait 2 (rows are variants). The results for the UK-Biobank data are available [here](https://drive.google.com/file/d/1XNZSYlDnepnPdLgG5qBrtTHrlo2Yq7IG/view?usp=sharing). Here is an example code for using the provided results:
 ```
