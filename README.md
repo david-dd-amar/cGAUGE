@@ -114,7 +114,8 @@ The resulting figure shows that there are only mild effects on the GWAS p-values
 
 Assuming all data objects above are now available in the R session, you can now extract cGAUGE's results and run downstream MR analyses.
 
-Here is the code to load all the downloaded data and processing it to get the input objects:
+Here is the code to load all the downloaded dataset and processing it to get the input objects:
+
 ```
 conditional_indep_tests = "genetic_CI_tests_results.RData"
 skeleton_file = "Gs_skeleton.RData"
@@ -128,49 +129,100 @@ out_path = "./res/"
 load(conditional_indep_tests)
 load(gwas_res_data)
 load(skeleton_file)
+
 # Use the clumped/prune variant lists (per trait)
 pruned_snp_list = cl_unified_list
+pruned_snp_lists = code2clumped_list
 # Define the MAF for the downstream analysis
-MAF = 0.05
+MAF = 0.01
 # Read the MAF and location info
 mafs = read.table(maf_file,stringsAsFactors = F,header=T)
 bim = read.table(bim_file,stringsAsFactors = F)
-# Filter by MHC
-mhc_snps = bim[bim[,1]==6 & bim[,4]>20000000 & bim[,4]<35000000,2]
+mhc_snps = bim[bim[,1]==6 & bim[,4]>23000000 & bim[,4]<35000000,2]
 our_snps = mafs$SNP[mafs$MAF >= MAF]
 pruned_snp_list = intersect(pruned_snp_list,our_snps)
-pruned_snp_list = intersect(pruned_snp_list,rownames(snp_matrix))
+pruned_snp_list = intersect(pruned_snp_list,rownames(snp_P_matrix))
 pruned_snp_list = setdiff(pruned_snp_list,mhc_snps)
-# restrict the analysis to use the filters defined above
-GWAS_Ps = snp_matrix[pruned_snp_list,]
+for(nn in names(pruned_snp_lists)){
+  pruned_snp_lists[[nn]] = intersect(pruned_snp_lists[[nn]],pruned_snp_list)
+}
+GWAS_Ps = snp_P_matrix[pruned_snp_list,]
+
 # Define p1 and p2
 p1 = 1e-07
 p2 = 0.001
 ```
 
-We can now get the minimal separating sets required for ImpIV:
+We can now get the (trait-based) minimal separating sets required for ImpIV:
 ```
 p1_seps = get_minimal_separating_sets(sepsets,p1=1e-07)
 G_t = pmax_network < p1
 diag(G_t) = F;mode(G_t)="numeric"
 ```
 
-
-Second, we use the results above and the CI analyses to filter instruments:
+We use the results above and the CI analyses to filter instruments:
 ```
-G_vt_out = extract_skeleton_G_VT(GWAS_Ps,trait_pair_pvals,p1,p2)
-G_vt = G_vt_out[[1]]
+# extract the second skeleton - "test2" and "test3" are the column names to use
+# from each matrix in the trait_pair_pvals list (of lists)
+G_vt = extract_skeleton_G_VT(GWAS_Ps,trait_pair_pvals,P1=p1,
+                 P2=p2,test_columns = c("test2","test3"))[[1]]
 ivs = cGAUGE_instrument_filters(G_t,G_vt,p1_seps,GWAS_Ps,p1,code2clumped_list)
 uniqueivs = ivs$UniqueIV
 impivs = ivs$ImpIV
+# The unique iv instruments are also available in the Supplementary Data and fit
+# the results here:
+> uniqueivs$Alanine_aminotransferase[[1]]
+ [1] "rs7587"      "rs112574791" "rs11607757"  "rs78569621"  "rs76015644"  "rs11607052"  "rs66716313"  "rs4148397"  
+ [9] "rs12806"     "rs12339210"  "rs364585"    "rs6006598"   "rs4683709"   "rs117527803" "rs8043119"   "rs3842"     
+[17] "rs4753530"   "rs118045039" "rs16920014"  "rs963441"    "rs62305723"  "rs37059"     "rs12747505"  "rs45467802" 
+[25] "rs13045364"  "rs2928619"   "rs116860632" "rs56098714" 
 ```
 
-Third, we can use our instruments for MR:
+We can use our instruments for MR and for pi_1 estimates:
 ```
+meta_anal_uniqueiv_res = run_pairwise_pval_combination_analysis_from_iv_sets(uniqueivs,GWAS_Ps)
+ivw_uniqueiv_res = run_pairwise_mr_analyses_with_iv_sets(
+      sum_stat_matrix,sum_stat_se_matrix,uniqueivs,func=mr_ivw,robust=T,
+      minIVs=3)
+
+# We use lfdr to compute pi_1, but also provide the convest estimator results
+> meta_anal_uniqueiv_res[1:3,]
+     tr1->                      tr2                    lfdr_pi_1           convest_pi_1        numIVs
+[1,] "Alanine_aminotransferase" "statins"              "0.103478058128079" "0"                 "28"  
+[2,] "Alanine_aminotransferase" "Albumin"              "0.418377782237448" "0.428571428571428" "28"  
+[3,] "Alanine_aminotransferase" "Alkaline_phosphatase" "0.436134621855124" "0.375"             "28" 
+
+> ivw_uniqueiv_res[1:3,]
+                  Exposure              Outcome            p        p_het        est         Q NumIVs
+1 Alanine_aminotransferase              statins 0.2906155860 5.059940e-01 0.08672321  26.22767     28
+2 Alanine_aminotransferase              Albumin 0.0003775984 2.768241e-05 0.02002564  67.22194     28
+3 Alanine_aminotransferase Alkaline_phosphatase 0.5664689442 1.972091e-13 0.04612148 118.49506     28
 ```
 
-Finally, we use the CI and GWAS results for the ExSep test:
+We use the CI and GWAS results for the ExSep test:
 ```
+# Make sure that there are no NAs in the input:
+NonNA_GWAS_Ps = GWAS_Ps
+NonNA_GWAS_Ps[is.na(NonNA_GWAS_Ps)] = 0.5
+for(n1 in names(trait_pair_pvals)){
+  for(n2 in names(trait_pair_pvals[[n1]])){
+    m = trait_pair_pvals[[n1]][[n2]]
+    m = m[rownames(GWAS_Ps),]
+    m[is.na(m)] = 0.5
+    trait_pair_pvals[[n1]][[n2]] = m
+  }
+  gc()
+}
+
+# Run the test for every edge in G_t, this is slow
+exsep_results1 = ExSepTests(NonNA_GWAS_Ps,G_t,trait_pair_pvals,text_col_name="test3")
+# You can also run the test on a subset of the traits by taking specific columns from the 
+# p-value matrix:
+exsep_results2 = ExSepTests(NonNA_GWAS_Ps[,1:3],G_t,trait_pair_pvals,text_col_name="test3")
+# You can also run the test among all pairs by specifying G_t to be all T
+tmp_G_t = G_t
+tmp_G_t[,] = T
+exsep_results3 = ExSepTests(NonNA_GWAS_Ps[,1:3],tmp_G_t,trait_pair_pvals,text_col_name="test3")
 ```
 
 ### Simulated data
