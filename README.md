@@ -117,6 +117,11 @@ Assuming all data objects above are now available in the R session, you can now 
 Here is the code to load all the downloaded dataset and processing it to get the input objects:
 
 ```
+# Load the cGAUGE functions (assuming cGAUGE is in ~/repos)
+source("~/repos/cGAUGE/R/cGAUGE.R")
+# Load the internal optimization functions required for the ExSep test
+source("~/repos/cGAUGE/R/twogroups_em_tests.R")
+
 conditional_indep_tests = "genetic_CI_tests_results.RData"
 skeleton_file = "Gs_skeleton.RData"
 maf_file = "genotypes.frq"
