@@ -69,6 +69,78 @@ extract_skeleton_G_VT<-function(GWAS_Ps,trait_pair_pvals,P1,P2,test_columns = NU
   return(list(G_VT,iv_trait_sepsets))
 }
 
+#' Apply cGAUGE's filters on preprocessed skeletons and GWAS results
+#' 
+#' @param G_t a binary matrix. The sekelton of the traits
+#' @param G_vt a binary matrix. The skeleton of the variants vs. the traits
+#' @param mseps a list of lists. mseps[[tr1]][[tr2]] holds the names of the traits that separate tr1 and tr2 (tr1 and tr2 do not have an edge in G_t)
+#' @param GWAS_Ps a matrix of p-values. Given p1, for each trait (a column), the variants with p<p1 are inspected
+#' @param p1 a number between 0 and 1. The threshold for variant selection
+#' @param pruned_snp_lists (Optional) a named list. For each trait it contains the set of pruned or clumped variants.
+#' 
+#' @return a list with two objects: UniqueIV and ImpIV. Each item is a list of lists where entry l[[tr1]][[tr2]] contains the instruments for analysis of exposure tr1 vs. outcome tr2
+cGAUGE_instrument_filters<-function(G_t,G_vt,mseps,GWAS_Ps,p1,pruned_snp_lists){
+  G_vt[is.na(G_vt)] = 0
+  uniquely_mapped_ivs = rownames(G_vt)[rowSums(G_vt,na.rm = T)==1]
+  
+  # Get the iv sets for each MR analysis
+  iv_sets_thm21 = list()
+  iv_sets_thm22 = list()
+  for(tr1 in colnames(GWAS_Ps)){
+    iv_sets_thm21[[tr1]] = list()
+    iv_sets_thm22[[tr1]] = list()
+    for(tr2 in colnames(GWAS_Ps)){
+      if(tr1==tr2){next}
+      iv_sets_thm21[[tr1]][[tr2]] = rownames(GWAS_Ps)[!is.na(GWAS_Ps[,tr1]) & GWAS_Ps[,tr1]<p1]
+      currseps = unique(unlist(mseps[[tr1]][[tr2]]))
+      currseps = setdiff(currseps,c("sex","age"))
+      # remove IVs using separating variables
+      for(sep in currseps){
+        curr_sep_ivs = rownames(G_vt)[G_vt[,sep]]
+        iv_sets_thm21[[tr1]][[tr2]] = setdiff(iv_sets_thm21[[tr1]][[tr2]],curr_sep_ivs)
+      }
+      iv_sets_thm22[[tr1]][[tr2]] = intersect(rownames(G_vt)[G_vt[,tr1]>0],uniquely_mapped_ivs)
+      # make sure iv sets are pruned using pruned_snp_lists defined above (from PLINK's output)
+      iv_sets_thm22[[tr1]][[tr2]] = intersect(iv_sets_thm22[[tr1]][[tr2]],pruned_snp_lists[[tr1]])
+      iv_sets_thm21[[tr1]][[tr2]] = intersect(iv_sets_thm21[[tr1]][[tr2]],pruned_snp_lists[[tr1]])
+    }
+  }
+  return(list(UniqueIV=iv_sets_thm22,ImpIV=iv_sets_thm21))
+}
+
+#' Filter a set of separating sets to obtain the minimal separating sets for each trait pair
+#' 
+#' @param sepsets a set of separating sets from a skeleton analysis. For each trait pair tr1 and tr2 this contains a matrix with two columns: (1) the separating set, comma delimited, and (2) the p-value
+#' @param p1 a number between 0 and 1. The threshold to be used to define conditional independence. That is take separating sets with p > p1.
+#' @details Uses remove_non_minimal_sepsets to filter our non-minimal separating sets
+#' @return The set of minimal separating sets for each trait pair tr1,tr2 that is separated at the threshold p1
+get_minimal_separating_sets <- function(sepsets,p1){
+  # Clean the separating sets
+  for(nn1 in names(sepsets)){
+    for(nn2 in names(sepsets[[nn1]])){
+      m = sepsets[[nn1]][[nn2]]
+      if(is.null(dim(m))|| nrow(m)<2){next}
+      m_pvals = as.numeric(m[,2])
+      to_rem = m_pvals <= p1
+      m = m[!to_rem,]
+      sepsets[[nn1]][[nn2]] = m
+    }
+  }
+  # transform to lists and remove the non minimal separating sets
+  # (this may take some time)
+  p1_sepsets = list()
+  for(nn1 in names(sepsets)){
+    print(nn1)
+    for(nn2 in names(sepsets[[nn1]])){
+      m = unique(sepsets[[nn1]][[nn2]])
+      if(is.null(dim(m))|| nrow(m)<2){next}
+      l = lapply(m[,1], function(x)strsplit(x,split=",")[[1]])
+      l1 = remove_non_minimal_sepsets(l)
+      p1_sepsets[[nn1]][[nn2]] = l1
+    }
+  }
+  return(p1_sepsets)
+}
 
 #' Get all cases of disappearing correlations (based on p1,p2)
 #'
@@ -145,7 +217,7 @@ EdgeSep<-function(GWAS_Ps,G_t,trait_pair_pvals,p1,p2,pruned_snp_lists = NULL,
 #' @param test_func a function. Takes two (paired) p-value vectors and returns a statistic (typically a p-value) testing if there is evidence for "disappearing associations"
 #' @return A matrix with three columns.
 EdgeSepTest<-function(GWAS_Ps,G_t,trait_pair_pvals,text_col_name="test3",
-                      test_func = simple_lfdr_test,...){
+                      test_func = grid_ms_test,...){
   edge_sep_tests = c()
   for(tr1 in colnames(GWAS_Ps)){
     for(tr2 in colnames(GWAS_Ps)){
@@ -167,6 +239,21 @@ EdgeSepTest<-function(GWAS_Ps,G_t,trait_pair_pvals,text_col_name="test3",
   edge_sep_tests = as.data.frame(edge_sep_tests)
   edge_sep_tests[[3]] = as.numeric(as.character(edge_sep_tests[[3]]))
   return(edge_sep_tests)
+}
+
+#' Statistical test analysis for the ExSep patterns among skeleton edges
+#'
+#' @details 
+#' @param GWAS_Ps A matrix. Rows are variants and columns are phenotypes. Cells are P-values.
+#' @param G_t A binary matrix. TRUE values represent trait skeleton edges.
+#' @param trait_pair_pvals. A named list. Each element is a list. Element [[tr1]][[tr2]] in the list is the conditional independence results for trait 1 conditioned on trait 2.
+#' @param text_col_name a string. The column name to take for the pairwise p-value (i.e., from each element of trait_pair_pvals)
+#' @param ... additional parameters for the grid_ms_test internal computation
+#' @details This test compares two possible models for mixed bivariate distribution of the z-scores of two traits. It uses the internal grid-based optimization analysis of grid_ms_test in the R/twogroups_em_tests script.
+#' @return A matrix with three columns.
+ExSepTests<-function(GWAS_Ps,G_t,trait_pair_pvals,text_col_name="test3",...){
+  return(EdgeSepTest(GWAS_Ps,G_t,trait_pair_pvals,text_col_name="test3",
+                               test_func = grid_ms_test,...))
 }
 
 #' Remove non-minimal separating sets (naive implementation, for QC).

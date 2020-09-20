@@ -1,15 +1,13 @@
 
-# We assume that summary statistic data were downloaded from the following links
+# We assume that summary statistic data were downloaded from the links provided in the Readme
 # and put into the working dir.
 # The usage of each of these files is given in the code below. 
 #
-#
 # 1.The results of the single GWAS (one per trait) - single_gwas_res.RData
-#       https://drive.google.com/file/d/1XNZSYlDnepnPdLgG5qBrtTHrlo2Yq7IG/view?usp=sharing
 #       This single GWAS result objects contain the data of variants that had p<0.001 in at least one 
 #       of the traits analyzed in the study.
 #       The useful objects in this RData are: 
-#       snp_matrix - GWAS p-values (rows are variants, columns are traits)
+#       snp_P_matrix - GWAS p-values (rows are variants, columns are traits)
 #       sum_stat_matrix - GWAS effect sizes (rows are variants, columns are traits)
 #       sum_stat_se_matrix - GWAS effect size standard error (rows are variants, columns are traits)
 #       cl_unified_list - a list of clumped variant ids per trait (rows are variants, columns are traits)
@@ -64,10 +62,6 @@ pruned_snp_list = intersect(pruned_snp_list,rownames(snp_matrix))
 pruned_snp_list = setdiff(pruned_snp_list,mhc_snps)
 # restrict the analysis to use the filters defined above
 GWAS_Ps = snp_matrix[pruned_snp_list,]
-all_skel_ps = skeleton_pmax[lower.tri(skeleton_pmax)]
-skeleton_pthr = max(all_skel_ps[all_skel_ps<p1],na.rm = T)
-G_t = skeleton_pmax < skeleton_pthr
-diag(G_t) = F;mode(G_t)="numeric"
 
 # Make sure these are installed:
 library(MendelianRandomization)
@@ -76,21 +70,16 @@ library(limma)
 p1 = 1e-07
 p2 = 0.001
 
+p1_seps = get_minimal_separating_sets(sepsets,p1=1e-07)
+G_t = pmax_network < p1
+diag(G_t) = F;mode(G_t)="numeric"
+
 # Run cGAUGE's methods and compare
-cGAUGE_G_VT = extract_skeleton_G_VT(GWAS_Ps,trait_pair_pvals,p1,p2)
-cGAUGE_G_VT = cGAUGE_G_VT[[1]]
-cGAUGE_DepEmerge = DepEmerge(GWAS_Ps,trait_pair_pvals,p1,p2)
+G_vt = extract_skeleton_G_VT(GWAS_Ps,trait_pair_pvals,P1=p1,
+                             P2=p2,test_columns = c("test2","test3"))[[1]]
+ivs = cGAUGE_instrument_filters(G_t,G_vt,p1_seps,GWAS_Ps,p1,code2clumped_list)
+uniqueivs = ivs[[1]]
+impivs = ivs[[2]]
 cGAUGE_EdgeSep = EdgeSep(GWAS_Ps,G_t,trait_pair_pvals,p1,p2)
 
-load( paste(out_path,"three_rule_analysis_",p1,"_",p2,".RData",sep=""))
-all(table(G_it == cGAUGE_G_VT))
-length(cGAUGE_EdgeSep) == length(detected_cis_per_edge)
-all(newly_formed_sigs == cGAUGE_DepEmerge[[2]])
-for(i in 1:length(detected_cis_per_edge)){
-  if(is.element("list",set=sapply(detected_cis_per_edge[[i]],class))){
-    print(all(unlist(cGAUGE_EdgeSep[[i]]) == unlist(detected_cis_per_edge[[i]][-1])))
-  }
-  else{
-    print(all(unlist(cGAUGE_EdgeSep[[i]]) == unlist(detected_cis_per_edge[[i]])))
-  }
-}
+

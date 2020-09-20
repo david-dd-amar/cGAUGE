@@ -143,7 +143,7 @@ pruned_snp_list = setdiff(pruned_snp_list,mhc_snps)
 for(nn in names(pruned_snp_lists)){
   pruned_snp_lists[[nn]] = intersect(pruned_snp_lists[[nn]],pruned_snp_list)
 }
-iv2trait_p = snp_matrix[pruned_snp_list,]
+iv2trait_p = snp_P_matrix[pruned_snp_list,]
 maf_as_weights = mafs$MAF;names(maf_as_weights) = mafs$SNP
 GWAS_Ps = iv2trait_p[pruned_snp_list,]
 
@@ -235,7 +235,7 @@ save(p12G_t,file = paste(out_path,"p12G_t.RData",sep=""))
 # edge_sep_results_statTest2 = EdgeSepTest(NonNA_GWAS_Ps,G_t,trait_pair_pvals,
 #                                          text_col_name="test3",test = grid_ms_test)
 
-# Load the EdgeSep results, create output files and networks
+# Load the ExSep results, create output files and networks
 load(paste(out_path,"p12G_t.RData",sep=""))
 load("/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/ukbb_res/em_edge_sep_jobs/edge_sep_em_res.RData")
 
@@ -327,7 +327,7 @@ system(paste("mkdir",presso_runs_path))
 # Subset of the data - save some time
 P1s = c(1e-6,1e-7,1e-8)
 P2s = c(0.01,0.001)
-# Load the EdgeSep results, create output files and networks
+# Load the ExSep results, create output files and networks
 load(paste(out_path,"p12G_t.RData",sep=""))
 load("/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/ukbb_res/em_edge_sep_jobs/edge_sep_em_res.RData")
 
