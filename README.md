@@ -63,7 +63,7 @@ rs116112655 1.0116227                0.1315650 -0.00641066
 rs115045185 1.0493625               -0.0928334 -0.05761930
 ```
 
-2. The skeleton analysis results [here](https://drive.google.com/file/d/1CGav4eGQLi-G1zCdqyrSXbGL8b_aseGM/view?usp=sharing). This link provides: (1) a square **|T|** X **|T|** matrix with the maximal p-value for each pair (tr<sub>1</sub>, tr<sub>2</sub>). That is, the maximal p-value obtained for the association of the pair (tr<sub>1</sub>, tr<sub>2</sub>) when trying to condition on another trait from **T**. and (2) a list of lists that contain the traits that separated trait tr<sub>1</sub> from trait tr<sub>2</sub> (when the pair are not connected in the skeleton). Here is an example R code for loading this matrix and obtaining a skeleton graph:
+2. The skeleton analysis results [here](https://drive.google.com/file/d/1CGav4eGQLi-G1zCdqyrSXbGL8b_aseGM/view?usp=sharing). This link provides: (1) a square **|T|** X **|T|** matrix with the maximal p-value for each pair (tr<sub>1</sub>, tr<sub>2</sub>). That is, the maximal p-value obtained for the association of the pair (tr<sub>1</sub>, tr<sub>2</sub>) when trying to condition on another trait from **T**. and (2) a list of lists where each entry contains a matrix with the conditional association analysis results. Here is an example R code for loading this matrix and obtaining a skeleton graph:
 ```
 # This skeleton was computed using p=1e-07 as a threshold for the separating sets below.
 > load("Gs_skeleton.RData")
@@ -80,9 +80,13 @@ FALSE  TRUE
  4082   670 
  
 # Another important object for cGAUGE is to keep the traits that separate skeleton non-edges. This is loaded as well here:
-> sepsets$statins$C_reactive_protein
-[1] "sex"                      "Alanine_aminotransferase"
+> sepsets$statins$C_reactive_protein[1:3,1:2]
+                                                            newm                  
+v                            ""                             "0.000285278553186906"
+age                          "age"                          "0.000297802300660709"
+age,Alanine_aminotransferase "age,Alanine_aminotransferase" "0.883563868908451"
 ```
+
 3. Numeric matrices with a row for each genetic variant and a column for each trait. For running both the cGAUGE filters and MR analysis you will need three matrices: (1) P-values, (2) effect sizes, and (3) effect size standard error. These are available for the UK-Biobank data in a single RData file [here](https://drive.google.com/file/d/1XNZSYlDnepnPdLgG5qBrtTHrlo2Yq7IG/view?usp=sharing).
 
 ```
@@ -104,21 +108,145 @@ The resulting figure shows that there are only mild effects on the GWAS p-values
 
 4. (Optional) Additional useful files/data can be the [minor allele frequencies](https://drive.google.com/file/d/1uieq63XKxuCAKGRxaknm1bVWNvUiGLAY/view?usp=sharing) and the [positions of the variants](https://drive.google.com/file/d/1I9WqATOQ2SjEQDNSlvXvTi9wbXyZyTZl/view?usp=sharing).
 
-In summary, these are the required objects for the analyses:
-1. 
-
 ## cGAUGE: Analysis and output
+
+### Real data (UK-Biobank)
 
 Assuming all data objects above are now available in the R session, you can now extract cGAUGE's results and run downstream MR analyses.
 
+Here is the code to load all the downloaded data and processing it to get the input objects:
+```
+conditional_indep_tests = "genetic_CI_tests_results.RData"
+skeleton_file = "Gs_skeleton.RData"
+maf_file = "genotypes.frq"
+bim_file = "genotypes.bim"
+gwas_res_data = "single_gwas_res.RData"
+
+# define the output path
+out_path = "./res/"
+# Load the data
+load(conditional_indep_tests)
+load(gwas_res_data)
+load(skeleton_file)
+# Use the clumped/prune variant lists (per trait)
+pruned_snp_list = cl_unified_list
+# Define the MAF for the downstream analysis
+MAF = 0.05
+# Read the MAF and location info
+mafs = read.table(maf_file,stringsAsFactors = F,header=T)
+bim = read.table(bim_file,stringsAsFactors = F)
+# Filter by MHC
+mhc_snps = bim[bim[,1]==6 & bim[,4]>20000000 & bim[,4]<35000000,2]
+our_snps = mafs$SNP[mafs$MAF >= MAF]
+pruned_snp_list = intersect(pruned_snp_list,our_snps)
+pruned_snp_list = intersect(pruned_snp_list,rownames(snp_matrix))
+pruned_snp_list = setdiff(pruned_snp_list,mhc_snps)
+# restrict the analysis to use the filters defined above
+GWAS_Ps = snp_matrix[pruned_snp_list,]
+# Define p1 and p2
+p1 = 1e-07
+p2 = 0.001
+```
+
+We can now get the minimal separating sets required for ImpIV:
+```
+p1_seps = get_minimal_separating_sets(sepsets,p1=1e-07)
+G_t = pmax_network < p1
+diag(G_t) = F;mode(G_t)="numeric"
+```
 
 
+Second, we use the results above and the CI analyses to filter instruments:
+```
+G_vt_out = extract_skeleton_G_VT(GWAS_Ps,trait_pair_pvals,p1,p2)
+G_vt = G_vt_out[[1]]
+ivs = cGAUGE_instrument_filters(G_t,G_vt,p1_seps,GWAS_Ps,p1,code2clumped_list)
+uniqueivs = ivs$UniqueIV
+impivs = ivs$ImpIV
+```
 
-## Additional comments and contact info
+Third, we can use our instruments for MR:
+```
+```
 
-cGAUGE was developed and tested in R 3.4.0
+Finally, we use the CI and GWAS results for the ExSep test:
+```
+```
+
+### Simulated data
+
+The main script for simulating data and obtaining the results for different methods including MR-Egger, IVW, and MR-PRESSO are available using the script [R/full_causal_graph_simulations.R](R/full_causal_graph_simulations.R):
+
+```
+$ Rscript R/full_causal_graph_simulations.R --help
+Usage: R/full_causal_graph_simulations.R [options]
+
+
+Options:
+	--N=N
+		Sample size for simulated data
+
+	--p=P
+		Number of phenotypes
+
+	--deg=DEG
+		Expected in/out degree in the causal graph, greater values mean more cycles
+
+	--minBeta=MINBETA
+		Min absolue value for causal effects (beta coefficients)
+
+	--maxBeta=MAXBETA
+		Max absolue value for causal effects (beta coefficients)
+
+	--minIVs=MINIVS
+		Min number of instruments per trait
+
+	--maxIVs=MAXIVS
+		Max number of instruments per trait
+
+	--minPleio=MINPLEIO
+		When applying pleiotropy, this is the min number of IV-trait links to add (at random)
+
+	--maxPleio=MAXPLEIO
+		When applying pleiotropy, this is the max number of IV-trait links to add (at random)
+
+	--probPleio=PROBPLEIO
+		Probability that a variant is pleiotropic
+
+	--minMAF=MINMAF
+		Minimal MAF - these are sampled with U(minMAF,maxMAF)
+
+	--maxMAF=MAXMAF
+		Maximal MAF - these are sampled with U(minMAF,maxMAF)
+
+	--p1=P1
+		P-value threshold for dependence - i.e., if p<p1
+
+	--p2=P2
+		P-value threshold for independence - i.e., if p>p2
+
+	--out=OUT
+		Output RData file with the simulated data and the analysis results
+
+	--edgeSepRun=EDGESEPRUN
+		0: run edgeSep with the other methods; 1: run edge sep only, ignore p2
+
+	--cgaugeMode=CGAUGEMODE
+		0: ImpIV - remove provably improper instruments (but may be imperfect); 1: UniqueIV - take the potentially small set of provably true instruments
+
+	-h, --help
+		Show this help message and exit
+```
+
+Note that this script assumes that the following packages are installed locally: 
+
+### Additional comments
+
+cGAUGE was developed and tested in R 3.4.0 and R 3.5.1
 
 The scripts require the following packages: MendelianRandomization (v 0.4.1 or later), limma (v 3.38.0 or later), and MRPRESSO (v 1.0).
+
+## Contact info
 
 For suggestions please contact us at davidama AT stanford dot edu
 
