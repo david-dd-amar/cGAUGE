@@ -214,7 +214,7 @@ for(n1 in names(trait_pair_pvals)){
   gc()
 }
 
-# Run the test for every edge in G_t, this is slow
+# Run the test for every edge in G_t (this is slow)
 exsep_results1 = ExSepTests(NonNA_GWAS_Ps,G_t,trait_pair_pvals,text_col_name="test3")
 # You can also run the test on a subset of the traits by taking specific columns from the 
 # p-value matrix:
@@ -223,9 +223,13 @@ exsep_results2 = ExSepTests(NonNA_GWAS_Ps[,1:3],G_t,trait_pair_pvals,text_col_na
 tmp_G_t = G_t
 tmp_G_t[,] = T
 exsep_results3 = ExSepTests(NonNA_GWAS_Ps[,1:3],tmp_G_t,trait_pair_pvals,text_col_name="test3")
+
+> exsep_results2[1,]
+   trait1                   trait2 pval:trait1->trait2
+1 statins Alanine_aminotransferase                   1
 ```
 
-### Simulated data
+### Running simulations
 
 The main script for simulating data and obtaining the results for different methods including MR-Egger, IVW, and MR-PRESSO are available using the script [R/full_causal_graph_simulations.R](R/full_causal_graph_simulations.R):
 
