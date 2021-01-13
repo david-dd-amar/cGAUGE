@@ -28,6 +28,8 @@ plink2 --bfile bed --logistic hide-covar firth-fallback \
 ```
 For linear regression we use `--linear hide-covar`. When running CI tests of analysis *3* above, make sure to add the name of tr<sub>2</sub> as a covarite. That is, use: `--covar-name sex,age,Array,PC1,PC2,PC3,PC4,PC5,tr_2_name`
 
+For more information and source code on the analysis of the UKB biomarker data see this repository: https://github.com/rivas-lab/biomarkers
+
 For analysis of without plink (e.g., for smaller datasets) we provide a few useful functions in [R/auxil_functions.R](R/auxil_functions.R) including: `run_lm(x,y,z,df)` which computes the effect size, standard error, and p-value for x~y|z - i.e., the linear effect of y on x when conditioned on z when all variables are available in the data frame df (rows are individuals). A more complex wrapper is called `run_ci_test_one_is_numeric(x,y,z,df)` that assumes that either x or y are numeric (or both) and internally decides how to use correlation analysis or linear regression to compute the p-value for x,y|z. Finally, `run_ci_logistic_test(x,y,z,df)` can be used to get the logistic p-value when x is a binary variable. For discrete data we also provide `run_discrete_ci_test(x,y,z,df,test)` where test is the test name (e.g., Pearson's Chi-square test), see the documentation for details. This is a wrapper of the [bnlearn](https://cran.r-project.org/web/packages/bnlearn/bnlearn.pdf) `ci.test` function that takes the same input as our functions above and returns a p-value. The functions that return p-values can be used in the next section as well (i.e., in addition for testing genetic instruments).
 
 #### Skeletons
