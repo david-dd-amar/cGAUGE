@@ -1,5 +1,9 @@
 # cGAUGE: Causal Graphical Analysis Using GEnetics
 
+<p align="center">
+<img src="/figures/cgauge_pipeline.png" width="400" height="350">
+</p>
+
 cGAUGE is a set of tools that utilize conditional independence (CI) tests for improving causal inference among traits using genetic variables. 
 
 There are three types of analyses that can be performed:
