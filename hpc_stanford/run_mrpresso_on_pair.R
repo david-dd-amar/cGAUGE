@@ -11,7 +11,7 @@ for (lib_name in required_libs){
 
 option_list <- list( 
   make_option(c("--gwas_rdata_file"), action="store", 
-              default="/oak/stanford/groups/mrivas/users/davidama/april2019_causal_analysis_flow_input.RData",type="character",
+              default="~/cgauge_resub/april2019_causal_analysis_flow_input.RData",type="character",
               help="RData file with two matrices: sum_stat_matrix and sum_stat_se_matrix"),
   make_option(c( "--ivs_rdata"), action="store", default="",type="character",
               help="RData file with a vector called ivs that contain the instrument ids that should also fit the rownames of the matrices from the first input"),
