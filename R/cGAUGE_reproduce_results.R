@@ -25,7 +25,7 @@
 #   the R session. This requires a fair amount of memory and should preferably used in a cluster.
 #     https://drive.google.com/file/d/10nJEydJ_FpcRYzzZYq1xEWk8qtSlQl1X/view?usp=sharing  
 
-setwd("~/Desktop/causal_inference_projects/ms2/data")
+setwd("~/Desktop/causal_inference_projects/data")
 
 rivaslab_pheno_codes_file = "icdinfo.txt"
 rivaslab_codes = read.delim(rivaslab_pheno_codes_file,stringsAsFactors = F,header=F)
