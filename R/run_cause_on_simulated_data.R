@@ -51,8 +51,7 @@ run_cause_on_tr1_ivs <- function(tr1,phenos,G_it,GWAS_effects,GWAS_ses,B_distanc
   return(cause_res)
 }
 
-#setwd("~/Desktop/causal_inference_projects/ms3/simulations_default/simulations_default/")
-setwd("/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/simulations_default/")
+setwd("~/cgauge_resub/simulations_default/")
 degs = c(2,1,1.5)
 pleios = c(0.4,0.3,0)
 p1s = c(0.001)
@@ -169,7 +168,7 @@ get_other_methods_perf<-function(res,methodreg = "^c",pleio=0.3,p2=0.01,p1=0.001
   return(summ_stats)
 }
 
-setwd("/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/simulations_default/")
+setwd("~/cgauge_resub/simulations_default/")
 result_rdata_files = list.files(".")
 result_rdata_files = result_rdata_files[grepl(".RData",result_rdata_files,ignore.case = T)]
 
