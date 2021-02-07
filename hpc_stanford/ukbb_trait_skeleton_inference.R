@@ -8,9 +8,9 @@
 source("~/repos/cGAUGE/R/auxil_functions.R")
 
 # Define the input
-input_data = "/oak/stanford/groups/mrivas/users/davidama/april2019_traits_data.RData"
-out_path = "/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/traits_skeleton/"
-out_object_to_store_results = "/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/Gs_skeleton.RData"
+input_data = "~/cgauge_resub/april2019_traits_data.RData"
+out_path = "~/cgauge_resub/traits_skeleton/"
+out_object_to_store_results = "~/cgauge_resub/Gs_skeleton.RData"
 
 system(paste("mkdir",out_path))
 FUNC = run_ci_test_logistic_linear_discrete
@@ -303,7 +303,7 @@ save(pmax_network,marginal_pvalues,
 # # compare to an older version of the pmax matrix
 # all(colnames(P1)==colnames(P2))
 # P1 = pmax_network
-# load("/oak/stanford/groups/mrivas/users/davidama/april2019_Gs_skeleton.RData")
+# load("~/cgauge_resub/april2019_Gs_skeleton.RData")
 # P2 = pmax_network
 # diffs = abs(P1-P2)
 # quantile(c(diffs),na.rm = T) # there may be differences as P2 is more precise
