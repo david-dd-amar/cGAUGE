@@ -38,12 +38,12 @@ exec_cmd_on_sherlock<-function(cmd,jobname,out_path){
 MAX_JOBS = 400
 ##############################################################
 # Input data - files
-genetic_ci_tests_plink_path = "/oak/stanford/groups/mrivas/users/davidama/april2019_traits_causal_analysis_flow_results/genetic_CI_tests_results.RData"
-skeleton_file = "/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/Gs_skeleton.RData"
-geno_data_path = "/oak/stanford/groups/mrivas/users/davidama/april2019_traits_genotypes/"
-gwas_res_data = "/oak/stanford/groups/mrivas/users/davidama/april2019_causal_analysis_flow_input.RData"
-gwas_res_path = "/oak/stanford/groups/mrivas/users/davidama/gwas_res/"
-out_path = "/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/ukbb_res/em_edge_sep_jobs/"
+genetic_ci_tests_plink_path = "~/cgauge_resub/genetic_CI_tests_results.RData"
+skeleton_file = "~/cgauge_resub/Gs_skeleton.RData"
+geno_data_path = "~/cgauge_resub/april2019_traits_genotypes/"
+gwas_res_data = "~/cgauge_resub/april2019_causal_analysis_flow_input.RData"
+gwas_res_path = "~/cgauge_resub/gwas_res/"
+out_path = "~/cgauge_resub/ukbb_res/em_edge_sep_jobs/"
 system(paste("mkdir",out_path))
 # Input data- load into session
 load(genetic_ci_tests_plink_path)
@@ -141,7 +141,7 @@ quantile(p.adjust(edge_sep_em_res[[3]]),na.rm=T)
 ##############################################################
 # A few local tests
 setwd("~/Desktop/causal_inference_projects/ms3/edge_sep_em/")
-setwd("/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/ukbb_res/em_edge_sep_jobs/")
+setwd("~/cgauge_resub/ukbb_res/em_edge_sep_jobs/")
 
 load("./edge_sep_em_res.RData")
 
