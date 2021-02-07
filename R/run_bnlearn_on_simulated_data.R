@@ -94,7 +94,7 @@ library(parallel)
 
 # Specify the directory with the simulation results, saved as 
 # RData files using the full_causal_graph_simulations.R script
-setwd("/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/simulations_default/")
+setwd("~/cgauge_resub/simulations_default/")
 degs = c(1,1.5)
 pleios = c(0,0.3)
 ks = c(10,20)
@@ -131,7 +131,7 @@ for(deg in degs){
 # load("~/Desktop/causal_inference_projects/ms3/simulations_default/bnlearn_param2res.RData")
 # sapply(param2res,function(x)apply(x,2,median))
 
-setwd("/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/simulations_default/")
+setwd("~/cgauge_resub/simulations_default/")
 load("bnlearn_boot_breaks5.RData")
 load("bnlearn_boot_cg.RData")
 load("bnlearn_boot_cg_B100.RData")
