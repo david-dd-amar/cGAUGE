@@ -45,8 +45,7 @@ exec_cmd_on_sherlock<-function(cmd,jobname,out_path){
 ###################################################################################
 # Set the WD and number of repeats
 reps = 50
-# WD = "/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/simulations_uniqueiv_minIV3/"
-WD = "/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/simulations_default/"
+WD = "~/cgauge_resub/simulations_default/"
 try(system(paste("mkdir",WD)))
 MAX_JOBS = 300
 # Set the simulation parameters
@@ -274,7 +273,7 @@ save(
 ###################################################################################
 ###################################################################################
 # Analysis of the edge sep tests
-WD = "/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/simulations_ms_test_minMu1_3/"
+WD = "~/cgauge_resub/simulations_ms_test_minMu1_3/"
 try(system(paste("mkdir",WD)))
 MAX_JOBS = 400
 # Set the simulation parameters
@@ -439,10 +438,10 @@ save(
 # Add the pi1 estimates for pairs
 ##############################################################
 ##############################################################
-# WD = "/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/simulations_uniqueivs/"
-# WD = "/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/simulations_default/"
-# WD = "/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/simulations_uniqueiv2/"
-WD = "/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/simulations_uniqueiv_minIV3/"
+# WD = "~/cgauge_resub/simulations_uniqueivs/"
+# WD = "~/cgauge_resub/simulations_default/"
+# WD = "~/cgauge_resub/simulations_uniqueiv2/"
+WD = "~/cgauge_resub/simulations_uniqueiv_minIV3/"
 setwd(WD)
 # Go over all RData files in WD and add their pi1_estimates
 wd_folders = list.files(WD,full.names = T)
@@ -604,7 +603,7 @@ save(
 ##############################################################
 ##############################################################
 
-setwd("/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/")
+setwd("~/cgauge_resub/")
 try({library("xlsx")})
 try({library("xlsx",lib.loc = "~/R/packages3.5")})
 
