@@ -31,7 +31,7 @@ print("Completed loading libraries and code")
 #' This is a table with phenotype code, description, and sample size
 #' We also use this table to create a mapping from phenotype code to its name
 #' (the object name is called icd2name but is not limited to icds only)
-rivaslab_pheno_codes_file = "/oak/stanford/groups/mrivas/users/magu/repos/rivas-lab/wiki/ukbb/icdinfo/icdinfo.txt"
+rivaslab_pheno_codes_file = "~/wiki/ukbb/icdinfo/icdinfo.txt"
 rivaslab_codes = read.delim(rivaslab_pheno_codes_file,stringsAsFactors = F,header=F)
 rownames(rivaslab_codes) = rivaslab_codes[,1]
 icd2name = rivaslab_codes[,3];names(icd2name) = rownames(rivaslab_codes)
@@ -44,12 +44,12 @@ icd2name = rivaslab_codes[,3];names(icd2name) = rownames(rivaslab_codes)
 #'is a matrix with the conditional independence results (p-values) for trait 1 conditioned on
 #' trait 2 (rows are variants).
 #' One of the columns in this matrix has the p-values, and these are used within cGAUGE's filters
-genetic_ci_tests_plink_path = "/oak/stanford/groups/mrivas/users/davidama/april2019_traits_causal_analysis_flow_results/genetic_CI_tests_results.RData"
+genetic_ci_tests_plink_path = "~/cgauge_resub/genetic_CI_tests_results.RData"
 #' This file contains three objects:
 #' marginal association p-values
 #' maximal p-values for each pair (overl all tests)
 #' a matrix with all potential separating sets (p>1e-10) for each pair
-skeleton_file = "/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/Gs_skeleton.RData"
+skeleton_file = "~/cgauge_resub/Gs_skeleton.RData"
 #' This is a firectory with the following files:
 #'    all_genotypes.frq
 #'    all_genotypes.bim
@@ -57,12 +57,12 @@ skeleton_file = "/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/Gs_skel
 #'    the first two files contain the MAFs, SNP ids, and locations and are used to remove low maf SNPs and MHC snps
 #'    the last file containes the list of independent snps of the all_genotypes bfile and it is used only for
 #'    the MS test analysis (see hpc_stanford/run_all_edge_sep_pair_tests.R)
-geno_data_path = "/oak/stanford/groups/mrivas/users/davidama/april2019_traits_genotypes/"
+geno_data_path = "~/cguage_resub/april2019_traits_genotypes/"
 #' This RData file contains the standard (marginal) GWAS results,
 #' adjusted for sex, age, and PCs
-gwas_res_data = "/oak/stanford/groups/mrivas/users/davidama/april2019_causal_analysis_flow_input.RData"
+gwas_res_data = "~/cguage_resub/april2019_causal_analysis_flow_input.RData"
 #' Set a path for the output files
-out_path = "/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/ukbb_res/"
+out_path = "~/cgauge_resub/ukbb_res/"
 
 ###################################################################################
 ###################################################################################
@@ -237,7 +237,7 @@ save(p12G_t,file = paste(out_path,"p12G_t.RData",sep=""))
 
 # Load the ExSep results, create output files and networks
 load(paste(out_path,"p12G_t.RData",sep=""))
-load("/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/ukbb_res/em_edge_sep_jobs/edge_sep_em_res.RData")
+load("~/cgauge_resub/ukbb_res/em_edge_sep_jobs/edge_sep_em_res.RData")
 
 # For MR: check different combinations of the input parameters p1 and p2
 for(p1 in P1s){
@@ -329,7 +329,7 @@ P1s = c(1e-6,1e-7,1e-8)
 P2s = c(0.01,0.001)
 # Load the ExSep results, create output files and networks
 load(paste(out_path,"p12G_t.RData",sep=""))
-load("/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/ukbb_res/em_edge_sep_jobs/edge_sep_em_res.RData")
+load("~/cgauge_resub/ukbb_res/em_edge_sep_jobs/edge_sep_em_res.RData")
 
 #####
 # Helper functions for running in Stanford's HPC
@@ -513,12 +513,12 @@ for(p1 in P1s){
 supp_path = paste(out_path,"../supp_tables/",sep="")
 load(paste(out_path,"all_pheno_name_metadata.RData",sep=""))
 load(paste(out_path,"p12G_t.RData",sep=""))
-load("/oak/stanford/groups/mrivas/users/davidama/cgauge_resub/ukbb_res/em_edge_sep_jobs/edge_sep_em_res.RData")
+load("~/cgauge_resub/ukbb_res/em_edge_sep_jobs/edge_sep_em_res.RData")
 load(gwas_res_data)
 
 # these are the individual-level phenotypes, used here just for extracting the 
 # exposure standard deviation (we report est and est*sd)
-load("/oak/stanford/groups/mrivas/users/davidama/april2019_traits.RData")
+load("~/cgauge_resub/april2019_traits.RData")
 pheno_sds =  sapply(code2phe_data,sd,na.rm=T)
 names(pheno_sds) = pheno_names[names(pheno_sds)]
 
@@ -797,9 +797,9 @@ for(p1 in c(1e-07)){
 
 # previously computed (but we can recompute using the code above)
 mrpresso_out = 
-  "/oak/stanford/groups/mrivas/users/davidama/april2019_traits_causal_analysis_flow_results/ccd_res/mrpresso.RData"
+  "~/cgauge_resub/april2019_traits_causal_analysis_flow_results/ccd_res/mrpresso.RData"
 other_mrs = 
-  "/oak/stanford/groups/mrivas/users/davidama/april2019_traits_causal_analysis_flow_results/ccd_res/standard_mr_res.RData"
+  "~/cgauge_resub/april2019_traits_causal_analysis_flow_results/ccd_res/standard_mr_res.RData"
 
 load(paste(out_path,"all_pheno_name_metadata.RData",sep=""))
 mrpresso_wo_filters = get(load(mrpresso_out))
@@ -895,7 +895,7 @@ for(P1 in P1s){
 ################################################################
 
 # Compare to an older version
-old_out = "/oak/stanford/groups/mrivas/users/davidama/april2019_traits_causal_analysis_flow_results/ccd_res/"
+old_out = "~/cgauge_resub/april2019_traits_causal_analysis_flow_results/ccd_res/"
 p1 = 1e-07
 p2 = 0.001
 load(paste(old_out,"three_rule_analysis_",p1,"_",p2,".RData",sep=""))
