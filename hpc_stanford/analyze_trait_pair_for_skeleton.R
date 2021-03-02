@@ -1,5 +1,12 @@
 # Get all associations between tr1 and tr2 conditioned on
 # sets S of size depth (>0)
+# Arguments:
+# 1. An R data file - must contain a data frame called "alldata"
+#     here every row is a sample and traits/phenotypes are columns
+# 2-3. The names of the traits to test (in the column of alldata)
+# 4. Depth: the maximal size of the sets that we condition upon
+# 5. P-value threshold
+# 6. The name of the output file
 
 print("trait pair analysis, usage:
       <RData file with objects><tr1><tr2><depth: integer > 0>
