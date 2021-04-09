@@ -113,7 +113,7 @@ rs116112655 1.0116227                0.1315650 -0.00641066
 rs115045185 1.0493625               -0.0928334 -0.05761930
 ```
 
-4. (Optional) Additional useful files/data can be the [minor allele frequencies](https://drive.google.com/file/d/1uieq63XKxuCAKGRxaknm1bVWNvUiGLAY/view?usp=sharing) and the [positions of the variants](https://drive.google.com/file/d/1I9WqATOQ2SjEQDNSlvXvTi9wbXyZyTZl/view?usp=sharing).
+4. (Optional) Additional useful files/data can be the [minor allele frequencies (.frq file)](https://drive.google.com/file/d/1uieq63XKxuCAKGRxaknm1bVWNvUiGLAY/view?usp=sharing) and the [positions of the variants (.bim file)](https://drive.google.com/file/d/1I9WqATOQ2SjEQDNSlvXvTi9wbXyZyTZl/view?usp=sharing).
 
 ## cGAUGE: Analysis and output
 
